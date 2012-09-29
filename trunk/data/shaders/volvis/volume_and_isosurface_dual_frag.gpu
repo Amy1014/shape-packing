@@ -1,0 +1,233 @@
+//GLSL
+
+#include "variables.gpu"
+#include "ray_generation.gpu"
+#include "cubic_interpolation.gpu"
+
+vec4 ray_marching(Ray r) {
+	bool found = false ;
+	vec4 color_accum = vec4(0.0,0.0,0.0,0.0), color_table_sample ;
+	vec2 color_table_access = vec2(0.0,0.0) ;
+	vec4 iso_color, final_color = vec4(0.0,0.0,0.0,1.0) ;
+	vec4 ambient_color, diffuse_color = vec4(0.0,0.0,0.0,1.0), specular_color = vec4(0.0,0.0,0.0,1.0) ;
+	vec3 Nv, Lv, Rv ;
+	vec3 near_sampling_pos, far_sampling_pos ;
+	vec4 displ ;
+
+	RaySeg seg ;
+	vec3 delta = r.direction * step_size ;
+	seg.x_near = r.origin ;
+	seg.x_far = r.origin + delta ;
+	
+	#if deformation
+		#if deffield_cubic_filter
+			displ = interpolate_tricubic(deformation_field, deffield_size, seg.x_near) ;
+		#else deffield_cubic_filter
+			displ = texture3D(deformation_field, seg.x_near) ;
+		#endif deffield_cubic_filter
+		near_sampling_pos = seg.x_near + (deform_amount * -1.0 * displ.w * ((displ.xyz * 2.0) - vec3(1.0,1.0,1.0))) ;
+		#if deffield_cubic_filter
+			displ = interpolate_tricubic(deformation_field, deffield_size, seg.x_far) ;
+		#else deffield_cubic_filter
+			displ = texture3D(deformation_field, seg.x_far) ;
+		#endif deffield_cubic_filter
+		far_sampling_pos = seg.x_far + (deform_amount * -1.0 * displ.w * ((displ.xyz * 2.0) - vec3(1.0,1.0,1.0))) ;
+	#else deformation
+		near_sampling_pos = seg.x_near ;
+		far_sampling_pos = seg.x_far ;
+	#endif deformation
+
+	#if data_cubic_filter
+		seg.near_sample = interpolate_tricubic(tex_3d, data_size, near_sampling_pos) ;
+		seg.far_sample = interpolate_tricubic(tex_3d, data_size, far_sampling_pos) ;
+	#else data_cubic_filter
+		seg.near_sample = texture3D(tex_3d, near_sampling_pos) ;
+		seg.far_sample = texture3D(tex_3d, far_sampling_pos) ;
+	#endif data_cubic_filter
+	
+	color_table_access = vec2(seg.near_sample.r, seg.far_sample.r) ;
+	color_table_sample = texture2D(tex_color, color_table_access) ;
+	
+	color_accum += (1.0 - color_accum.a) * color_table_sample ;
+
+	for(int i = 0; i < 1000; ++i) {
+		float dif1 = seg.near_sample.r - isovalue1 ;
+		float dif2 = seg.far_sample.r - isovalue1 ;
+		float dif3 = seg.near_sample.r - isovalue2 ;
+		float dif4 = seg.far_sample.r - isovalue2 ;
+		float isovalue ;
+
+		if( ( dif1 > 0.0 && dif2 < 0.0 ) || ( dif1 < 0.0 && dif2 > 0.0 ) ) {
+			found = true ;
+			isovalue = isovalue1 ;
+			iso_color = isosurface_color ;
+		}
+		if( ( dif3 > 0.0 && dif4 < 0.0 ) || ( dif3 < 0.0 && dif4 > 0.0 ) ) {
+			found = true ;
+			isovalue = isovalue2 ;
+			iso_color = isosurface_color2 ;
+		}
+
+		if( found ) {
+			for(int i = 0; i < 4; ++i) {
+				vec3 seg_vec = seg.x_far - seg.x_near ;
+				float ratio = abs(isovalue - seg.near_sample.r) / abs(seg.far_sample.r - seg.near_sample.r) ;
+				vec3 x_new = seg.x_near + ( seg_vec * ratio ) ;
+				vec3 new_sampling_pos ;
+				vec4 new_sample ;
+				#if deformation
+					#if deffield_cubic_filter
+						displ = interpolate_tricubic(deformation_field, deffield_size, x_new) ;
+					#else deffield_cubic_filter
+						displ = texture3D(deformation_field, x_new) ;
+					#endif deffield_cubic_filter
+					new_sampling_pos = x_new + (deform_amount * -1.0 * displ.w * ((displ.xyz * 2.0) - vec3(1.0,1.0,1.0))) ;
+				#else deformation
+					new_sampling_pos = x_new ;
+				#endif deformation
+				#if data_cubic_filter
+					new_sample = interpolate_tricubic(tex_3d, data_size, new_sampling_pos);
+				#else data_cubic_filter
+					new_sample = texture3D(tex_3d, new_sampling_pos);
+				#endif data_cubic_filter
+				float dif1 = new_sample.r - isovalue ;
+				float dif2 = seg.near_sample.r - isovalue ;
+				if( ( dif1 > 0.0 && dif2 > 0.0 ) || ( dif1 < 0.0 && dif2 < 0.0 ) ) {
+					seg.x_near = x_new ;
+					seg.near_sample = new_sample ;
+				}
+				else {
+					seg.x_far = x_new ;
+					seg.far_sample = new_sample ;
+				}
+			}
+			float dif_near = abs(seg.near_sample.r - isovalue) ;
+			float dif_far = abs(seg.far_sample.r - isovalue) ;
+
+			vec4 iso_sample = dif_near < dif_far ? seg.near_sample : seg.far_sample ;
+			vec3 iso_pos = dif_near < dif_far ? seg.x_near : seg.x_far ;
+
+			#if on_the_fly_gradient
+				vec3 sample1, sample2 ;
+				#if deformation
+					vec4 displ_xm, displ_xp, displ_ym, displ_yp, displ_zm, displ_zp ;
+					#if deffield_cubic_filter
+						displ_xm = interpolate_tricubic(deformation_field, deffield_size, iso_pos-vec3(vox_sz,0.0,0.0)) ;
+						displ_xp = interpolate_tricubic(deformation_field, deffield_size, iso_pos+vec3(vox_sz,0.0,0.0)) ;
+						displ_ym = interpolate_tricubic(deformation_field, deffield_size, iso_pos-vec3(0.0,vox_sz,0.0)) ;
+						displ_yp = interpolate_tricubic(deformation_field, deffield_size, iso_pos+vec3(0.0,vox_sz,0.0)) ;
+						displ_zm = interpolate_tricubic(deformation_field, deffield_size, iso_pos-vec3(0.0,0.0,vox_sz)) ;
+						displ_zp = interpolate_tricubic(deformation_field, deffield_size, iso_pos+vec3(0.0,0.0,vox_sz)) ;
+					#else deffield_cubic_filter
+						displ_xm = texture3D(deformation_field, iso_pos-vec3(vox_sz,0.0,0.0)) ;
+						displ_xp = texture3D(deformation_field, iso_pos+vec3(vox_sz,0.0,0.0)) ;
+						displ_ym = texture3D(deformation_field, iso_pos-vec3(0.0,vox_sz,0.0)) ;
+						displ_yp = texture3D(deformation_field, iso_pos+vec3(0.0,vox_sz,0.0)) ;
+						displ_zm = texture3D(deformation_field, iso_pos-vec3(0.0,0.0,vox_sz)) ;
+						displ_zp = texture3D(deformation_field, iso_pos+vec3(0.0,0.0,vox_sz)) ;
+					#endif deffield_cubic_filter
+						displ_xm.xyz = deform_amount * -1.0 * displ_xm.w * ((displ_xm.xyz * 2.0) - vec3(1.0,1.0,1.0)) ;
+						displ_xp.xyz = deform_amount * -1.0 * displ_xp.w * ((displ_xp.xyz * 2.0) - vec3(1.0,1.0,1.0)) ;
+						displ_ym.xyz = deform_amount * -1.0 * displ_ym.w * ((displ_ym.xyz * 2.0) - vec3(1.0,1.0,1.0)) ;
+						displ_yp.xyz = deform_amount * -1.0 * displ_yp.w * ((displ_yp.xyz * 2.0) - vec3(1.0,1.0,1.0)) ;
+						displ_zm.xyz = deform_amount * -1.0 * displ_zm.w * ((displ_zm.xyz * 2.0) - vec3(1.0,1.0,1.0)) ;
+						displ_zp.xyz = deform_amount * -1.0 * displ_zp.w * ((displ_zp.xyz * 2.0) - vec3(1.0,1.0,1.0)) ;
+					#if data_cubic_filter
+						sample1.x = interpolate_tricubic(tex_3d, data_size, (iso_pos-vec3(vox_sz,0.0,0.0)+displ_xm.xyz)).r ;
+						sample2.x = interpolate_tricubic(tex_3d, data_size, (iso_pos+vec3(vox_sz,0.0,0.0)+displ_xp.xyz)).r ;
+						sample1.y = interpolate_tricubic(tex_3d, data_size, (iso_pos-vec3(0.0,vox_sz,0.0)+displ_ym.xyz)).r ;
+						sample2.y = interpolate_tricubic(tex_3d, data_size, (iso_pos+vec3(0.0,vox_sz,0.0)+displ_yp.xyz)).r ;
+						sample1.z = interpolate_tricubic(tex_3d, data_size, (iso_pos-vec3(0.0,0.0,vox_sz)+displ_zm.xyz)).r ;
+						sample2.z = interpolate_tricubic(tex_3d, data_size, (iso_pos+vec3(0.0,0.0,vox_sz)+displ_zp.xyz)).r ;
+					#else data_cubic_filter
+						sample1.x = texture3D(tex_3d, (iso_pos-vec3(vox_sz,0.0,0.0)+displ_xm.xyz)).r ;
+						sample2.x = texture3D(tex_3d, (iso_pos+vec3(vox_sz,0.0,0.0)+displ_xp.xyz)).r ;
+						sample1.y = texture3D(tex_3d, (iso_pos-vec3(0.0,vox_sz,0.0)+displ_ym.xyz)).r ;
+						sample2.y = texture3D(tex_3d, (iso_pos+vec3(0.0,vox_sz,0.0)+displ_yp.xyz)).r ;
+						sample1.z = texture3D(tex_3d, (iso_pos-vec3(0.0,0.0,vox_sz)+displ_zm.xyz)).r ;
+						sample2.z = texture3D(tex_3d, (iso_pos+vec3(0.0,0.0,vox_sz)+displ_zp.xyz)).r ;
+					#endif data_cubic_filter
+				#else deformation
+					#if data_cubic_filter
+						sample1.x = interpolate_tricubic(tex_3d, data_size, iso_pos-vec3(vox_sz,0.0,0.0)).r ;
+						sample2.x = interpolate_tricubic(tex_3d, data_size, iso_pos+vec3(vox_sz,0.0,0.0)).r ;
+						sample1.y = interpolate_tricubic(tex_3d, data_size, iso_pos-vec3(0.0,vox_sz,0.0)).r ;
+						sample2.y = interpolate_tricubic(tex_3d, data_size, iso_pos+vec3(0.0,vox_sz,0.0)).r ;
+						sample1.z = interpolate_tricubic(tex_3d, data_size, iso_pos-vec3(0.0,0.0,vox_sz)).r ;
+						sample2.z = interpolate_tricubic(tex_3d, data_size, iso_pos+vec3(0.0,0.0,vox_sz)).r ;
+					#else data_cubic_filter
+						sample1.x = texture3D(tex_3d, iso_pos-vec3(vox_sz,0.0,0.0)).r ;
+						sample2.x = texture3D(tex_3d, iso_pos+vec3(vox_sz,0.0,0.0)).r ;
+						sample1.y = texture3D(tex_3d, iso_pos-vec3(0.0,vox_sz,0.0)).r ;
+						sample2.y = texture3D(tex_3d, iso_pos+vec3(0.0,vox_sz,0.0)).r ;
+						sample1.z = texture3D(tex_3d, iso_pos-vec3(0.0,0.0,vox_sz)).r ;
+						sample2.z = texture3D(tex_3d, iso_pos+vec3(0.0,0.0,vox_sz)).r ;
+					#endif data_cubic_filter
+				#endif deformation
+				Nv = normalize(sample2 - sample1) ;
+			#else on_the_fly_gradient
+				Nv = vec3(iso_sample.gba) ;
+				Nv = normalize((Nv * 2.0) - vec3(1.0,1.0,1.0)) ;
+			#endif on_the_fly_gradient
+
+			#if sphere_mapping
+				Rv = normalize(reflect(-r.direction,Nv)) ;
+				float m = 2.0 * sqrt(Rv.x*Rv.x + Rv.y*Rv.y + (Rv.z+1.0)*(Rv.z+1.0)) ;
+				vec2 spheremap_coord = vec2(-Rv.x / m + 0.5, Rv.y / m + 0.5) ;
+				final_color = ((1.0 - color_accum.a) * texture2D(sphere_map, spheremap_coord)) + color_accum ;
+			#else sphere_mapping
+				ambient_color = 0.15 * iso_color ; // gl_LightSource[0].ambient
+				Lv = normalize(vec3(gl_LightSource[0].position.xyz - iso_pos)) ;
+				diffuse_color = gl_LightSource[0].diffuse * iso_color * max(dot(Nv,Lv),0.0) ;
+				Rv = normalize(reflect(-Lv,Nv)) ;
+				float spec_factor = pow(max(dot(Rv,Nv),0.0), 80.0) ;
+				specular_color = gl_LightSource[0].specular * iso_color * spec_factor ;
+				final_color = ((1.0 - color_accum.a) * (ambient_color + diffuse_color + specular_color)) + color_accum ;
+			#endif sphere_mapping
+			
+			found = true ;
+		}
+
+		if( found || color_accum.a > 0.95 ||
+					 seg.x_far.x > 1.0 || seg.x_far.x < 0.0 ||
+					 seg.x_far.y > 1.0 || seg.x_far.y < 0.0 ||
+					 seg.x_far.z > 1.0 || seg.x_far.z < 0.0 )
+			break ;
+		else {
+			seg.x_near = seg.x_far ;
+			seg.near_sample = seg.far_sample ;
+			seg.x_far += delta ;
+			#if deformation
+				#if deffield_cubic_filter
+					displ = interpolate_tricubic(deformation_field, deffield_size, seg.x_far) ;
+				#else deffield_cubic_filter
+					displ = texture3D(deformation_field, seg.x_far) ;
+				#endif deffield_cubic_filter
+				far_sampling_pos = seg.x_far + (deform_amount * -1.0 * displ.w * ((displ.xyz * 2.0) - vec3(1.0,1.0,1.0))) ;
+			#else deformation
+				far_sampling_pos = seg.x_far ;
+			#endif deformation
+			#if data_cubic_filter
+				seg.far_sample = interpolate_tricubic(tex_3d, data_size, far_sampling_pos);
+			#else data_cubic_filter
+				seg.far_sample = texture3D(tex_3d, far_sampling_pos) ;
+			#endif data_cubic_filter
+			
+			color_table_access = vec2(seg.near_sample.r, seg.far_sample.r) ;
+			color_table_sample = texture2D(tex_color, color_table_access) ;
+			
+			color_accum += (1.0 - color_accum.a) * color_table_sample ;
+		}
+	}
+
+	if(!found)
+		final_color = color_accum ;
+
+	return final_color ;
+}
+
+void main()
+{
+	gl_FragColor = ray_marching(primary_ray()) ;
+}
+

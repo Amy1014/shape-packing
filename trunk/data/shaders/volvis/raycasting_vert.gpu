@@ -1,0 +1,16 @@
+//GLSL
+
+uniform vec3 eye_pos ;
+uniform vec3 scale_factors ; // scale factors (x,y,z)
+
+varying vec4 i_near ;
+
+void main()
+{
+	gl_Position = ftransform() ;
+
+	vec4 pp = gl_MultiTexCoord0 ;
+	
+	i_near = pp ;
+}
+
