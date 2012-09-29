@@ -1,0 +1,43 @@
+struct Ray {
+	vec3 origin ;
+	vec3 direction ;
+} ;
+
+struct RaySeg {
+	vec3 x_near ;
+	vec3 x_far ;
+	vec4 near_sample ;
+	vec4 far_sample ;
+} ;
+
+float rand(vec2 v){
+	return fract(sin(dot(v.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
+Ray primary_ray() {
+	vec4 near = vec4(
+		2.0 * (gl_FragCoord.x / context_size.x - 0.5),
+		2.0 * (gl_FragCoord.y / context_size.y - 0.5),
+        0.0,
+        1.0
+    ) ;
+    near = gl_ModelViewProjectionMatrixInverse * near ;
+    vec4 far = near + gl_ModelViewProjectionMatrixInverse[2] ;
+    near.xyz /= near.w ;
+    far.xyz /= far.w ;
+    
+    vec3 dir = far.xyz - near.xyz ;
+	dir.x /= scale_factors.x ;
+	dir.y /= scale_factors.y ;
+	dir.z /= scale_factors.z ;
+	normalize(dir) ;
+	
+	vec3 origin = i_near.xyz / i_near.w ;
+	#if perturb_origin
+	vec3 offset = dir * (rand(gl_FragCoord.xy) * step_size) ;
+	origin += offset ;
+	#endif perturb_origin
+
+    return Ray(origin, dir) ;
+}
+

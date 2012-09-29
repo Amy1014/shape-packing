@@ -1,0 +1,75 @@
+//GLSL
+
+#include "variables.gpu"
+#include "ray_generation.gpu"
+#include "cubic_interpolation.gpu"
+
+vec4 ray_marching(Ray r) {
+
+	vec3 vec = r.origin ;
+	vec3 delta = r.direction * step_size ;
+	vec3 sampling_pos = vec ;
+	vec4 displ ;
+
+	vec4 color_accum = vec4(0.0,0.0,0.0,0.0) ;
+
+	vec4 texture3d_sample ;
+	vec4 texture3d_sample_prev ;
+
+	vec2 color_table_access = vec2(0.0,0.0) ;
+	vec4 color_table_sample ;
+	
+	#if deformation
+		#if deffield_cubic_filter
+			displ = interpolate_tricubic(deformation_field, deffield_size, vec) ;
+		#else deffield_cubic_filter
+			displ = texture3D(deformation_field, vec) ;
+		#endif deffield_cubic_filter
+		sampling_pos += deform_amount * (-1.0 * displ.w * ((displ.xyz * 2.0) - vec3(1.0,1.0,1.0))) ;
+	#endif deformation
+	
+	#if data_cubic_filter
+		texture3d_sample_prev = interpolate_tricubic(tex_3d, data_size, sampling_pos);
+	#else data_cubic_filter
+		texture3d_sample_prev = texture3D(tex_3d, sampling_pos);
+	#endif data_cubic_filter
+	vec += delta ;
+
+	for(int i = 0; i < 1000; ++i) {
+//		if( color_accum.a > 0.95 || !(all(greaterThan(vec,vec3(0.0,0.0,0.0))) && all(lessThan(vec,vec3(1.0,1.0,1.0)))) )
+		if( color_accum.a > 0.95 || vec.x > 1.0 || vec.x < 0.0 || vec.y > 1.0 || vec.y < 0.0 || vec.z > 1.0 || vec.z < 0.0 )
+			break ;
+		
+		sampling_pos = vec ;
+		#if deformation
+			#if deffield_cubic_filter
+				displ = interpolate_tricubic(deformation_field, deffield_size, vec) ;
+			#else deffield_cubic_filter
+				displ = texture3D(deformation_field, vec) ;
+			#endif deffield_cubic_filter
+			sampling_pos += deform_amount * (-1.0 * displ.w * ((displ.xyz * 2.0) - vec3(1.0,1.0,1.0))) ;
+		#endif deformation
+		#if data_cubic_filter
+			texture3d_sample = interpolate_tricubic(tex_3d, data_size, sampling_pos);
+		#else data_cubic_filter
+			texture3d_sample = texture3D(tex_3d, sampling_pos);
+		#endif data_cubic_filter
+
+		color_table_access = vec2(texture3d_sample_prev.r, texture3d_sample.r) ;
+		color_table_sample = texture2D(tex_color, color_table_access) ;
+		
+		color_accum += (1.0 - color_accum.a) * color_table_sample ;
+
+		vec += delta ;
+
+		texture3d_sample_prev = texture3d_sample ;
+	}
+	
+	return color_accum ;
+}
+
+void main()
+{
+	gl_FragColor = ray_marching(primary_ray()) ;
+}
+

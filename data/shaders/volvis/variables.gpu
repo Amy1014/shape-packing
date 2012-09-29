@@ -1,0 +1,33 @@
+varying vec4 i_near ;
+
+uniform sampler3D tex_3d ; // 3d scalar value or scalar + gradient (s,gx,gy,gz)
+uniform sampler2D tex_color ; // colormap or preintegration table
+uniform sampler2D sphere_map ;
+uniform sampler3D deformation_field ;
+
+uniform vec2 context_size ; // ( viewport_width, viewport_height )
+
+uniform vec3 scale_factors ; // scale factors (x,y,z)
+uniform vec3 data_size ;
+uniform float vg_max_dim ;
+
+uniform float step_size_by_voxel ;
+
+uniform float opacity_multiplier ;
+
+uniform float isovalue1 ;
+uniform float isovalue2 ;
+uniform vec3 iso_color ;
+uniform vec3 iso_color2 ;
+
+vec4 isosurface_color = vec4(iso_color.xyz, 1.0) ;
+vec4 isosurface_color2 = vec4(iso_color2.xyz, 1.0) ;
+
+uniform vec3 deffield_size ;
+uniform float deform_amount ;
+
+float step_size = step_size_by_voxel / vg_max_dim ;
+float vox_sz = 1.0 / max(data_size.x,max(data_size.y,data_size.z)) ;
+
+const float M_PI = 3.1415926535 ;
+
