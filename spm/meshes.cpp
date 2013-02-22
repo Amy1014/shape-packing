@@ -48,10 +48,15 @@
 
 namespace Geex {
 
+	double TriMesh::PI = 3.14159265358979323846;
+
     TriMesh::TriMesh() {
         nb_vertices_ = 0 ;
-		samplerate_  = 6 ; 
+		samplerate_  = 12 ; 
 		kdtree_      = nil ;
+		featureAngleCriterion = 140.0;
+		highCurvatureCriterion = 0.2;
+		maxFacetWeight = minFacetWeight = 0.0;
     }
 	TriMesh::~TriMesh() {
 		if(kdtree_) delete kdtree_ ;
@@ -77,7 +82,7 @@ namespace Geex {
         LineInputStream in(input) ;
         std::vector<vec3> vertices ;
 //		vertices_.clear();
-
+		std::map<pair<int, int>, pair<int, int>, PairIntIntCmp> edgeValence;//to compute boundary and feature edges, by Wenchao
         while(!in.eof()) {
             in.get_line() ;
             std::string keyword ;
@@ -125,12 +130,67 @@ namespace Geex {
                         const vec3& p0 = vertices[ id0 ] ;
                         const vec3& p1 = vertices[ id1 ] ;
                         const vec3& p2 = vertices[ id2 ] ;
+						// compute the number of adjacent faces for each edge, by Wenchao
+						using std::make_pair;
+						std::map<pair<int, int>, pair<int, int>, PairIntIntCmp>::iterator findIter0, findIter1;
+						findIter0 = edgeValence.find(make_pair(id0, id1));
+						findIter1 = edgeValence.find(make_pair(id1, id0));
+						if (findIter0 == edgeValence.end() && findIter1 == edgeValence.end())
+						{
+							edgeValence[make_pair(id0, id1)] = make_pair(int(size()), -1);
+							//edgeValence[make_pair(id0, id1)]++;
+						}
+						else if ( findIter0 == edgeValence.end() && findIter1 != edgeValence.end())
+						{
+							//findIter1->second++;
+							findIter1->second.second = int(size());
+						}
+						else //if ( findIter0 != edgeValence.end() && findIter1 == edgeValence.end() )
+						{
+							//findIter0->second++;
+							findIter0->second.second = int(size());
+						}
+						findIter0 = edgeValence.find(make_pair(id0, id2));
+						findIter1 = edgeValence.find(make_pair(id2, id0));
+						if (findIter0 == edgeValence.end() && findIter1 == edgeValence.end())
+						{
+							//edgeValence[make_pair(id0, id2)]++;
+							edgeValence[make_pair(id0, id2)] = make_pair(int(size()), -1);
+						}
+						else if ( findIter0 == edgeValence.end() && findIter1 != edgeValence.end())
+						{
+							//findIter1->second++;
+							findIter1->second.second = int(size());
+						}
+						else //if ( findIter0 != edgeValence.end() && findIter1 == edgeValence.end() )
+						{
+							//findIter0->second++;
+							findIter0->second.second = int(size());
+						}
+						findIter0 = edgeValence.find(make_pair(id1, id2));
+						findIter1 = edgeValence.find(make_pair(id2, id1));
+						if (findIter0 == edgeValence.end() && findIter1 == edgeValence.end())
+						{
+							//edgeValence[make_pair(id1, id2)]++;
+							edgeValence[make_pair(id1, id2)] = make_pair(int(size()), -1);
+						}
+						else if ( findIter0 == edgeValence.end() && findIter1 != edgeValence.end())
+						{
+							//findIter1->second++;
+							findIter1->second.second = int(size());
+						}
+						else //if ( findIter0 != edgeValence.end() && findIter1 == edgeValence.end() )
+						{
+							//findIter0->second++;
+							findIter0->second.second = int(size());
+						}
 
 //						std::cout <<"M:" <<pt0 << " " << pt1 << " " << pt2 << "\nR:" << p0 <<" " <<p1 << " " << p2 << std::endl;
                         bool e0 = true ;
                         bool e1 = (i == cur_facet.size() - 2) ;
                         bool e2 = (i == 1) ;
                         push_back(Facet(p0, p1, p2, e0, e1, e2, id0, id1, id2)) ;
+						back().norm = Geex::normalize(cross(p1-p0, p2-p0));
                         if(i == 1 && planes != nil) {
                             planes->push_back(rbegin()->plane()) ;
                         }
@@ -142,12 +202,89 @@ namespace Geex {
                 } 
             }
         }
-
+		// collect the boundary edges and compute bihedral angles
+		//for ( std::map<std::pair<int, int>, int, PairIntIntCmp>::const_iterator it = edgeValence.begin(); it!=edgeValence.end(); it++)
+		//	if (it->second == 1)
+		//		boundaryEdges.insert(it->first);
+		for (std::map<pair<int, int>, pair<int, int>, PairIntIntCmp>::const_iterator it=edgeValence.begin(); it!=edgeValence.end(); it++)
+		{
+			if (it->second.second < 0)
+				boundaryEdges.insert(it->first);
+			else
+			{
+				int fi0 = it->second.first, fi1 = it->second.second;
+				const Facet& f0 = (*this)[fi0];
+				const Facet& f1 = (*this)[fi1];
+				// common edge between the two triangular facets
+				int vi0 = it->first.first, vi1 = it->first.second;
+				const vec3& v0 = vertices_[vi0].point();
+				const vec3& v1 = vertices_[vi1].point();
+				// the different vertices
+				int pi0, pi1;
+				if ( f0.vertex_index[0] != vi0 && f0.vertex_index[0] != vi1)	pi0 = f0.vertex_index[0];
+				else if ( f0.vertex_index[1] != vi0 && f0.vertex_index[1] != vi1) pi0 = f0.vertex_index[1];
+				else															  pi0 = f0.vertex_index[2];
+				if (f1.vertex_index[0] != vi0 && f1.vertex_index[0] != vi1)		pi1 = f1.vertex_index[0];
+				else if (f1.vertex_index[1] != vi0 && f1.vertex_index[1] != vi1) pi1 = f1.vertex_index[1];
+				else															 pi1 = f1.vertex_index[2];
+				const vec3& p0 = vertices_[pi0].point();
+				const vec3& p1 = vertices_[pi1].point();
+				// this more complicate formula is used to avoid error introduced by subtracting two small vectors
+				vec3 n0 = cross(p0, v1) - (cross(v0, v1) + cross(p0, v0));
+				n0 /= n0.length();
+				vec3 n1 = cross(v1, p1) - (cross(v0, p1) + cross(v1, v0));
+				n1 /= n1.length();
+				//bihedralAngles[make_pair(fi0, fi1)] = -dot(n0, n1);
+				bihedralAngles.push_back(BihedralAngle(fi0, fi1, vi0, vi1, -dot(n0, n1)));
+			}
+		}
+		setFeatureAngle(featureAngleCriterion);
 		set_facet_neighbor() ; // set three neighbors of each face
 
 		std::cout << "nb_vertices: " <<nb_vertices_ << "; nb_faces: " <<size()<< std::endl;
+		std::cout << "number of boundary vertices: "<<boundaryEdges.size()<<std::endl;
     }
 
+	void TriMesh::setFeatureAngle(double ang)
+	{
+		if (ang < 0.0 || ang > 180.0)
+			return;
+		featureFacets.clear();
+		featureEdges.clear();
+		featureAngleCriterion = ang;
+		double cosCriterion = std::cos(featureAngleCriterion*PI/180.0);
+		using std::make_pair;
+		for (unsigned int i = 0; i < bihedralAngles.size(); i++)
+		{
+			if ( bihedralAngles[i].cosAngle >= cosCriterion )
+			{
+				featureFacets.push_back(make_pair(bihedralAngles[i].findex0, bihedralAngles[i].findex1));
+				featureEdges.push_back(make_pair(bihedralAngles[i].vindex0, bihedralAngles[i].vindex1));
+			}
+		}
+	}
+	void TriMesh::flip_normals()
+	{
+		for (unsigned int i = 0; i < size(); i++)
+			operator[](i).norm = -operator[](i).norm;
+	}
+	void TriMesh::setHighCurvaturePercent(double percent /* = 0.2 */)
+	{
+		facetHighCurvature.clear();
+		if (percent <= 0.0 || percent > 1.0 || facetWeight.size() == 0)
+		{
+			highCurvatureCriterion = 0.0;
+			maxFacetWeight = minFacetWeight = 0.0;
+			return;
+		}
+		int n(percent*size());
+		for (int i = size()-1; i > size()-n-1; i--)
+			facetHighCurvature.insert(facetWeight[i].second);
+		highCurvatureCriterion = percent;
+		maxFacetWeight = facetWeight[size()-1].first;
+		minFacetWeight = facetWeight[size()-n].first;
+
+	}
 	void TriMesh::set_facet_neighbor() {
 		for(int i=0; i<(int)size(); ++i) {
 			Geex::Facet& F = (*this)[i] ;
@@ -259,14 +396,45 @@ namespace Geex {
 		std::cout << "loading density for boundary mesh..." << std::endl ;
 
 		double wmax=0, wmin=1e20 ;
-		for(int i=0; i<nv; ++i) {
-		    double w ; 
-		    in >> w ;
-//		    if(wmin > w) wmin = w;
-//		    if(wmax < w) wmax = w ;
-//		    vertices_[i].weight() = w; 
-		    vertices_[i].weight() = pow(w*10, gamma) ;
+		//smooth the curvature of each vertex by averaging its neighbors
+		vector<double> curs(nv);//curvatures of vertices, by Wenchao Hu
+		for (unsigned int i = 0; i < curs.size(); i++)
+			in>>curs[i];
+		vector<double> avgcurs(nv, 0.0);
+		vector<int> nbNeighbors(nv, 0);///number of neighbors
+		for (unsigned int i = 0; i < this->size(); i++)
+		{
+			// compute curvature sum of neighbors
+			const Facet& f = operator[](i);
+			int v0 = f.vertex_index[0], v1 = f.vertex_index[1], v2 = f.vertex_index[2];
+			avgcurs[v0] += (curs[v1]+curs[v2]);
+			nbNeighbors[v0] += 2;
+			avgcurs[v1] += (curs[v0]+curs[v2]);
+			nbNeighbors[v1] += 2;
+			avgcurs[v2] += (curs[v0]+curs[v1]);
+			nbNeighbors[v2] += 2;
 		}
+		// for the boundary, sum once more
+		for (BoundaryEdgeSet::const_iterator it = boundaryEdges.begin(); it != boundaryEdges.end(); it++)
+		{
+			int v0 = it->first, v1 = it->second;
+			avgcurs[v0] += curs[v1];
+			nbNeighbors[v0]++;
+			avgcurs[v1] += curs[v0];
+			nbNeighbors[v1]++;
+		}
+		for (unsigned int i = 0; i < avgcurs.size(); i++)
+			avgcurs[i] /= nbNeighbors[i];
+//		for(int i=0; i<nv; ++i) {
+//		    double w ; 
+//		    in >> w ;
+////		    if(wmin > w) wmin = w;
+////		    if(wmax < w) wmax = w ;
+////		    vertices_[i].weight() = w; 
+//		    vertices_[i].weight() = pow(w*10, gamma) ;
+//		}
+		for (unsigned int i = 0; i< avgcurs.size(); i++)
+			vertices_[i].weight() = pow(avgcurs[i]*10, gamma);
 
 		// compute face's weight by averaging weight of vertices
 		for(unsigned int i=0; i<size(); ++i) {
@@ -278,6 +446,18 @@ namespace Geex {
 
 //			F.weight() = w ;
 		}
+		// compute facet weight and sort
+		facetWeight.resize(size());
+		for (int i = 0; i < size(); i++)
+		{
+			const Facet& f = operator[](i);
+			//double facetMass = tri_mass(f.vertex[0], f.vertex[1], f.vertex[2], 
+			//							f.vertex_weight[0], f.vertex_weight[1], f.vertex_weight[2]);
+			facetWeight[i].first = (f.vertex_weight[0] + f.vertex_weight[1] + f.vertex_weight[2])/3.0;
+			facetWeight[i].second = i;
+		}
+		std::sort(facetWeight.begin(), facetWeight.end(), PairDoubleIntCmp());
+		setHighCurvaturePercent(highCurvatureCriterion);
 		return true ;
 	}
 
@@ -358,8 +538,10 @@ namespace Geex {
 			Geex::vec3 v01, v02;
 			v01 = F.vertex[1] - F.vertex[0];
 			v02 = F.vertex[2] - F.vertex[0];
-			Geex::vec3 n = cross(v1-v0, v2-v0);
-			n = Geex::normalize(n);
+			//Geex::vec3 n = cross(v1-v0, v2-v0);
+			//n = Geex::normalize(n);
+			vec3 n = F.normal();
+			n = n / n.length();
 			Geex::vec3 tempfp;
 			tempfp = cent - dot(cent-F.vertex[0],n)*n;	
 			fp = tempfp;
@@ -409,7 +591,77 @@ namespace Geex {
 			//std::cerr << norm[0] << ' ' << norm[1] << ' ' << norm[2] << std::endl;
 			return fp;
 	}
+	vec3 TriMesh::project_to_mesh(const vec3& pt, vec3& norm, int &nearestFacet)
+	{
+		Geex::vec3 cent = pt;
+		int fid;
+		fid  = kdtree_->queryNearestNeighbor(cent[0],cent[1],cent[2]) / 
+			((samplerate_ + 1)*(samplerate_ + 2)/2);
 
+		double dist = 1e20;
+		Geex::vec3 fp;
+		const Geex::Facet& F = (*this)[fid];
+		Geex::vec3 v0,v1,v2;
+		v0 = F.vertex[0];
+		v1 = F.vertex[1];
+		v2 = F.vertex[2];
+		Geex::vec3 v01, v02;
+		v01 = F.vertex[1] - F.vertex[0];
+		v02 = F.vertex[2] - F.vertex[0];
+		//Geex::vec3 n = cross(v1-v0, v2-v0);
+		//n = Geex::normalize(n);
+		vec3 n = F.normal();
+		n = n / n.length();
+		Geex::vec3 tempfp;
+		tempfp = cent - dot(cent-F.vertex[0],n)*n;	
+		fp = tempfp;
+		double a0 = dot(cross(v0-tempfp, v1-tempfp), n); 
+		double a1 = dot(cross(v1-tempfp, v2-tempfp), n); 
+		double a2 = dot(cross(v2-tempfp, v0-tempfp), n);
+		if(a0<-1e-10 || a1<-1e-10 || a2<-1e-10) 
+		{
+			Geex::vec3 fp0,fp1,fp2;
+			double dist0,dist1,dist2;
+			project_to_linesegment(tempfp,v0,v1,fp0,dist0);
+			project_to_linesegment(tempfp,v1,v2,fp1,dist1);
+			project_to_linesegment(tempfp,v0,v2,fp2,dist2);
+			if( (dist0 < dist) || (dist1 < dist) || (dist2 < dist))
+			{
+				if( (dist0 <= dist1) && (dist0 <= dist2))
+				{
+					dist = dist0;
+					fp = fp0;
+					norm = n;
+				}
+				else if( (dist1 <= dist0) && (dist1 <= dist2))
+				{
+					dist = dist1;
+					fp = fp1;
+					norm = n;
+				}
+				else
+				{
+					dist = dist2;
+					fp = fp2;
+					norm = n;
+				}
+			}
+		}
+		else 
+		{
+			double dist0;
+			dist0 = (tempfp-cent).length2();
+			if(dist0 < dist)
+			{
+				dist = dist0;
+				fp = tempfp;
+				norm = n;
+			}
+		}	
+		//std::cerr << norm[0] << ' ' << norm[1] << ' ' << norm[2] << std::endl;
+		nearestFacet = fid;
+		return fp;
+	}
 
     void TriMesh::convex_clip(TriMesh& to, const Plane<real>& P, bool close) const {
         to.clear() ;

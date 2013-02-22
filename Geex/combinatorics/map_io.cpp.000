@@ -1,0 +1,132 @@
+/*
+ *  _____ _____ ________  _
+ * /  __//  __//  __/\  \//
+ * | |  _|  \  |  \   \  / 
+ * | |_//|  /_ |  /_  /  \ 
+ * \____\\____\\____\/__/\\
+ *
+ * Graphics Environment for EXperimentations.
+ *  Copyright (C) 2006 INRIA - Project ALICE
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *  If you modify this software, you should include a notice giving the
+ *  name of the person performing the modification, the date of modification,
+ *  and the reason for such modification.
+ *
+ *  Contact: 
+ *
+ *     ALICE Project - INRIA
+ *     INRIA Lorraine, 
+ *     Campus Scientifique, BP 239
+ *     54506 VANDOEUVRE LES NANCY CEDEX 
+ *     FRANCE
+ *
+ *  Note that the GNU General Public License does not permit incorporating
+ *  the Software into proprietary programs. 
+ */
+ 
+#include <Geex/combinatorics/map_io.h>
+#include <Geex/combinatorics/map.h>
+#include <Geex/combinatorics/map_builder.h>
+#include <Geex/combinatorics/map_properties.h>
+#include <Geex/properties/generic_properties_io.h>
+#include <Geex/basics/line_stream.h>
+
+namespace Geex {
+
+    void load_map(std::istream& input, Map* map) {
+        MapBuilder builder(map) ;
+        MapVertexProperty<Point2d> tex_coord ;
+        std::vector<Point2d> tex_vertex ;
+        builder.begin_surface() ;
+        LineInputStream in(input) ;
+        while(!in.eof()) {
+            in.get_line() ;
+            std::string keyword ;
+            in >> keyword ;
+            
+            if(keyword == "v") {
+                Point3d p ;
+                in >> p ;
+                builder.add_vertex(p) ;
+            } else if(keyword == "vt") {
+                Point2d p ;
+                in >> p ;
+                tex_vertex.push_back(p) ;
+                if(!tex_coord.is_bound()) {
+                    tex_coord.bind(map, "tex_coord") ;
+                }
+            } else if(keyword == "f") {
+                builder.begin_facet() ;
+                while(!in.eol()) {
+                    std::string s ;
+                    in >> s ;
+                    if(s.length() > 0) {
+                        std::istringstream v_input(s) ;
+                        size_t v_index ;
+                        v_input >> v_index ;
+                        builder.add_vertex_to_facet(v_index - 1) ;
+                        char c ;
+                        v_input >> c ;
+                        if(c == '/') {
+                            size_t vt_index ;
+                            v_input >> vt_index ;
+                            if(vt_index <= tex_vertex.size()) {
+                                tex_coord[builder.vertex(v_index - 1)] = tex_vertex[vt_index - 1] ;
+                            } else {
+                    //            std::cerr << "vt index out of range: " << vt_index << std::endl ;
+                            }
+                        }
+                    }
+                }
+                builder.end_facet() ;
+            } 
+        }
+        builder.end_surface() ;
+    }
+
+    void save_map(std::ostream& out, Map* map, bool save_tex_coord) {
+        MapVertexProperty<Point2d> tex_coord ;
+        if(save_tex_coord) {
+            tex_coord.bind_if_defined(map, "tex_coord") ;
+        }
+        MapVertexProperty<index_t> vertex_id(map) ;
+        index_t cur_id = 0 ;
+        for(MapVerticesItr itr(map); itr.more(); itr.next()) {
+            out << "v " << itr.cur()->point() << std::endl ;
+            if(tex_coord.is_bound()) {
+                out << "vt " << tex_coord[itr.cur()] << std::endl ;
+            }
+            vertex_id[itr.cur()] = cur_id ; cur_id++ ;
+        }
+        for(MapFacetsItr itr(map); itr.more(); itr.next()) {
+            out << "f " ;
+            const Map::Facet* f = itr.cur() ;
+            const Map::Halfedge* h = f->halfedge() ;
+            do {
+                index_t vid = vertex_id[h->vertex()] + 1 ;
+                out << vid ;
+                if(tex_coord.is_bound()) {
+                    out << "/" << vid ;
+                }
+                out << " " ;
+                h = h->next() ;
+            } while(h != f->halfedge()) ;
+            out << std::endl ;
+        }
+    }
+
+}
