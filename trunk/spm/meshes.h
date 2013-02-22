@@ -42,16 +42,19 @@
 #define GEOM_TYPES
 
 #include <set>
-
+#include <map>
+#include <CGAL/MP_Float.h> // by Wenchao Hu, for more accurate computation of cross product
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Vector_3.h>
 #include <Geex/mathematics/glsl_linear.h>
 #include <Geex/CVT/geometry.h>
 //#include "oriented_line.h"
 #include <Geex/CVT/ann_kdtree.h>
-#include <CGAL/MP_Float.h> // by Wenchao Hu, for more accurate computation of cross product
-#include "spm_cgal.h"
+//#include "spm_cgal.h"
 using CGAL::normal;
 using CGAL::MP_Float;
 using CGAL::to_double;
+
 
 namespace Geex {
 
@@ -82,6 +85,7 @@ namespace Geex {
 		}
 
 		vec3& point()    { return pos_ ; } 
+		const vec3& point() const { return pos_;}
 		double& weight() { return weight_ ; }
 		//MeshVertex& operator = (const MeshVertex& rhs) {
 		//    pos_ = rhs.pos_ ;
@@ -252,7 +256,8 @@ namespace Geex {
 			seg[1] = vertex[(i+2)%3] ;
 		}
 		vec3 normal() const { /*why?? dmyan*/
-			return normalize( cross(vertex[2] - vertex[0], vertex[1] - vertex[0]) ) ; 
+			//return normalize( cross(vertex[2] - vertex[0], vertex[1] - vertex[0]) ) ; 
+			return norm;
 		}
 		
 		// by Wenchao Hu
@@ -270,12 +275,13 @@ namespace Geex {
 
 		}
 
-		vec3 CGAL_Normal() const
-		{
-			Vector_3 n = CGAL::normal(to_cgal(vertex[0]), to_cgal(vertex[1]), to_cgal(vertex[2]));
-			double sl = n.x()*n.x() + n.y()*n.y() + n.z()*n.z();
-			return vec3(n.x(), n.y(), n.z());
-		}
+		//vec3 CGAL_Normal() const
+		//{
+		//	typedef CGAL::V
+		//	Vector_3 n = CGAL::normal(to_cgal(vertex[0]), to_cgal(vertex[1]), to_cgal(vertex[2]));
+		//	double sl = n.x()*n.x() + n.y()*n.y() + n.z()*n.z();
+		//	return vec3(n.x(), n.y(), n.z());
+		//}
 
 		vec3 xdir() const {
 			return normalize( vertex[1] - vertex[0] ) ;
@@ -305,6 +311,8 @@ namespace Geex {
 			real u = distance(p, vertex[v0])/distance(vertex[v0], vertex[v1]) ;
 			return (1.-u)*vertex_weight[v0] + u*vertex_weight[v1] ;
 		}
+
+		//inline const vec3& vertex(int i) const { return vertex[i%3]; }
 
 		bool has_vertex(int vidx) { return vertex_index[0]==vidx || vertex_index[1]==vidx || vertex_index[2]==vidx ; }
 		int  find_edge(int v0, int v1) {
@@ -344,6 +352,7 @@ namespace Geex {
 		int  edge_flag[3] ;
 		int  nclip_[3] ;
 		int  ftype_ ; // used in volume clipping. face type could be F_BDY, F_AUX and F_CLIP
+		vec3 norm;
 	} ;
 
 	// FaceVertex is used to merge the same vertices in clipped mesh
@@ -393,6 +402,8 @@ namespace Geex {
 		std::vector<FaceVertex> fvs_ ;
 	} ;
 
+	using std::pair;
+	using std::set;
 	class TriMesh : public std::vector<Facet> {
 	public:
 		enum ClippingMode { CLIP_BNDRY=0, CLIP_CONVEX=1} ;
@@ -420,6 +431,8 @@ namespace Geex {
 			}
 		}
 
+		void flip_normals();
+
 		void convex_clip(TriMesh& to, const Plane<real>& P, bool close = true) const ;
 		bool contains(const vec3& p) const ;
 
@@ -428,6 +441,7 @@ namespace Geex {
 
 		int nb_vertices() const { return nb_vertices_ ; }
 		MeshVertex& vertex(int idx) { return vertices_[idx]; }
+		inline const MeshVertex& vertex(int idx) const { return vertices_[idx]; }
 		void add_vertex(vec3 p) { vertices_.push_back(MeshVertex(p)); }
 		void clear_all() {
 			clear();
@@ -448,6 +462,7 @@ namespace Geex {
 
 		void build_kdtree() ;
 		vec3 project_to_mesh(const vec3& pt, vec3& norm) ;
+		vec3 project_to_mesh(const vec3& pt, vec3& norm, int &nearestFacet);
 
 		bool load_density(const std::string& filename, double gamma=1.) ;
 		void set_uniform_density() ;
@@ -460,11 +475,75 @@ namespace Geex {
 		void save_tri(const std::string& filename) ;
 		void load_tri(const std::string& filename) ;
 
-
+		// for feature extracting, by Wenchao Hu
+		void setFeatureAngle(double ang);
+		inline double getFeatureAngle() const { return featureAngleCriterion; }
+		inline double getHighCurvaturePercent() const { return highCurvatureCriterion; }
+		void setHighCurvaturePercent(double percent);
+		const set<int>& getHighCurvatureFacets() const {return facetHighCurvature;}
+		const vector<pair<int, int>>& getFeatureFacets() const { return featureFacets; }
+		const vector<pair<int, int>>& getFeatureEdges() const { return featureEdges; }
+		inline double getMaxFacetWeight() const { return maxFacetWeight; }
+		inline double getMinFacetWeight() const { return minFacetWeight; }
+ 
 	protected:
 		int                       nb_vertices_ ;
 		std::vector<MeshVertex>   vertices_ ;
 		vec3                      bbox_[2] ; // bounding box of boundary mesh
+	private:
+		class PairIntIntCmp
+		{
+		public:
+			inline bool operator()(const std::pair<int, int>& p0, const std::pair<int, int>& p1) const
+			{
+				if (p0.first < p1.first)
+					return true;
+				else if ( p0.first > p1.first)
+					return false;
+				else if ( p0.second < p1.second)
+					return true;
+				else 
+					return false;			
+			}
+		};
+		class PairDoubleIntCmp
+		{
+		public:
+			inline bool operator()(const std::pair<double, int>& p0, const std::pair<double, int>& p1) const
+			{
+				return p0.first < p1.first;
+			}
+		};
+		struct BihedralAngle
+		{
+			//friend class TriMesh;
+			int findex0;
+			int findex1;
+			int vindex0;
+			int vindex1;
+			double cosAngle;
+			BihedralAngle( int faceIndex0, int faceIndex1, double angleCos ) : findex0(faceIndex0), findex1(faceIndex1), 
+																vindex0(-1), vindex1(-1), cosAngle(angleCos) {}
+			BihedralAngle( int faceIndex0, int faceIndex1, int vertIndex0, int vertIndex1, double angleCos )
+					:findex0(faceIndex0), findex1(faceIndex1), vindex0(vertIndex0), vindex1(vertIndex1), cosAngle(angleCos) {}
+		};
+		std::set<pair<int, int>, PairIntIntCmp> boundaryEdges;//record the boundary edge, by Wenchao Hu
+		//std::set<pair<int, int>, PairIntIntCmp> bihedralAngles;//dihedral angles to extract sharp features
+		vector<BihedralAngle> bihedralAngles;
+		double featureAngleCriterion;//the bihedral angle criterion determining sharp feature edges, in degree [0, 180]
+		double highCurvatureCriterion;
+		//std::multimap<std::pair<int, int>, int, Pa
+		vector<pair<int, int>> featureFacets;//updated whenever featureAngleCriterion is set by setFeatureAngle
+		vector<pair<int, int>> featureEdges;
+		set<int> facetHighCurvature;
+		double maxFacetWeight;
+		double minFacetWeight;
+		vector<pair<double, int>> facetWeight;
+		static double PI;
+
+	public:
+		typedef std::set<std::pair<int, int>, PairIntIntCmp> BoundaryEdgeSet;//Wenchao
+		const BoundaryEdgeSet& getBoundary() const { return boundaryEdges; } //Wenchao	
 
 	public:
 		std::vector<int>          corners_ ;  // constrained vertex indices
@@ -472,6 +551,8 @@ namespace Geex {
 		std::vector<LineSeg>      features_ ;    // feature edges
 		ANNKdTree_3               *kdtree_ ;
 		int                       samplerate_ ;
+		
+		
 	} ;
 
 	//class PluckerSegment {
