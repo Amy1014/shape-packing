@@ -3,17 +3,17 @@
 
 namespace Geex
 {
-	SPM::SPM(): View(this)
+	SPM::SPM(): SPM_Graphics(this)
 	{
 
 	}
 	void SPM::do_draw()
 	{
-		View::draw();
+		SPM_Graphics::draw();
 	}
 	void SPM::get_bbox(real& x_min, real& y_min, real& z_min,
 					real& x_max, real& y_max, real& z_max) 
 	{
-		Doc::get_bbox(x_min, y_min, z_min, x_max, y_max, z_max);
+		Packer::get_bbox(x_min, y_min, z_min, x_max, y_max, z_max);
 	}
 }

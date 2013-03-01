@@ -1,0 +1,4 @@
+<SPMProject>  Tes  ting Project  </spmProject>
+< MeshFile >bunny.obj</MeshFile>                
+<PolygonFile>hexagon.poly</PolygonFile>
+< T  e xtur eImageDir>./texture</Tex tureIma geDi r >

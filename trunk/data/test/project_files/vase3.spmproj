@@ -1,0 +1,9 @@
+< SpMProject >  Vase Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\vase3.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi420_vase3.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\vase3.cur </ DensityFile >
+
+< TextureImageDir >  ./texture  </ TextureImageDir >
