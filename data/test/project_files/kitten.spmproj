@@ -1,0 +1,9 @@
+< SpMProject >  Kitten Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi418_kitten.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\kitten.cur </ DensityFile >
+
+< TextureImageDir >  ./texture  </ TextureImageDir >

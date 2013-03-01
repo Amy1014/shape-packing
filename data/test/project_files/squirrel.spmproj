@@ -1,0 +1,9 @@
+< SpMProject >  Squirrel Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\squirrel.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi418_squirrel.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\squirrel.cur </ DensityFile >
+
+< TextureImageDir >  ./texture  </ TextureImageDir >

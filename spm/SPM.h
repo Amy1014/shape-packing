@@ -1,12 +1,12 @@
 #pragma once
 
 #include <Geex/graphics/geexob.h>
-#include "Doc.h"
-#include "View.h"
+#include "packer.h"
+#include "spm_graphics.h"
 
 namespace Geex 
 {
-	class SPM : public Geexob, public Doc, public View 
+	class SPM : public Geexob, public Packer, public SPM_Graphics 
 	{
 	public:
 		SPM();
