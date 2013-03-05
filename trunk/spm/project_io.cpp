@@ -129,4 +129,13 @@ namespace Geex
 
 		return *this;
 	}
+
+	string ProjectIO::attribute_value(const string& attribute_name)
+	{
+		TagLookupTable::const_iterator it = attr_val.find(attribute_name);
+		if ( it == attr_val.end() )
+			return "";
+		else
+			return it->second;
+	}
 }

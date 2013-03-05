@@ -62,7 +62,7 @@ public:
 
 	bool empty() const { return size() == 0; }
 
-	Segment_3 segment(size_type i) const 
+	Segment_3 edge(size_type i) const 
 	{ 
 		assert(i < verts.size());
 		return Segment_3(verts[i%verts.size()], verts[(i+1)%verts.size()]);

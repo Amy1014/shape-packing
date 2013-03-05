@@ -9,6 +9,7 @@
 #include "project_io.h"
 #include "packing_object.h"
 #include "meshes.h"
+#include "polygon_diagram.h"
 
 namespace Geex
 {
@@ -30,9 +31,15 @@ namespace Geex
 		const TriMesh& mesh_domain() const { return mesh; }
 		const vector<Packing_object>& get_tiles() const { return pack_objects; }
 
+		/** debug **/
+		void draw_RDT() { rpvd.draw_DT(); }
+
 	private:
 
 		void random_init_tiles(unsigned int nb_init_polygons);	// put polygons according to curvature (if any) and in a uniform way
+
+		/** geometry **/
+		void generate_RDT();
 
 	private:
 
@@ -42,6 +49,7 @@ namespace Geex
 		std::vector<Packing_object> pack_objects;
 		std::vector<Polygon_2> pgn_lib;
 		TriMesh mesh;
+		RestrictedPolygonVoronoiDiagram rpvd;
 	};
 }
 
