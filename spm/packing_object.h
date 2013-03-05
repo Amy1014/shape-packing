@@ -17,10 +17,13 @@ namespace Geex
 
 		Packing_object(const Polygon_2& xoy_polygon, const Vector_3& n, const Point_3& p, double f)
 			: Polygon_3(xoy_polygon, n, p), factor(f) {}
+
 	public:
 		double factor; //scaling factor
 		//int group_id;
 	};
+
+	
 
 }
 

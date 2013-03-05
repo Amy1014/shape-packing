@@ -30,7 +30,7 @@ public:
 	ProjectIO(string prj_config_file);
 
 	/** access function **/
-	string attribute_value(const string& attribute_name);
+	string attribute_value(const string& attribute_name) ;
 	bool has_density_input() const { return has_density_input_; }
 
 	/** input **/

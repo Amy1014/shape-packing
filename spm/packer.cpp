@@ -29,6 +29,8 @@ namespace Geex
 		pio.load_project(prj_config_file);
 		pio>>mesh>>pgn_lib;
 		initialize();
+		std::cout<<"Start computing RDT...\n";
+		generate_RDT();
 	}
 
 	void Packer::initialize()
@@ -120,5 +122,13 @@ namespace Geex
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
 			pgn_lib_idx++;
 		}
+	}
+
+	void Packer::generate_RDT()
+	{
+		rpvd.set_mesh(pio.attribute_value("MeshFile"));
+		rpvd.begin_insert();
+		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
+		rpvd.end_insert();
 	}
 }
