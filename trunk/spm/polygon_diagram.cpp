@@ -16,6 +16,7 @@ namespace Geex
 		delete rvd;
 		delete del;
 		delete pnt_coord;
+		glDeleteLists(RDT_disp_list, 1);
 	}
 
 	void RestrictedPolygonVoronoiDiagram::set_mesh(const std::string& mesh_file_name)
@@ -49,7 +50,8 @@ namespace Geex
 			for ( unsigned int j = 0; j < n+1; j++ )
 			{
 				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
-				samp_pnts.push_back(p);
+				//samp_pnts.push_back(p);
+				samp_pnts.push_back(new Embedded_vertex_2<Embedded_point_2>(p));
 				which_group.push_back(group_id);
 			}
 		}
@@ -72,47 +74,54 @@ namespace Geex
 		double *ptr = pnt_coord;
 		for ( unsigned int i = 0; i < samp_pnts.size(); i++ )
 		{
-			*ptr++ = samp_pnts[i].x();
-			*ptr++ = samp_pnts[i].y();
-			*ptr++ = samp_pnts[i].z();
+			*ptr++ = samp_pnts[i]->point().x();
+			*ptr++ = samp_pnts[i]->point().y();
+			*ptr++ = samp_pnts[i]->point().z();
 		}
 		del->set_vertices(samp_pnts.size(), pnt_coord);
 		open = false;
 	}
-	void RestrictedPolygonVoronoiDiagram::uniform_sample(const Polygon_3& polygon, unsigned int samp_nb)
-	{
-		samp_pnts.reserve(samp_pnts.size() + samp_nb);
-		double perimeter = 0.0;
-		std::vector<double> edge_len(polygon.size());
-		for ( unsigned int i = 0; i < polygon.size(); i++ )
-		{
-			Segment_3 e = polygon.edge(i);
-			edge_len[i] = CGAL::sqrt(e.squared_length());
-			perimeter += edge_len[i];
-		}
+	//void RestrictedPolygonVoronoiDiagram::uniform_sample(const Polygon_3& polygon, unsigned int samp_nb)
+	//{
+	//	samp_pnts.reserve(samp_pnts.size() + samp_nb);
+	//	double perimeter = 0.0;
+	//	std::vector<double> edge_len(polygon.size());
+	//	for ( unsigned int i = 0; i < polygon.size(); i++ )
+	//	{
+	//		Segment_3 e = polygon.edge(i);
+	//		edge_len[i] = CGAL::sqrt(e.squared_length());
+	//		perimeter += edge_len[i];
+	//	}
 
-		for ( unsigned int i = 0; i < polygon.size(); i++ )
-		{
-			Segment_3 e = polygon.edge(i);
-			unsigned int n = edge_len[i] / perimeter * samp_nb;
-			Point_3 src = e.source(), tgt = e.target();
-			for ( unsigned int j = 0; j < n+1; j++ )
-			{
-				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
-				samp_pnts.push_back(p);
-			}
-		}
-	}
+	//	for ( unsigned int i = 0; i < polygon.size(); i++ )
+	//	{
+	//		Segment_3 e = polygon.edge(i);
+	//		unsigned int n = edge_len[i] / perimeter * samp_nb;
+	//		Point_3 src = e.source(), tgt = e.target();
+	//		for ( unsigned int j = 0; j < n+1; j++ )
+	//		{
+	//			Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
+	//			samp_pnts.push_back(p);
+	//		}
+	//	}
+	//}
 
 	void RestrictedPolygonVoronoiDiagram::draw_DT()
 	{
 		if (mesh && rvd)
 		{
-			glLineWidth(1.5f);
-			glColor3f(0.8f, 0.0f, 0.0f);
-			glDisable(GL_LIGHTING);
-			rvd->for_each_primal_triangle(draw_primal_triangles(pnt_coord));
-			glEnable(GL_LIGHTING);
+			if (!glIsList(RDT_disp_list))
+			{
+				RDT_disp_list = glGenLists(1);
+				glNewList(RDT_disp_list, GL_COMPILE);
+				glLineWidth(1.5f);
+				glColor3f(0.8f, 0.0f, 0.0f);
+				glDisable(GL_LIGHTING);
+				rvd->for_each_primal_triangle(draw_primal_triangles(pnt_coord));
+				glEnable(GL_LIGHTING);
+				glEndList();
+			}
+			glCallList(RDT_disp_list);
 		}
 
 	}
