@@ -13,6 +13,7 @@
 #include <GL/GLU.h>
 
 #include <vector>
+#include <map>
 //#include <LpCVT/combinatorics/delaunay.h>
 #include <Geex/cvt/delaunay.h>
 #include <Geex/cvt/RVD.h>
@@ -25,13 +26,16 @@ namespace Geex
 {
 
 	/** representation of restricted Delaunay triangulation **/
-	struct Embedded_point_2 : public K
+	struct Embedded_point_2
 	{
-		typedef K::Point_3 Point_2;
+		//typedef K::Point_3 Point_2;
+		Embedded_point_2() {}
+		Embedded_point_2(const Point_3& _p) : p(_p) {}
+		Point_3 p;
 	};
 
 	template < class Gt, class Vb = CGAL::Triangulation_vertex_base_2<Gt> >
-	class Embedded_vertex_2 : public Vb // vertex of 2d triangulation embedding in 3d space
+	class Embedded_vertex_2 : public Vb, public Embedded_point_2 // vertex of 2d triangulation embedding in 3d space
 	{
 	public:
 		typedef typename Vb::Vertex_handle Vertex_handle;
@@ -45,23 +49,29 @@ namespace Geex
 			typedef Embedded_vertex_2<Gt, Vb2>	Other;
 		};
 	public:
-		Embedded_vertex_2() : Vb() {}
-		Embedded_vertex_2(const Point& p) : Vb(p) {}
-		Embedded_vertex_2(const Point& p, Face_handle f) : Vb(f, p) {}
-		Embedded_vertex_2(Face_handle f) : Vb(f) {}
+		Embedded_vertex_2() : Vb(), group_id(-1) { }
+		Embedded_vertex_2(const Point_3& _p) : Embedded_point_2(_p), group_id(-1) {}
+		Embedded_vertex_2(const Point_3& _p, int _group_id) : Embedded_point_2(_p), group_id(_group_id) {}
+		//Embedded_vertex_2(const Point_3& p, Face_handle f) : Vb(f, p) {}
+		//Embedded_vertex_2(Face_handle f) : Vb(f) {}
+		Point_3 point_3() const { return Embedded_point_2::p; }
+	public:
+		int group_id;
 	};
 
 	template < class Gt, class Fb = CGAL::Triangulation_face_base_2<Gt> >
 	class Embedded_face_2 : public Fb
 	{					};
 
-	typedef CGAL::Triangulation_data_structure_2<Embedded_vertex_2<Embedded_point_2>, Embedded_face_2<K>> RDT_data_structure; // representation of RDT
+	typedef CGAL::Triangulation_data_structure_2<Embedded_vertex_2<K>, Embedded_face_2<K>> RDT_data_structure; // representation of RDT
 
 
 class RestrictedPolygonVoronoiDiagram
 {
 	typedef RestrictedVoronoiDiagram_poly RestrictedVoronoiDiagram;
-	
+	typedef RDT_data_structure::Vertex_handle Vertex_handle;
+	typedef RDT_data_structure::Face_handle Face_handle;
+	typedef std::pair<Vertex_handle, Vertex_handle> Vertex_pair;
 
 public:
 	RestrictedPolygonVoronoiDiagram();
@@ -85,45 +95,37 @@ public:
 	/** debug **/
 	void draw_DT();
 
-//private:
-	//void uniform_sample(const Polygon_3& p, unsigned int samp_nb); // sample polygons
-
 private:
 	bool open;
 	double *pnt_coord; // point coordinates in array form
-	std::vector<unsigned int> which_group; // belong to which polygon. element is polygon id
 
 	// handles to sample points
-	//template <class Gt, class Vb> class Embedded_vertex_2;
-	typedef RDT_data_structure::Vertex_handle Vertex_handle;
 	std::vector<Vertex_handle> samp_pnts;
-	
-	// std::vector<Point_3> samp_pnts;
 
 	/** geometry **/
 	TopoPolyMesh *mesh;
 	Delaunay *del;
 	RestrictedVoronoiDiagram *rvd;
 
-	
-
 	RDT_data_structure rdt_ds;
+	std::map<Vertex_pair, Face_handle> edge_face_adjacency;
 
-	/** construct of RDT **/
+	/** construct of RDT, helper class **/
 	struct Construct_RDT_structure
 	{
-		Construct_RDT_structure(RDT_data_structure& _rdt_ds, std::vector<Vertex_handle>& _samp_pnts) : rdt_ds( _rdt_ds ), samp_pnts(_samp_pnts) { }
+		Construct_RDT_structure(RDT_data_structure& _rdt_ds, std::vector<Vertex_handle>& _samp_pnts, std::map<Vertex_pair, Face_handle>& ef_adj) 
+							: rdt_ds( _rdt_ds ), samp_pnts(_samp_pnts), edge_face_adjacency(ef_adj) { }
 		
-		void operator()(unsigned int i, unsigned int j, unsigned int k)
-		{
-			rdt_ds.create_face(samp_pnts[i], samp_pnts[j], samp_pnts[k]);
-		}
+		void operator()(unsigned int i, unsigned int j, unsigned int k) const ;
+
+		void find_adjacency(const Vertex_handle& v0, const Vertex_handle& v1, int v2, const Face_handle& f) const;
+
 		RDT_data_structure& rdt_ds;
 		std::vector<Vertex_handle>& samp_pnts;
+		std::map<Vertex_pair, Face_handle>& edge_face_adjacency;
 	};
 
 	
-
 	/** debug for DT draw **/
 	GLuint RDT_disp_list;
 	struct draw_primal_triangles
