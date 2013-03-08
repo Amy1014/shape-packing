@@ -58,6 +58,8 @@ public:
 
 	Point_3 centroid() const { return cent; }
 
+	Vector_3 norm() const { return normal; }
+
 	size_type size() const { return verts.size(); }
 
 	bool empty() const { return size() == 0; }

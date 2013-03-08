@@ -14,12 +14,14 @@
 
 #include <vector>
 #include <map>
+#include <algorithm>
 //#include <LpCVT/combinatorics/delaunay.h>
 #include <Geex/cvt/delaunay.h>
 #include <Geex/cvt/RVD.h>
 //#include <LpCVT/combinatorics/RVD.h>
 #include <CGAL/Triangulation_data_structure_2.h>
 #include <CGAL/Triangulation_vertex_base_2.h>
+#include <CGAL/Object.h>
 #include "spm_cgal.h"
  
 namespace Geex
@@ -52,9 +54,7 @@ namespace Geex
 		Embedded_vertex_2() : Vb(), group_id(-1) { }
 		Embedded_vertex_2(const Point_3& _p) : Embedded_point_2(_p), group_id(-1) {}
 		Embedded_vertex_2(const Point_3& _p, int _group_id) : Embedded_point_2(_p), group_id(_group_id) {}
-		//Embedded_vertex_2(const Point_3& p, Face_handle f) : Vb(f, p) {}
-		//Embedded_vertex_2(Face_handle f) : Vb(f) {}
-		Point_3 point_3() const { return Embedded_point_2::p; }
+		inline Point_3 point_3() const { return Embedded_point_2::p; }
 	public:
 		int group_id;
 	};
@@ -72,6 +72,7 @@ class RestrictedPolygonVoronoiDiagram
 	typedef RDT_data_structure::Vertex_handle Vertex_handle;
 	typedef RDT_data_structure::Face_handle Face_handle;
 	typedef std::pair<Vertex_handle, Vertex_handle> Vertex_pair;
+	typedef std::vector<Vertex_handle> VertGroup; // vertices belonging to the same group
 
 public:
 	RestrictedPolygonVoronoiDiagram();
@@ -81,31 +82,49 @@ public:
 	void set_mesh(const std::string& mesh_file_name);
 
 	void begin_insert() ;
-	// insert one polygon
-	void insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb = 24); 
+
 	// insert a group of polygons
 	template<class InputIterator> void insert_polygons(InputIterator first, InputIterator last, unsigned int samp_nb = 24);
 
 	void end_insert() ;
 
+	void compute_clipped_VD(std::vector<Plane_3>& clipping_planes);
+
 	void iDT_update(); // edge flip to preserve intrinsic Delaunay structure
 
 	/** access functions **/
 
-	/** debug **/
+
+#if _DEBUG
 	void draw_DT();
+	void draw_clipped_VD();
+#endif
+
+
+private: // private functions
+
+	/** computation **/
+	inline Plane_3 get_bisector(Vertex_handle v0, Vertex_handle v1)
+	{
+		return CGAL::bisector(v0->point_3(), v1->point_3());
+	}
+
+	// insert one polygon, return how many sample points are actually inserted
+	unsigned int insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb = 24); 
 
 private:
 	bool open;
 	double *pnt_coord; // point coordinates in array form
 
 	// handles to sample points
-	std::vector<Vertex_handle> samp_pnts;
+	std::vector<VertGroup> samp_pnts;
 
 	/** geometry **/
 	TopoPolyMesh *mesh;
 	Delaunay *del;
 	RestrictedVoronoiDiagram *rvd;
+	std::vector<std::vector<Point_3>> clipped_VD;//clipped Voronoi diagram for each polygon, expressed as a set of lines
+	unsigned int nb_groups;
 
 	RDT_data_structure rdt_ds;
 	std::map<Vertex_pair, Face_handle> edge_face_adjacency;
@@ -125,38 +144,30 @@ private:
 		std::map<Vertex_pair, Face_handle>& edge_face_adjacency;
 	};
 
-	
+#if _DEBUG	
 	/** debug for DT draw **/
 	GLuint RDT_disp_list;
-	struct draw_primal_triangles
-	{
-		draw_primal_triangles(double *coordinates) : coord(coordinates) {}
-
-		void operator()(unsigned int i, unsigned int j, unsigned int k) const
-		{
-			//std::cout<<"("<<i<<", "<<j<<", "<<k<<")\n";
-			glBegin(GL_LINE_LOOP);
-			glVertex3d(coord[i*3], coord[i*3+1], coord[i*3+2]);
-			glVertex3d(coord[j*3], coord[j*3+1], coord[j*3+2]);
-			glVertex3d(coord[k*3], coord[k*3+1], coord[k*3+2]);
-			glEnd();
-		}
-		double *coord;
-	};
+	GLuint clipped_VD_disp_list;
+#endif
 };
 
 template <class InputIterator>
 void RestrictedPolygonVoronoiDiagram::insert_polygons(InputIterator first, InputIterator last, unsigned int samp_nb)
 {
 	assert(open);
-	unsigned int group_id = 0;
+	unsigned int group_id = 0, nb_pnts = 0;
+	samp_pnts.reserve(last - first);
 	while (first != last)
 	{
-		insert_polygons(*first, group_id, samp_nb);
+		nb_pnts += insert_polygons(*first, group_id, samp_nb);
 		first++;
 		group_id++;
 	}
+	nb_groups = group_id;
+	assert(nb_pnts == rdt_ds.number_of_vertices());
 }
+
+
 
 }
 
