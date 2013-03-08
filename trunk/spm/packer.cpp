@@ -130,5 +130,14 @@ namespace Geex
 		rpvd.begin_insert();
 		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
 		rpvd.end_insert();
+		std::vector<Plane_3> tangent_planes;
+		tangent_planes.reserve(pack_objects.size());
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			Point_3 c = pack_objects[i].centroid();
+			Vector_3 n = pack_objects[i].norm();
+			tangent_planes.push_back(Plane_3(c, n));
+		}
+		rpvd.compute_clipped_VD(tangent_planes);
 	}
 }

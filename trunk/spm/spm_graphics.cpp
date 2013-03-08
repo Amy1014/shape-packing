@@ -38,7 +38,7 @@ namespace Geex
 			draw_mesh();
 		if (show_polygons_)
 			draw_polygons();
-		packer->draw_RDT();
+		//packer->draw_RDT();
 	}
 
 	void SPM_Graphics::draw_mesh()

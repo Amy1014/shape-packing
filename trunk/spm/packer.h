@@ -33,6 +33,7 @@ namespace Geex
 
 		/** debug **/
 		void draw_RDT() { rpvd.draw_DT(); }
+		void draw_clipped_VD() {rpvd.draw_clipped_VD();}
 
 	private:
 
