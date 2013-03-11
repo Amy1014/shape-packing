@@ -18,6 +18,7 @@ namespace Geex
 		delete rvd;
 		delete del;
 		delete pnt_coord;
+		mesh->clear();
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
@@ -59,6 +60,8 @@ namespace Geex
 				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
 				RDT_data_structure::Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(p, group_id));
 				samp_pnts.back().push_back(vh);
+				assert(ss.find(p) == ss.end());
+				ss.insert(p);
 				nb_pnts++;
 			}
 		}
@@ -95,8 +98,10 @@ namespace Geex
 			}
 		del->set_vertices(nb_pnts, pnt_coord);
 		rdt_ds.set_dimension(2);
-		rvd->for_each_primal_triangle(Construct_RDT_structure(rdt_ds, all_vertices, edge_face_adjacency));
+		rvd->for_each_primal_triangle(Construct_RDT_structure(rdt_ds, all_vertices, edge_face_adjacency, existence));
 		open = false;
+		std::cout<<existence.size()<<"; "<<nb_pnts<<std::endl;
+		assert(existence.size() == nb_pnts);
 	}
 	void RestrictedPolygonVoronoiDiagram::compute_clipped_VD(std::vector<Plane_3>& clipping_planes)
 	{
@@ -113,6 +118,7 @@ namespace Geex
 			{
 				RDT_data_structure::Edge_circulator cur_edge, nxt_edge, end;
 				Plane_3 curpln, nxtpln;
+				//assert(vg[j]->face() != Face_handle());
 				end = cur_edge = rdt_ds.incident_edges(vg[j]);
 				nxt_edge = cur_edge;
 				++nxt_edge; 			
@@ -230,12 +236,17 @@ namespace Geex
 	void RestrictedPolygonVoronoiDiagram::Construct_RDT_structure::operator()(unsigned int i, unsigned int j, unsigned int k) const
 	{
 		Face_handle f = rdt_ds.create_face(samp_pnts[i], samp_pnts[j], samp_pnts[k]);
+		assert( f != Face_handle() );
 		find_adjacency(samp_pnts[i], samp_pnts[j], f->index(samp_pnts[k]), f);
 		find_adjacency(samp_pnts[j], samp_pnts[k], f->index(samp_pnts[i]), f);
 		find_adjacency(samp_pnts[k], samp_pnts[i], f->index(samp_pnts[j]), f);
 		samp_pnts[i]->set_face(f);
 		samp_pnts[j]->set_face(f);
 		samp_pnts[k]->set_face(f);
+
+		ex.insert(samp_pnts[i]);
+		ex.insert(samp_pnts[j]);
+		ex.insert(samp_pnts[k]);
 	}
 
 }

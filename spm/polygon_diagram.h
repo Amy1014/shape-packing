@@ -14,6 +14,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 #include <algorithm>
 //#include <LpCVT/combinatorics/delaunay.h>
 #include <Geex/cvt/delaunay.h>
@@ -129,11 +130,14 @@ private:
 	RDT_data_structure rdt_ds;
 	std::map<Vertex_pair, Face_handle> edge_face_adjacency;
 
+	std::set<Vertex_handle> existence;
+	std::set<Point_3> ss;
+
 	/** construct of RDT, helper class **/
 	struct Construct_RDT_structure
 	{
-		Construct_RDT_structure(RDT_data_structure& _rdt_ds, std::vector<Vertex_handle>& _samp_pnts, std::map<Vertex_pair, Face_handle>& ef_adj) 
-							: rdt_ds( _rdt_ds ), samp_pnts(_samp_pnts), edge_face_adjacency(ef_adj) { }
+		Construct_RDT_structure(RDT_data_structure& _rdt_ds, std::vector<Vertex_handle>& _samp_pnts, std::map<Vertex_pair, Face_handle>& ef_adj, std::set<Vertex_handle>& existence) 
+							: rdt_ds( _rdt_ds ), samp_pnts(_samp_pnts), edge_face_adjacency(ef_adj), ex(existence) { }
 		
 		void operator()(unsigned int i, unsigned int j, unsigned int k) const ;
 
@@ -142,6 +146,7 @@ private:
 		RDT_data_structure& rdt_ds;
 		std::vector<Vertex_handle>& samp_pnts;
 		std::map<Vertex_pair, Face_handle>& edge_face_adjacency;
+		std::set<Vertex_handle>& ex;
 	};
 
 #if _DEBUG	
