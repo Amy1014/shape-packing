@@ -1,0 +1,9 @@
+< SpMProject >  Rabbit Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\rabbit.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi418_rabbit.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\rabbit.cur </ DensityFile >
+
+< TextureImageDir >  ./texture  </ TextureImageDir >

@@ -1,0 +1,5 @@
+< SpMProject >  Joint Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\joint.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi418_joint.poly      </ PolygonFile >

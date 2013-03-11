@@ -1,0 +1,7 @@
+< SpMProject >  Elephant Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\elephant.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi418_elephant.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\elephant.cur </ DensityFile >

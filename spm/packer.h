@@ -42,6 +42,8 @@ namespace Geex
 		/** geometry **/
 		void generate_RDT();
 
+		vec3 approx_normal(unsigned int facet_idx);
+
 	private:
 
 		static Packer *instance_;

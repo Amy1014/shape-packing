@@ -39,6 +39,7 @@ namespace Geex
 		if (show_polygons_)
 			draw_polygons();
 		//packer->draw_RDT();
+		packer->draw_clipped_VD();
 	}
 
 	void SPM_Graphics::draw_mesh()

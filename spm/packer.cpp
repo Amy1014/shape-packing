@@ -62,7 +62,6 @@ namespace Geex
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
 		set<int> init_facets; // on which facets the location are
-
 		if (pio.has_density_input()) // put according to density function
 		{
 			double total_weight = 0.0, res = 0.0;
@@ -112,7 +111,8 @@ namespace Geex
 		{
 			const Facet& f = mesh[*it];
 			vec3 gx_cent = (f.vertex[0] + f.vertex[1] + f.vertex[2])/3.0;
-			vec3 gx_normal = mesh[*it].normal();
+			//vec3 gx_normal = mesh[*it].normal();
+			vec3 gx_normal = approx_normal(*it);
 			const Polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
@@ -127,6 +127,7 @@ namespace Geex
 	void Packer::generate_RDT()
 	{
 		rpvd.set_mesh(pio.attribute_value("MeshFile"));
+		rpvd.set_trimesh(&mesh);
 		rpvd.begin_insert();
 		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
 		rpvd.end_insert();
@@ -139,5 +140,25 @@ namespace Geex
 			tangent_planes.push_back(Plane_3(c, n));
 		}
 		rpvd.compute_clipped_VD(tangent_planes);
+	}
+
+	vec3 Packer::approx_normal(unsigned int facet_idx)
+	{
+		const Facet& f = mesh[facet_idx];
+		const MeshVertex& v0 = mesh.vertex(f.vertex_index[0]);
+		const MeshVertex& v1 = mesh.vertex(f.vertex_index[1]);
+		const MeshVertex& v2 = mesh.vertex(f.vertex_index[2]);
+		const vector<int>& neighbor0 = v0.faces_;
+		const vector<int>& neighbor1 = v1.faces_;
+		const vector<int>& neighbor2 = v2.faces_;
+		vec3 avg_norm(0.0, 0.0, 0.0);
+		for (unsigned int i = 0; i < neighbor0.size(); i++)
+			avg_norm += mesh[neighbor0[i]].normal();
+		for (unsigned int i = 0; i < neighbor1.size(); i++)
+			avg_norm += mesh[neighbor1[i]].normal();
+		for (unsigned int i = 0; i < neighbor2.size(); i++)
+			avg_norm += mesh[neighbor2[i]].normal();
+		avg_norm /= avg_norm.length();
+		return avg_norm;
 	}
 }
