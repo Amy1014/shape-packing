@@ -16,6 +16,7 @@
 #include <map>
 #include <set>
 #include <algorithm>
+#include <numeric>
 //#include <LpCVT/combinatorics/delaunay.h>
 #include <Geex/cvt/delaunay.h>
 #include <Geex/cvt/RVD.h>
@@ -24,6 +25,7 @@
 #include <CGAL/Triangulation_vertex_base_2.h>
 #include <CGAL/Object.h>
 #include "spm_cgal.h"
+#include "meshes.h"
  
 namespace Geex
 {
@@ -36,6 +38,7 @@ namespace Geex
 		Embedded_point_2(const Point_3& _p) : p(_p) {}
 		Point_3 p;
 	};
+
 
 	template < class Gt, class Vb = CGAL::Triangulation_vertex_base_2<Gt> >
 	class Embedded_vertex_2 : public Vb, public Embedded_point_2 // vertex of 2d triangulation embedding in 3d space
@@ -58,6 +61,7 @@ namespace Geex
 		inline Point_3 point_3() const { return Embedded_point_2::p; }
 	public:
 		int group_id;
+		std::vector<Point_3> vd_vertices; // vertices of Voronoi diagram associated with this vertex
 	};
 
 	template < class Gt, class Fb = CGAL::Triangulation_face_base_2<Gt> >
@@ -81,6 +85,7 @@ public:
 
 	/** set functions **/
 	void set_mesh(const std::string& mesh_file_name);
+	void set_trimesh(TriMesh *_trimesh) { assert(!trimesh); trimesh = _trimesh; }
 
 	void begin_insert() ;
 
@@ -96,10 +101,18 @@ public:
 	/** access functions **/
 
 
-#if _DEBUG
+//#if _DEBUG
 	void draw_DT();
 	void draw_clipped_VD();
-#endif
+	inline void setGroupColor(unsigned int i, unsigned int nb_groups)
+	{
+		i = rand();
+		GLfloat r = GLfloat(i)/nb_groups,
+				g = GLfloat((i+nb_groups/3)%nb_groups)/nb_groups,
+				b = GLfloat((i+2*nb_groups/3)%nb_groups)/nb_groups;
+		glColor3f(r, g, b);
+	}
+//#endif
 
 
 private: // private functions
@@ -115,29 +128,27 @@ private: // private functions
 
 private:
 	bool open;
-	double *pnt_coord; // point coordinates in array form
+	//double *pnt_coord; // point coordinates in array form
 
 	// handles to sample points
 	std::vector<VertGroup> samp_pnts;
 
 	/** geometry **/
 	TopoPolyMesh *mesh;
-	Delaunay *del;
-	RestrictedVoronoiDiagram *rvd;
+	TriMesh *trimesh;//the same as mesh, but with some other necessary functions
+	//Delaunay *del;
+	//RestrictedVoronoiDiagram *rvd;
 	std::vector<std::vector<Point_3>> clipped_VD;//clipped Voronoi diagram for each polygon, expressed as a set of lines
 	unsigned int nb_groups;
 
 	RDT_data_structure rdt_ds;
 	std::map<Vertex_pair, Face_handle> edge_face_adjacency;
 
-	std::set<Vertex_handle> existence;
-	std::set<Point_3> ss;
-
 	/** construct of RDT, helper class **/
 	struct Construct_RDT_structure
 	{
-		Construct_RDT_structure(RDT_data_structure& _rdt_ds, std::vector<Vertex_handle>& _samp_pnts, std::map<Vertex_pair, Face_handle>& ef_adj, std::set<Vertex_handle>& existence) 
-							: rdt_ds( _rdt_ds ), samp_pnts(_samp_pnts), edge_face_adjacency(ef_adj), ex(existence) { }
+		Construct_RDT_structure(RDT_data_structure& _rdt_ds, std::vector<Vertex_handle>& _samp_pnts, std::map<Vertex_pair, Face_handle>& ef_adj) 
+							: rdt_ds( _rdt_ds ), samp_pnts(_samp_pnts), edge_face_adjacency(ef_adj) { }
 		
 		void operator()(unsigned int i, unsigned int j, unsigned int k) const ;
 
@@ -146,14 +157,14 @@ private:
 		RDT_data_structure& rdt_ds;
 		std::vector<Vertex_handle>& samp_pnts;
 		std::map<Vertex_pair, Face_handle>& edge_face_adjacency;
-		std::set<Vertex_handle>& ex;
 	};
 
-#if _DEBUG	
+//#if _DEBUG	
 	/** debug for DT draw **/
 	GLuint RDT_disp_list;
 	GLuint clipped_VD_disp_list;
-#endif
+	std::vector<Point_3> cents;
+//#endif
 };
 
 template <class InputIterator>
@@ -162,6 +173,7 @@ void RestrictedPolygonVoronoiDiagram::insert_polygons(InputIterator first, Input
 	assert(open);
 	unsigned int group_id = 0, nb_pnts = 0;
 	samp_pnts.reserve(last - first);
+	cents.reserve(last - first);
 	while (first != last)
 	{
 		nb_pnts += insert_polygons(*first, group_id, samp_nb);
