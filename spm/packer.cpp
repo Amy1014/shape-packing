@@ -21,7 +21,7 @@ namespace Geex
 	{
 		assert( instance_ == nil );
 		instance_ = this;
-		srand(time(NULL));
+		srand(1);
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -117,7 +117,7 @@ namespace Geex
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
 			double s = std::min(fa/pa, pa/fa);
-			s = 0.5*std::sqrt(s);
+			s = 0.1*std::sqrt(s);
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
 			pgn_lib_idx++;
@@ -130,6 +130,7 @@ namespace Geex
 		rpvd.set_trimesh(&mesh);
 		rpvd.begin_insert();
 		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
+		rpvd.insert_bounding_points(10);
 		rpvd.end_insert();
 		std::vector<Plane_3> tangent_planes;
 		tangent_planes.reserve(pack_objects.size());
@@ -145,19 +146,25 @@ namespace Geex
 	vec3 Packer::approx_normal(unsigned int facet_idx)
 	{
 		const Facet& f = mesh[facet_idx];
-		const MeshVertex& v0 = mesh.vertex(f.vertex_index[0]);
-		const MeshVertex& v1 = mesh.vertex(f.vertex_index[1]);
-		const MeshVertex& v2 = mesh.vertex(f.vertex_index[2]);
+		int vi0 = f.vertex_index[0], vi1 = f.vertex_index[1], vi2 = f.vertex_index[2];
+		const MeshVertex& v0 = mesh.vertex(vi0);
+		const MeshVertex& v1 = mesh.vertex(vi1);
+		const MeshVertex& v2 = mesh.vertex(vi2);
 		const vector<int>& neighbor0 = v0.faces_;
 		const vector<int>& neighbor1 = v1.faces_;
 		const vector<int>& neighbor2 = v2.faces_;
 		vec3 avg_norm(0.0, 0.0, 0.0);
-		for (unsigned int i = 0; i < neighbor0.size(); i++)
-			avg_norm += mesh[neighbor0[i]].normal();
-		for (unsigned int i = 0; i < neighbor1.size(); i++)
-			avg_norm += mesh[neighbor1[i]].normal();
-		for (unsigned int i = 0; i < neighbor2.size(); i++)
-			avg_norm += mesh[neighbor2[i]].normal();
+		if (!mesh.is_on_boundary(vi0) && !mesh.is_on_feature(vi0))
+			for (unsigned int i = 0; i < neighbor0.size(); i++)
+				avg_norm += mesh[neighbor0[i]].normal();
+		if (!mesh.is_on_boundary(vi1) && !mesh.is_on_feature(vi1))
+			for (unsigned int i = 0; i < neighbor1.size(); i++)
+				avg_norm += mesh[neighbor1[i]].normal();
+		if (!mesh.is_on_boundary(vi2) && !mesh.is_on_feature(vi2))
+			for (unsigned int i = 0; i < neighbor2.size(); i++)
+				avg_norm += mesh[neighbor2[i]].normal();
+		if (avg_norm.x == 0.0 && avg_norm.y == 0.0 && avg_norm.z == 0.0)
+			return f.normal();
 		avg_norm /= avg_norm.length();
 		return avg_norm;
 	}

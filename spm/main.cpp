@@ -59,7 +59,9 @@ namespace Geex {
             TwBar* graphics_bar = TwNewBar("Graphics");
 			TwDefine("Graphics position='16 10' size='200 250' alpha=200"); 
 			TwAddVarRW(graphics_bar, "Domain Mesh", TW_TYPE_BOOL8, &spm()->show_mesh(), "");
-
+			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "");
+			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "");
+			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "");
 			TwBar* function_bar = TwNewBar("Functions");
 			TwDefine("Functions position='16 250' size='200 250' alpha=200");
 			//TwAddVarRW(function_bar, "Iter Number.", TW_TYPE_INT32, &spm()->setPackIterLim(), "min=1");

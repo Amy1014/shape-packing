@@ -441,6 +441,8 @@ namespace Geex {
 
 		int nb_vertices() const { return nb_vertices_ ; }
 		MeshVertex& vertex(int idx) { return vertices_[idx]; }
+		inline bool is_on_boundary(int idx) const { return vert_on_boundary[idx]; }
+		inline bool is_on_feature(int idx) const { return vert_on_feature[idx]; }
 		inline const MeshVertex& vertex(int idx) const { return vertices_[idx]; }
 		void add_vertex(vec3 p) { vertices_.push_back(MeshVertex(p)); }
 		void clear_all() {
@@ -540,6 +542,10 @@ namespace Geex {
 		double minFacetWeight;
 		vector<pair<double, int>> facetWeight;
 		static double PI;
+
+		// record whether a vertex is on boundary or feature
+		vector<bool> vert_on_boundary;
+		vector<bool> vert_on_feature;
 
 	public:
 		typedef std::set<std::pair<int, int>, PairIntIntCmp> BoundaryEdgeSet;//Wenchao

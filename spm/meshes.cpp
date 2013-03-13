@@ -206,10 +206,16 @@ namespace Geex {
 		//for ( std::map<std::pair<int, int>, int, PairIntIntCmp>::const_iterator it = edgeValence.begin(); it!=edgeValence.end(); it++)
 		//	if (it->second == 1)
 		//		boundaryEdges.insert(it->first);
+		vert_on_boundary.resize(nb_vertices(), false);
+		vert_on_feature.resize(nb_vertices(), false);
 		for (std::map<pair<int, int>, pair<int, int>, PairIntIntCmp>::const_iterator it=edgeValence.begin(); it!=edgeValence.end(); it++)
 		{
 			if (it->second.second < 0)
+			{
 				boundaryEdges.insert(it->first);
+				vert_on_boundary[it->first.second] = true;
+				vert_on_boundary[it->first.first] = true;
+			}
 			else
 			{
 				int fi0 = it->second.first, fi1 = it->second.second;
@@ -221,12 +227,12 @@ namespace Geex {
 				const vec3& v1 = vertices_[vi1].point();
 				// the different vertices
 				int pi0, pi1;
-				if ( f0.vertex_index[0] != vi0 && f0.vertex_index[0] != vi1)	pi0 = f0.vertex_index[0];
-				else if ( f0.vertex_index[1] != vi0 && f0.vertex_index[1] != vi1) pi0 = f0.vertex_index[1];
-				else															  pi0 = f0.vertex_index[2];
-				if (f1.vertex_index[0] != vi0 && f1.vertex_index[0] != vi1)		pi1 = f1.vertex_index[0];
-				else if (f1.vertex_index[1] != vi0 && f1.vertex_index[1] != vi1) pi1 = f1.vertex_index[1];
-				else															 pi1 = f1.vertex_index[2];
+				if ( f0.vertex_index[0] != vi0 && f0.vertex_index[0] != vi1)		pi0 = f0.vertex_index[0];
+				else if ( f0.vertex_index[1] != vi0 && f0.vertex_index[1] != vi1)	pi0 = f0.vertex_index[1];
+				else																pi0 = f0.vertex_index[2];
+				if (f1.vertex_index[0] != vi0 && f1.vertex_index[0] != vi1)			pi1 = f1.vertex_index[0];
+				else if (f1.vertex_index[1] != vi0 && f1.vertex_index[1] != vi1)	pi1 = f1.vertex_index[1];
+				else																pi1 = f1.vertex_index[2];
 				const vec3& p0 = vertices_[pi0].point();
 				const vec3& p1 = vertices_[pi1].point();
 				// this more complicate formula is used to avoid error introduced by subtracting two small vectors
@@ -248,7 +254,8 @@ namespace Geex {
 	void TriMesh::setFeatureAngle(double ang)
 	{
 		if (ang < 0.0 || ang > 180.0)
-			return;
+			return;	
+		vert_on_feature.assign(nb_vertices(), false);
 		featureFacets.clear();
 		featureEdges.clear();
 		featureAngleCriterion = ang;
@@ -260,6 +267,7 @@ namespace Geex {
 			{
 				featureFacets.push_back(make_pair(bihedralAngles[i].findex0, bihedralAngles[i].findex1));
 				featureEdges.push_back(make_pair(bihedralAngles[i].vindex0, bihedralAngles[i].vindex1));
+				vert_on_feature[bihedralAngles[i].vindex0] = vert_on_feature[bihedralAngles[i].vindex1] = true;
 			}
 		}
 	}
