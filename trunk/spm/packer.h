@@ -52,6 +52,8 @@ namespace Geex
 		std::vector<Packing_object> pack_objects;
 		std::vector<Polygon_2> pgn_lib;
 		TriMesh mesh;
+
+	public: // for debug
 		RestrictedPolygonVoronoiDiagram rpvd;
 	};
 }

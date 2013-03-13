@@ -22,8 +22,8 @@ namespace Geex
 		mesh->clear();
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
-		std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
-		clipped_VD.clear();
+		//std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
+		//clipped_VD.clear();
 		glDeleteLists(RDT_disp_list, 1);
 		glDeleteLists(clipped_VD_disp_list, 1);
 	}
@@ -37,8 +37,7 @@ namespace Geex
 	}
 	
 	unsigned int RestrictedPolygonVoronoiDiagram::insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb)
-	{
-		
+	{	
 		samp_pnts.push_back(VertGroup());
 		samp_pnts.back().reserve(samp_nb+1);
 		unsigned int nb_pnts = 0; // for debug
@@ -69,15 +68,24 @@ namespace Geex
 		cents.push_back(polygon.centroid());
 		return nb_pnts;
 	}
-
+	
+	void RestrictedPolygonVoronoiDiagram::insert_bounding_points(unsigned int samp_nb)
+	{
+		const TriMesh::BoundaryEdgeSet& bes = trimesh->getBoundary(); // boundary edges
+		const std::vector<std::pair<int,int>>& fes = trimesh->getFeatureEdges(); // feature edges
+		unsigned int nbe = insert_bounding_edges(bes.begin(), bes.end(), samp_nb);
+		std::cout<<nbe<<" bounding edges\n";
+		unsigned int nfe = insert_bounding_edges(fes.begin(), fes.end(), samp_nb);
+		std::cout<<nfe<<" feature edges\n";
+	}
 	void RestrictedPolygonVoronoiDiagram::begin_insert()
 	{
 		assert(!open);
 		open = true;
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
-		std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
-		clipped_VD.clear();
+		//std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
+		//clipped_VD.clear();
 		//if (!pnt_coord) delete pnt_coord;
 	}
 	
@@ -99,6 +107,12 @@ namespace Geex
 				*ptr++ = prjp.x; *ptr++ = prjp.y; *ptr++ = prjp.z;
 				all_vertices.push_back(samp_pnts[i][j]);
 			}
+		for ( unsigned int i = 0; i < bounding_pnts.size(); i++ )
+		{
+			Point_3 p = bounding_pnts[i]->point_3();
+			*ptr++ = p.x();	*ptr++ = p.y();	*ptr++ = p.z();
+			all_vertices.push_back(bounding_pnts[i]);
+		}
 		Delaunay *del = Delaunay::create("CGAL");
 		del->set_vertices(nb_pnts, pnt_coord);
 		rdt_ds.set_dimension(2);
@@ -116,12 +130,12 @@ namespace Geex
 		if (nb_groups == 0)
 			return;
 		assert(clipping_planes.size() == nb_groups);
-		clipped_VD.reserve(nb_groups);
+		//clipped_VD.reserve(nb_groups);
 		for (unsigned int i = 0; i < nb_groups; i++)
 		{
 			const VertGroup& vg = samp_pnts[i];
 			const Plane_3& pln = clipping_planes[i];
-			clipped_VD.push_back(std::vector<Point_3>());
+			//clipped_VD.push_back(std::vector<Point_3>());
 			for (unsigned int j = 0; j < vg.size(); j++)
 			{
 				RDT_data_structure::Edge_circulator cur_edge, nxt_edge, end;
@@ -147,7 +161,7 @@ namespace Geex
 						CGAL::Object o = CGAL::intersection(pln, curpln, nxtpln);
 						if (const Point_3 *interp = CGAL::object_cast<Point_3>(&o))
 						{
-							clipped_VD.back().push_back(*interp);
+							//clipped_VD.back().push_back(*interp);
 							vg[j]->vd_vertices.push_back(*interp);
 						}
 					}
@@ -166,8 +180,8 @@ namespace Geex
 			{
 				RDT_disp_list = glGenLists(1);
 				glNewList(RDT_disp_list, GL_COMPILE);
-				glLineWidth(1.5f);
-				glColor3f(0.8f, 0.0f, 0.0f);
+				glLineWidth(1.0f);
+				glColor3f(0.6f, 0.0f, 0.0f);
 				glDisable(GL_LIGHTING);
 				glBegin(GL_LINES);
 				for (RDT_data_structure::Edge_iterator eit = rdt_ds.edges_begin(); eit != rdt_ds.edges_end(); ++eit)
@@ -183,13 +197,19 @@ namespace Geex
 				glEnable(GL_LIGHTING);
 				glEndList();
 			}
+			glPointSize(5.0f);
+			glColor3f(0.0f, 1.0f, 0.0f);
+			glBegin(GL_POINTS);
+			Point_3 p = samp_pnts[426][4]->point_3();
+			glVertex3d(p.x(), p.y(), p.z());
+			glEnd();
 			glCallList(RDT_disp_list);
 		}
 	}
 
 	void RestrictedPolygonVoronoiDiagram::draw_clipped_VD()
 	{
-		if (mesh && clipped_VD.size() > 0)
+		if (mesh)
 		{
 			if (!glIsList(clipped_VD_disp_list))
 			{
@@ -197,20 +217,6 @@ namespace Geex
 				clipped_VD_disp_list = glGenLists(1);
 				glNewList(clipped_VD_disp_list, GL_COMPILE);
 				glDisable(GL_LIGHTING);
-				//for (unsigned int i = 0; i < clipped_VD.size(); i++)
-				//{
-				//	setGroupColor(i, clipped_VD.size());
-				//	Point_3 c = CGAL::centroid(clipped_VD[i].begin(), clipped_VD[i].end(), CGAL::Dimension_tag<0>());
-				//	glBegin(GL_TRIANGLES);
-				//	unsigned int sz = clipped_VD[i].size();
-				//	for (unsigned int j = 0; j < sz; j++)
-				//	{
-				//		glVertex3d(c.x(), c.y(), c.z());
-				//		glVertex3d(clipped_VD[i][j].x(), clipped_VD[i][j].y(), clipped_VD[i][j].z());
-				//		glVertex3d(clipped_VD[i][(j+1)%sz].x(), clipped_VD[i][(j+1)%sz].y(), clipped_VD[i][(j+1)%sz].z());
-				//	}
-				//	glEnd();
-				//}
 				for (unsigned int i = 0; i < nb_groups; i++)
 				{
 					setGroupColor(i, nb_groups);

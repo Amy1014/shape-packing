@@ -92,6 +92,9 @@ public:
 	// insert a group of polygons
 	template<class InputIterator> void insert_polygons(InputIterator first, InputIterator last, unsigned int samp_nb = 24);
 
+	// insert feature and bounding points, samp_nb is number of sampling points on each edge
+	void insert_bounding_points(unsigned int samp_nb = 5);
+
 	void end_insert() ;
 
 	void compute_clipped_VD(std::vector<Plane_3>& clipping_planes);
@@ -112,6 +115,8 @@ public:
 				b = GLfloat((i+2*nb_groups/3)%nb_groups)/nb_groups;
 		glColor3f(r, g, b);
 	}
+
+	const RDT_data_structure& get_rdt() const { return rdt_ds; }
 //#endif
 
 
@@ -124,7 +129,10 @@ private: // private functions
 	}
 
 	// insert one polygon, return how many sample points are actually inserted
-	unsigned int insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb = 24); 
+	unsigned int insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb = 24);
+
+	template <class EdgeInputIterator>
+	unsigned int insert_bounding_edges(EdgeInputIterator first, EdgeInputIterator last, unsigned int samp_nb);
 
 private:
 	bool open;
@@ -132,13 +140,14 @@ private:
 
 	// handles to sample points
 	std::vector<VertGroup> samp_pnts;
+	std::vector<Vertex_handle> bounding_pnts;
 
 	/** geometry **/
 	TopoPolyMesh *mesh;
 	TriMesh *trimesh;//the same as mesh, but with some other necessary functions
 	//Delaunay *del;
 	//RestrictedVoronoiDiagram *rvd;
-	std::vector<std::vector<Point_3>> clipped_VD;//clipped Voronoi diagram for each polygon, expressed as a set of lines
+	//std::vector<std::vector<Point_3>> clipped_VD;//clipped Voronoi diagram for each polygon, expressed as a set of lines
 	unsigned int nb_groups;
 
 	RDT_data_structure rdt_ds;
@@ -177,14 +186,49 @@ void RestrictedPolygonVoronoiDiagram::insert_polygons(InputIterator first, Input
 	while (first != last)
 	{
 		nb_pnts += insert_polygons(*first, group_id, samp_nb);
-		first++;
+		++first;
 		group_id++;
 	}
 	nb_groups = group_id;
 	assert(nb_pnts == rdt_ds.number_of_vertices());
 }
 
-
+template <class EdgeInputIterator>
+unsigned int RestrictedPolygonVoronoiDiagram::insert_bounding_edges(EdgeInputIterator first, EdgeInputIterator last, unsigned int samp_nb)
+{
+	assert(open);
+	std::set<int> vert_idx; 
+	//bounding_pnts.reserve(last - first);
+	unsigned int cnt = 0;
+	while (first != last)
+	{
+		int vi0 = first->first, vi1 = first->second;
+		const vec3& v0 = trimesh->vertex(vi0).point();
+		const vec3& v1 = trimesh->vertex(vi1).point();
+		if ( vert_idx.find(vi0) == vert_idx.end() )
+		{
+			Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(to_cgal_pnt(v0), -1));
+			bounding_pnts.push_back(vh);
+			vert_idx.insert(vi0);
+		}
+		if ( vert_idx.find(vi1) == vert_idx.end() )
+		{
+			Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(to_cgal_pnt(v1), -1));
+			bounding_pnts.push_back(vh);
+			vert_idx.insert(vi1);
+		}
+		for ( unsigned int i = 1; i < samp_nb; i++ )
+		{
+			vec3 sv = ( (samp_nb - i)*v0 + i*v1 ) / samp_nb;
+			Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(to_cgal_pnt(sv), -1));
+			bounding_pnts.push_back(vh);
+			cnt++;
+		}
+		
+		++first;
+	}
+	return cnt;
+}
 
 }
 
