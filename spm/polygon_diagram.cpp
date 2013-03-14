@@ -7,21 +7,16 @@ namespace Geex
 	{
 		mesh = 0;
 		trimesh = 0;
-		//rvd = 0;
-		//pnt_coord = 0;
 		nb_groups = 0;
 		open = false;
-		//del = Delaunay::create("CGAL");
 	}
 
 	RestrictedPolygonVoronoiDiagram::~RestrictedPolygonVoronoiDiagram()
 	{
-		//delete rvd;
-		//delete del;
-		//delete pnt_coord;
 		mesh->clear();
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
+		bounding_pnts.clear();
 		//std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
 		//clipped_VD.clear();
 		glDeleteLists(RDT_disp_list, 1);
@@ -84,6 +79,7 @@ namespace Geex
 		open = true;
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
+		bounding_pnts.clear();
 		//std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
 		//clipped_VD.clear();
 		//if (!pnt_coord) delete pnt_coord;
@@ -197,12 +193,12 @@ namespace Geex
 				glEnable(GL_LIGHTING);
 				glEndList();
 			}
-			glPointSize(5.0f);
-			glColor3f(0.0f, 1.0f, 0.0f);
-			glBegin(GL_POINTS);
-			Point_3 p = samp_pnts[426][4]->point_3();
-			glVertex3d(p.x(), p.y(), p.z());
-			glEnd();
+			//glPointSize(5.0f);
+			//glColor3f(0.0f, 1.0f, 0.0f);
+			//glBegin(GL_POINTS);
+			//Point_3 p = samp_pnts[426][4]->point_3();
+			//glVertex3d(p.x(), p.y(), p.z());
+			//glEnd();
 			glCallList(RDT_disp_list);
 		}
 	}

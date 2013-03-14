@@ -1,21 +1,24 @@
 #pragma once
 
+#include <numeric>
 #include "spm_cgal.h"
+
 
 namespace Geex {
 
 	class Constraint
 	{
 	public:
+		Constraint(const Point_2& p, const Segment_2& seg, const Point_2& ref_point): p_(p), dist_(0.0), seg_(seg)
+		{
+			Vector_2 ref_v(seg_.source(), ref_point);
+			n_ = seg_.to_vector().perpendicular(CGAL::COUNTERCLOCKWISE);
+			if (n_*ref_v < 0)
+				n_ = -n_;
+			n_ = n_ / CGAL::sqrt(n_.squared_length());
+		}
 		Constraint(const Point_2& p,const Segment_2& seg ) : p_(p), dist_(0.0), seg_(seg)
 		{
-			//if (seg_.supporting_line().has_on_negative_side(p_))
-			//	seg_ = seg_.opposite();
-			//Vector_2 dir = seg_.to_vector();
-			//n_ = dir.perpendicular(CGAL::COUNTERCLOCKWISE);
-			//Vector_2 sp(seg_.source(), p_);
-			//if ( sp*n_< 0.0)
-			//	n_ = -n_;
 			Vector_2 v(seg_.source(), p_);
 			n_ = seg_.to_vector().perpendicular(CGAL::COUNTERCLOCKWISE);
 			if ( v*n_ < 0)
@@ -24,22 +27,11 @@ namespace Geex {
 		}
 		Constraint(const Point_2& p,const Segment_2& seg, double dist ): p_(p), dist_(dist), seg_(seg)
 		{
-			//if (seg_.supporting_line().has_on_negative_side(p_))
-			//	seg_ = seg_.opposite();
-			//Point_2 prj = seg_.supporting_line().projection(p_);
 			//assume p has been already inside the region when initialization
 			Vector_2 v(seg_.source(), p_);
 			n_ = seg_.to_vector().perpendicular(CGAL::COUNTERCLOCKWISE);
 			if ( v*n_ < 0)
-			{
-				//seg_ = seg_.opposite();
-				//dir = seg_.to_vector();
-				n_ = -n_;
-			}			
-			//n_ = dir.perpendicular(CGAL::COUNTERCLOCKWISE);
-			//Vector_2 sp(seg_.source(), p_);
-			//if ( sp*n_ < 0.0)
-			//	n_ = -n_;
+				n_ = -n_;		
 			n_ = n_/sqrt(n_.squared_length());  // normalize
 		}
 	public:
@@ -50,8 +42,6 @@ namespace Geex {
 		double transformed_signed_area(const Transformation_2& aff)
 		{
 			Point_2 pp = aff(p_);
-			//Vector_2 dir = seg_.to_vector();
-			//Vector_2 n = dir.perpendicular(CGAL::COUNTERCLOCKWISE);
 			return (pp - seg_.source())*n_;
 		}
 		double transformed_signed_dist(const Transformation_2& aff, double k)
