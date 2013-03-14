@@ -4,24 +4,16 @@ namespace Geex
 {
 	Packer* Packer::instance_ = nil;
 
-	void Packer::get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max)
-	{
-		x_min = y_min = z_min = DBL_MAX;
-		x_max = y_max = z_max = DBL_MIN;
-		for(unsigned int i=0; i<mesh.size(); i++) 
-			for(unsigned int j=0; j<3; j++) 
-			{
-				const vec3& p = mesh[i].vertex[j] ;
-				x_min = gx_min(x_min, p.x); y_min = gx_min(y_min, p.y);	z_min = gx_min(z_min, p.z);
-				x_max = gx_max(x_max, p.x);	y_max = gx_max(y_max, p.y); z_max = gx_max(z_max, p.z) ;
-			}
-	}
+	double Packer::PI = 3.141592653589793;
 
 	Packer::Packer()
 	{
 		assert( instance_ == nil );
 		instance_ = this;
-		srand(1);
+		//srand(1);
+		srand(time(NULL));
+		rot_lower_bd = -PI/6.0;
+		rot_upper_bd = PI/6.0;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -57,7 +49,6 @@ namespace Geex
 		// 1. random 
 		unsigned int nb_init_polygons = mesh_area / mean_pgn_area;
 		random_init_tiles(nb_init_polygons);
-		
 	}
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
@@ -167,5 +158,191 @@ namespace Geex
 			return f.normal();
 		avg_norm /= avg_norm.length();
 		return avg_norm;
+	}
+
+	Packer::Lloyd_res Packer::optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution)
+	{
+		// choose a local frame
+		lf.o = pack_objects[id].centroid();
+		lf.w = pack_objects[id].normal(); // assume this vector has already been normalized
+		Vector_3 u(lf.o, pack_objects[id].vertex(0));
+		lf.u = u/CGAL::sqrt(u.squared_length());
+		lf.v = CGAL::cross_product(lf.w, lf.u);
+
+		// formulate optimization 
+		containment.clear();
+		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
+		for (unsigned int i = 0; i < samp_pnts.size(); i++)
+		{
+			const vector<Point_3>& bisec_pnts = samp_pnts[i]->vd_vertices;
+			Point_2 ref_point = lf.to_uv(samp_pnts[i]->point_3());
+			assert(bisec_pnts.size() != 1);
+			for (unsigned int j = 0; j < bisec_pnts.size(); j++)
+			{
+				const Point_3& s = bisec_pnts[j];
+				const Point_3& t = bisec_pnts[(j+1)%bisec_pnts.size()];
+				//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
+				// or use ?
+				containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3(), lf.to_uv(Segment_3(s,t), ref_point))));
+			}
+		}
+		const unsigned int try_time_limit = 10;
+		unsigned int try_times = 1;
+		int knitro_res;
+		while ( (knitro_res = KTR_optimize(&solution.k, &solution.theta, &solution.tx, &solution.ty)) && try_times < try_time_limit )
+		{
+			double r = Numeric::random_float64();
+			solution = Parameter(1.0, (rot_upper_bd-rot_lower_bd)*r+rot_lower_bd, 0.0, 0.0);
+			try_times++;
+		}
+		if (try_times == try_time_limit)
+			return LLOYD_FAILED;
+		else
+			return LLOYD_SUCCESS;
+	}
+	
+	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2)
+	{
+		int  nStatus;
+		/* variables that are passed to KNITRO */
+		KTR_context *kc;
+		int n, m, nnzJ, nnzH, objGoal, objType;
+		int *cType, *jacIndexVars, *jacIndexCons;
+		double obj, *x, *lambda;
+		double *xLoBnds, *xUpBnds, *xInitial, *cLoBnds, *cUpBnds;
+		int i, j, k; // convenience variables
+
+		/*problem size and mem allocation */
+		n = 4;
+		m = containment.get_constaint_list_size();
+
+		nnzJ = n*m;
+		nnzH = 0;
+		x = (double *)malloc(n * sizeof(double));
+		lambda = (double *)malloc((m+n) * sizeof(double));
+
+		xLoBnds      = (double *)malloc(n * sizeof(double));
+		xUpBnds      = (double *)malloc(n * sizeof(double));
+		xInitial     = (double *)malloc(n * sizeof(double));
+		cType        = (int    *)malloc(m * sizeof(int));
+		cLoBnds      = (double *)malloc(m * sizeof(double));
+		cUpBnds      = (double *)malloc(m * sizeof(double));
+		jacIndexVars = (int    *)malloc(nnzJ * sizeof(int));
+		jacIndexCons = (int    *)malloc(nnzJ * sizeof(int));
+
+		/* objective type */
+		objType = KTR_OBJTYPE_LINEAR;
+		objGoal = KTR_OBJGOAL_MAXIMIZE;
+		/* bounds and constraints type */
+		xLoBnds[0] = 0.0;
+		xUpBnds[0] = KTR_INFBOUND;
+		xLoBnds[1] = rot_lower_bd;
+		xUpBnds[1] = rot_upper_bd;
+		for (i = 2; i < n; i++) {
+			xLoBnds[i] = -KTR_INFBOUND;
+			xUpBnds[i] = KTR_INFBOUND;
+		}
+		for (j = 0; j < m; j++) {
+			cType[j] = KTR_CONTYPE_GENERAL;
+			cLoBnds[j] = 0.0;
+			cUpBnds[j] = KTR_INFBOUND;
+		}
+		/* initial point */
+		xInitial[0] = *io_k;
+		xInitial[1] = *io_theta;
+		xInitial[2] = *io_t1;
+		xInitial[3] = *io_t2;
+		/* sparsity pattern (here, of a full matrix) */
+		k = 0;
+		for (j = 0; j < m; j++) 
+			for (i = 0; i < n; i++){
+				jacIndexCons[k] = j;
+				jacIndexVars[k] = i;
+				k++;
+			}
+		/* create a KNITRO instance */
+		kc = KTR_new();
+		if (kc == NULL)
+			return -1 ; // probably a license issue
+		/* set options: automatic gradient and hessian matrix */
+		if (KTR_set_int_param_by_name(kc, "gradopt", KTR_GRADOPT_EXACT) != 0)
+			return -1 ;
+		if (KTR_set_int_param_by_name(kc, "hessopt", KTR_HESSOPT_LBFGS) != 0)
+			return -1 ;
+		if (KTR_set_int_param_by_name(kc, "outlev", 0) != 0)
+			return -1 ;
+		if (KTR_set_int_param_by_name(kc, "maxit", 500) != 0)
+			return -1 ;
+		/* register the callback function */
+		if (KTR_set_func_callback(kc, &callback) != 0)
+			return -1 ;
+		if (KTR_set_grad_callback(kc, &callback) != 0)
+			return -1 ;
+		/* pass the problem definition to KNITRO */
+		nStatus = KTR_init_problem(kc, n, objGoal, objType, xLoBnds, xUpBnds, m, cType, cLoBnds, cUpBnds,
+									nnzJ, jacIndexVars, jacIndexCons, nnzH, NULL, NULL, xInitial, NULL);
+		/* free memory (KNITRO maintains its own copy) */
+		free(xLoBnds);	free(xUpBnds);
+		free(xInitial);
+		free(cType);
+		free(cLoBnds);	free(cUpBnds);
+		free(jacIndexVars);	free(jacIndexCons);
+
+		nStatus = KTR_solve(kc, x, lambda, 0, &obj, NULL, NULL, NULL, NULL, NULL, NULL);
+
+		if(nStatus ==0)
+		{	
+			*io_k =  x[0];
+			*io_theta = x[1];
+			*io_t1 = x[2];
+			*io_t2 = x[3];
+		}
+
+		/* delete the KNITRO instance and primal/dual solution */
+		KTR_free(&kc);
+		free(x);
+		free(lambda);
+		return nStatus;
+	}
+	int Packer::callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
+						const double * const x,	const double * const lambda, double * const obj, double * const c,
+						double * const objGrad,	double * const jac,	double * const hessian,	double * const hessVector, void * userParams)
+	{
+		Packer* p = instance() ;
+		if (evalRequestCode == KTR_RC_EVALFC)
+		{
+			/* objective function */
+			// x[0]- x[4]: k cos sin t1 t2
+			*obj    = x[0];
+			p->containment.compute_constraints(x,c,m);
+			return 0;
+		}
+		else if (evalRequestCode == KTR_RC_EVALGA)
+		{
+			objGrad[0] = 1.0;
+			objGrad[1] = 0.0;
+			objGrad[2] = 0.0;
+			objGrad[3] = 0.0;
+			p->containment.compute_constraint_grads(x, jac);
+			return 0;
+		}
+		else 
+		{
+			printf ("Wrong evalRequestCode in callback function.\n");
+			return -1;
+		}
+	}
+
+	void Packer::get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max)
+	{
+		x_min = y_min = z_min = DBL_MAX;
+		x_max = y_max = z_max = DBL_MIN;
+		for(unsigned int i=0; i<mesh.size(); i++) 
+			for(unsigned int j=0; j<3; j++) 
+			{
+				const vec3& p = mesh[i].vertex[j] ;
+				x_min = gx_min(x_min, p.x); y_min = gx_min(y_min, p.y);	z_min = gx_min(z_min, p.z);
+				x_max = gx_max(x_max, p.x);	y_max = gx_max(y_max, p.y); z_max = gx_max(z_max, p.z) ;
+			}
 	}
 }

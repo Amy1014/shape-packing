@@ -27,6 +27,8 @@ public:
 	typedef typename Kernel::Segment_3	Segment_3;
 	typedef typename Kernel::Vector_3	Vector_3;
 	typedef CGAL::Aff_transformation_3<Kernel> Transformation_3;
+	typedef typename Container::iterator	Vertex_iterator;
+	typedef typename Container::const_iterator	Const_vertex_iterator;
 
 	typedef typename Container::size_type size_type;
 	
@@ -56,7 +58,12 @@ public:
 		return verts[i]; 
 	}
 
-	Point_3 centroid() const { return cent; }
+	inline Vertex_iterator vertices_begin()	{ return verts.begin(); }
+	inline Vertex_iterator vertices_end()		{ return verts.end(); }
+	inline Const_vertex_iterator vertices_begin() const { return verts.begin(); }
+	inline Const_vertex_iterator vertices_end() const { return verts.end(); }
+
+	Point_3 centroid() const { return CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>()); }
 
 	Vector_3 norm() const { return normal; }
 
@@ -78,14 +85,14 @@ public:
 
 private:
 	Container verts;//vertices
-	Point_3 cent;//centroid
+	//Point_3 cent;//centroid
 	Vector_3 normal;
 	//CGAL::Plane_3<Kernel> embed_plane;
 };
 
 template <class Kernel, class Container> MyPolygon_3<Kernel, Container>::MyPolygon_3()
 {
-	cent = Point_3(FT(0), FT(0), FT(0));
+	//cent = Point_3(FT(0), FT(0), FT(0));
 	normal = CGAL::NULL_VECTOR;
 	//embed_plane = Plane_3(cent, normal);
 }
@@ -128,7 +135,7 @@ MyPolygon_3<Kernel, Container>::MyPolygon_3(const CGAL::Polygon_2<PolygonTraits_
 		verts.push_back(t(Point_3(vert.x(), vert.y(), FT(0))));
 	}
 	normal = n;
-	cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
+	//cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
 
 }
 
@@ -140,19 +147,20 @@ template <class Kernel, class Container> MyPolygon_3<Kernel, Container>::~MyPoly
 template <class Kernel, class Container> void MyPolygon_3<Kernel, Container>::push_back(const Point_3& p)
 {
 	verts.push_back(p);
-	cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
+	//cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
 }
 
 template <class Kernel, class Container> void MyPolygon_3<Kernel, Container>::clear()
 {
 	verts.clear();
 	normal = CGAL::NULL_VECTOR;
-	cent = Point_3(FT(0.0), FT(0.0), FT(0.0));
+	//cent = Point_3(FT(0.0), FT(0.0), FT(0.0));
 }
 
 template <class Kernel, class Container> typename MyPolygon_3<Kernel, Container>::FT MyPolygon_3<Kernel, Container>::area() const 
 {
 	Vector_3 a(FT(0.0), FT(0.0), FT(0.0));
+	Point_3 cent = centroid();
 	for (unsigned int i = 0; i < verts.size(); i++)
 	{
 		Vector_3 ta = CGAL::cross_product(Vector_3(cent, verts[i]), Vector_3(cent, verts[(i+1)%verts.size()]));
@@ -165,7 +173,7 @@ template <class Kernel, class Container>
 MyPolygon_3<Kernel, Container>& MyPolygon_3<Kernel, Container>::operator*=(const Transformation_3& t)
 {
 	std::transform(verts.begin(), verts.end(), verts.begin(), t);
-	cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
+	//cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
 	normal = normal.transform(t);
 	return *this;
 }
@@ -178,7 +186,7 @@ MyPolygon_3<Kernel, Container> operator*(const typename MyPolygon_3<Kernel, Cont
 {
 	MyPolygon_3<Kernel, Container> res;
 	std::transform(p.verts.begin(), p.verts.end(), std::back_inserter(res.verts), t);
-	res.cent = CGAL::centroid(res.verts.begin(), res.verts.end(), CGAL::Dimension_tag<0>());
+	//res.cent = CGAL::centroid(res.verts.begin(), res.verts.end(), CGAL::Dimension_tag<0>());
 	res.normal = p.normal.transform(t);
 	return res;
 }

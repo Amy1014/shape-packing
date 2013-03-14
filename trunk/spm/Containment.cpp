@@ -119,7 +119,7 @@ void Containment::set_constraint_list_concave()
 		Point_2 q = outer_pgn_.vertex(j);
 		Point_2 near_p;
 		// find the nearest vertex of inner polygon
-		double dist2 = 1e12;
+		double dist2 = std::numeric_limits<double>::max();
 		for (int i=0; i<inner_pgn_.size();i++)
 		{
 			double temp_dist2 = (inner_pgn_.vertex(i)-q).squared_length();

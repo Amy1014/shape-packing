@@ -1,0 +1,9 @@
+< SpMProject >  Cloak Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\cloak.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi420_cloak.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\cloak.cur </ DensityFile >
+
+< TextureImageDir >  ./texture  </ TextureImageDir >

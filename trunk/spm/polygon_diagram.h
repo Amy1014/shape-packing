@@ -73,6 +73,8 @@ namespace Geex
 
 class RestrictedPolygonVoronoiDiagram
 {
+
+public:
 	typedef RestrictedVoronoiDiagram_poly RestrictedVoronoiDiagram;
 	typedef RDT_data_structure::Vertex_handle Vertex_handle;
 	typedef RDT_data_structure::Face_handle Face_handle;
@@ -102,7 +104,7 @@ public:
 	void iDT_update(); // edge flip to preserve intrinsic Delaunay structure
 
 	/** access functions **/
-
+	const VertGroup& sample_points_group(unsigned int polygon_id) { return samp_pnts[polygon_id]; }
 
 //#if _DEBUG
 	void draw_DT();
