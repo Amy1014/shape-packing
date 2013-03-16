@@ -18,7 +18,7 @@ namespace Geex
 	class Packer
 	{
 
-		typedef enum {LLOYD_SUCCESS, LLOYD_FAILED} Lloyd_res;
+		typedef enum {SUCCESS, FAILED} Optimization_res;
 
 	public:
 		
@@ -32,14 +32,21 @@ namespace Geex
 		/** access functions **/
 		const TriMesh& mesh_domain() const { return mesh; }
 		const vector<Packing_object>& get_tiles() const { return pack_objects; }
+		const RestrictedPolygonVoronoiDiagram& get_rpvd() const { return rpvd; }
 
 		static Packer* instance() { return instance_; }
+
+		/** optimization **/
+		// one Lloyd iteration
+		void lloyd(bool enlarge = true);
 
 		/** miscellaneous **/
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
 
+		// driver
+		void pack(void (*update_func)() = NULL); 
+
 		/** debug **/
-		void draw_RDT() { rpvd.draw_DT(); }
 		void draw_clipped_VD() {rpvd.draw_clipped_VD();}
 
 	private:
@@ -60,7 +67,9 @@ namespace Geex
 		int KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2);
 
 		// get the transformation parameter for one polygon in a local frame
-		Lloyd_res optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution);
+		struct Local_frame;
+		struct Parameter;
+		Optimization_res optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution);
 
 	private:
 
@@ -85,18 +94,18 @@ namespace Geex
 			Vector_3 v;
 			Vector_3 w;
 			Point_3 o;
-			inline Point_2 to_uv(const Point_3& p)
+			inline Point_2 to_uv(const Point_3& p) const
 			{
 				Vector_3 op(o, p);
 				return Point_2(op*u, op*v);
 			}
-			inline Segment_2 to_uv(const Segment_3& s)
+			inline Segment_2 to_uv(const Segment_3& s) const 
 			{
 				return Segment_2(to_uv(s.source()), to_uv(s.target()));
 			}
-			inline Point_3 to_xy(const Point_2& p)
+			inline Point_3 to_xy(const Point_2& p) const
 			{
-				return CGAL::ORIGIN + ( p.x()*u + p.y()*v );
+				return o + ( p.x()*u + p.y()*v );
 			}
 		};
 
@@ -130,7 +139,13 @@ namespace Geex
 				Point_2 tp = t(local_frame.to_uv(p));
 				return local_frame.to_xy(tp);
 			}
-		}
+
+			inline RestrictedPolygonVoronoiDiagram::Vertex_handle operator()(RestrictedPolygonVoronoiDiagram::Vertex_handle v)
+			{
+				v->Embedded_point_2::p = operator()(v->point_3());
+				return v;
+			}
+		};
 
 	public: // for debug
 		RestrictedPolygonVoronoiDiagram rpvd;

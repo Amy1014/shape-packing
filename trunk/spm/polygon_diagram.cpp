@@ -17,6 +17,8 @@ namespace Geex
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		bounding_pnts.clear();
+		edge_face_adjacency.clear();
+		rdt_ds.clear();
 		//std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
 		//clipped_VD.clear();
 		glDeleteLists(RDT_disp_list, 1);
@@ -80,6 +82,8 @@ namespace Geex
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		bounding_pnts.clear();
+		edge_face_adjacency.clear();
+		rdt_ds.clear();
 	}
 	
 	void RestrictedPolygonVoronoiDiagram::end_insert()
@@ -192,7 +196,7 @@ namespace Geex
 	inline bool RestrictedPolygonVoronoiDiagram::is_interior_edge(const Edge& e)
 	{
 		Face_handle f = e.first;
-		int i = eit.second;
+		int i = e.second;
 		Vertex_handle v0 = f->vertex(f->cw(i)), v1 = f->vertex(f->ccw(i));
 		return (v0->group_id >= 0) || (v1->group_id >= 0);
 	}
@@ -219,7 +223,6 @@ namespace Geex
 				break;
 			++eit;
 		}
-		typedef RDT_data_structure::Edge Edge;
 		std::queue<Edge> q;
 		q.push(*eit);
 		while (!q.empty())
@@ -253,41 +256,6 @@ namespace Geex
 	}
 
 //#if _DEBUG
-	void RestrictedPolygonVoronoiDiagram::draw_DT()
-	{
-		if (mesh)
-		{
-			if (!glIsList(RDT_disp_list))
-			{
-				RDT_disp_list = glGenLists(1);
-				glNewList(RDT_disp_list, GL_COMPILE);
-				glLineWidth(1.0f);
-				glColor3f(0.6f, 0.0f, 0.0f);
-				glDisable(GL_LIGHTING);
-				glBegin(GL_LINES);
-				for (RDT_data_structure::Edge_iterator eit = rdt_ds.edges_begin(); eit != rdt_ds.edges_end(); ++eit)
-				{
-					RDT_data_structure::Face_handle f = eit->first;
-					int i = eit->second;
-					RDT_data_structure::Vertex_handle vh0 = f->vertex(f->cw(i)), vh1 = f->vertex(f->ccw(i));
-					Point_3 p0 = vh0->point_3(), p1 = vh1->point_3();
-					glVertex3d(p0.x(), p0.y(), p0.z());
-					glVertex3d(p1.x(), p1.y(), p1.z());				
-				}
-				glEnd();
-				glEnable(GL_LIGHTING);
-				glEndList();
-			}
-			//glPointSize(5.0f);
-			//glColor3f(0.0f, 1.0f, 0.0f);
-			//glBegin(GL_POINTS);
-			//Point_3 p = samp_pnts[426][4]->point_3();
-			//glVertex3d(p.x(), p.y(), p.z());
-			//glEnd();
-			glCallList(RDT_disp_list);
-		}
-	}
-
 	void RestrictedPolygonVoronoiDiagram::draw_clipped_VD()
 	{
 		if (mesh)

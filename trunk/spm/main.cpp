@@ -13,8 +13,9 @@
 namespace Geex {
 	//void TW_CALL tw_reset(void *clientData);
 	//void TW_CALL tw_adjust(void *clientData);
-	//void TW_CALL tw_lloyd(void *clientData);
-	//void TW_CALL tw_pack(void *clientData);
+	void TW_CALL tw_lloyd(void *clientData);
+	void TW_CALL tw_pack(void *clientData);
+	void update();
 	//void TW_CALL tw_rpack(void*);
 	//void TW_CALL tw_replace(void *clientData);
 	//void TW_CALL tw_detect_holes(void*);
@@ -52,6 +53,25 @@ namespace Geex {
 			spm()->load_project(prj_config_file);
         }
 
+		/** optimization **/
+		void lloyd()
+		{
+			spm()->lloyd();
+			spm()->redraw_triangulation();
+			glut_viewer_redraw();
+		}
+
+		void post_update()
+		{
+			spm()->redraw_triangulation();
+			glut_viewer_redraw();
+		}
+
+		void pack()
+		{
+			spm()->pack(&update);
+		}
+
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -64,11 +84,13 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "");
 			TwBar* function_bar = TwNewBar("Functions");
 			TwDefine("Functions position='16 250' size='200 250' alpha=200");
+			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l");
+			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p");
 			//TwAddVarRW(function_bar, "Iter Number.", TW_TYPE_INT32, &spm()->setPackIterLim(), "min=1");
 			//TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->setMinScalor(), ""/*"min=0.01 max=0.99"*/);
 			//TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->setMaxScalor(), ""/*"min=1.0 max=1.99"*/);
 			//TwAddVarRW(function_bar, "Area Coverage", TW_TYPE_DOUBLE, &spm()->setAreaCoverage(), "min=0.01 max=1.0");
-			//TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=k");
+			
 			//TwAddVarRW(function_bar, "Scale Factor", TW_TYPE_DOUBLE, &scalingFactor, "min=0.0 step=0.01");
 			//TwAddButton(function_bar, "Scale", tw_adjust, NULL, "key=a");
 			toggle_skybox_CB() ;
@@ -85,8 +107,9 @@ Geex::SPMApp* spm_app() { return static_cast<Geex::SPMApp*>(Geex::GeexApp::insta
 
 //void TW_CALL tw_reset(void *clientData) { spm_app()->reset(); }
 //void TW_CALL tw_adjust(void *clientData) { spm_app()->adjust(); }
-//void TW_CALL tw_lloyd(void *clientData) {spm_app()->Lloyd();}
-//void TW_CALL tw_pack(void *clientData) { spm_app()->pack(); }
+void TW_CALL tw_lloyd(void *clientData) {spm_app()->lloyd();}
+void update() { spm_app()->post_update(); }
+void TW_CALL tw_pack(void *clientData) { spm_app()->pack(); }
 //void TW_CALL tw_replace(void *clientData) { spm_app()->replace(); }
 //void TW_CALL tw_detect_holes(void *clientData) { spm_app()->detect_holes(); }
 //void TW_CALL tw_save( void *clientData ) { spm_app()->save(); }
