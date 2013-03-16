@@ -28,6 +28,12 @@ namespace Geex
 		highlighted_group = -1;
 	}
 
+	SPM_Graphics::~SPM_Graphics()
+	{
+		glDeleteLists(triangulation_displist, 1);
+		glDeleteLists(vc_displist, 1);
+	}
+
 	inline void SPM_Graphics::gl_table_color(int index)
 	{
 		int i = index % (sizeof(color_table)/sizeof(color_table[0]));
@@ -42,9 +48,9 @@ namespace Geex
 		if (show_polygons_)
 			draw_polygons();
 		if (show_triangulation_)
-			packer->draw_RDT();
+			draw_triangulation();
 		if (show_voronoi_cell_)
-			packer->draw_clipped_VD();
+			draw_voronoi_cell();
 		//draw_all_vertices();
 	}
 
@@ -116,5 +122,53 @@ namespace Geex
 			glPoint_3(p);
 		}
 		glEnd();
+	}
+
+	void SPM_Graphics::draw_triangulation()
+	{
+		if (!glIsList(triangulation_displist))
+		{
+			triangulation_displist = glGenLists(1);
+			glNewList(triangulation_displist, GL_COMPILE);
+			glLineWidth(1.0f);
+			glColor3f(0.6f, 0.0f, 0.0f);
+			glDisable(GL_LIGHTING);
+			typedef RestrictedPolygonVoronoiDiagram RPVD;
+			const RPVD& rpvd = packer->get_rpvd();
+			glBegin(GL_LINES);
+			for (RPVD::Edge_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
+			{
+				RPVD::Face_iterator f = eit->first;
+				int i = eit->second;
+				RPVD::Vertex_iterator vh0 = f->vertex(f->cw(i)), vh1 = f->vertex(f->ccw(i));
+				glPoint_3(vh0->point_3());
+				glPoint_3(vh1->point_3());
+			}
+			glEnd();
+			glEnable(GL_LIGHTING);
+			glEndList();
+		}
+		glCallList(triangulation_displist);
+	}
+
+	void SPM_Graphics::draw_voronoi_cell()
+	{
+		typedef RestrictedPolygonVoronoiDiagram RPVD;
+		if (!glIsList(vc_displist))
+		{
+			vc_displist = glGenLists(1);
+			glNewList(vc_displist);
+			glDisable(GL_LIGHTING);
+			const RPVD& rpvd = packer->get_rpvd();
+			for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
+			{
+				const RPVD::VertGroup& vg = rpvd.sample_points_group(i);
+				gl_table_color(i);
+				glBegin(GL_TRIANGLES);
+				glEnd();
+			}
+			glEnable(GL_LIGHTING);
+			glEndList();
+		}
 	}
 }

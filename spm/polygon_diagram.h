@@ -60,6 +60,7 @@ namespace Geex
 		Embedded_vertex_2(const Point_3& _p) : Embedded_point_2(_p), group_id(-1) {}
 		Embedded_vertex_2(const Point_3& _p, int _group_id) : Embedded_point_2(_p), group_id(_group_id) {}
 		inline Point_3 point_3() const { return Embedded_point_2::p; }
+	
 	public:
 		int group_id;
 		std::vector<Point_3> vd_vertices; // vertices of Voronoi diagram associated with this vertex
@@ -69,7 +70,26 @@ namespace Geex
 	class Embedded_face_2 : public Fb
 	{
 	public:
-		bool visited[3]; // edge flipping, wheter an edge has been visited
+		typedef typename Fb::Vertex_handle Vertex_handle;
+		typedef typename Fb::Face_handle Face_handle;
+
+		template < typename TDS2 >
+		struct Rebind_TDS {
+			typedef typename Fb::template Rebind_TDS<TDS2>::Other Fb2;
+			typedef Embedded_face_2<Gt,Fb2> Other;
+		};
+		Embedded_face_2() : Fb() {  }
+		Embedded_face_2(
+			Vertex_handle v0, Vertex_handle v1, Vertex_handle v2
+			) : Fb(v0, v1, v2) { }
+
+		Embedded_face_2(
+			Vertex_handle v0, Vertex_handle v1, Vertex_handle v2,
+			Face_handle n0, Face_handle n1, Face_handle n2 
+			) : Fb(v0,v1,v2,n0,n1,n2) { }
+
+	public:
+		bool visited[3]; // edge flipping, whether an edge has been visited
 	};
 
 	typedef CGAL::Triangulation_data_structure_2<Embedded_vertex_2<K>, Embedded_face_2<K>> RDT_data_structure; // representation of RDT
@@ -84,7 +104,11 @@ public:
 	typedef RDT_data_structure::Face_handle Face_handle;
 	typedef std::pair<Vertex_handle, Vertex_handle> Vertex_pair;
 	typedef std::vector<Vertex_handle> VertGroup; // vertices belonging to the same group
+	typedef RDT_data_structure::Vertex Vertex;
 	typedef RDT_data_structure::Edge Edge;
+	typedef RDT_data_structure::Edge_iterator Edge_iterator;
+	typedef RDT_data_structure::Vertex_iterator Vertex_iterator;
+	typedef RDT_data_structure::Face_iterator Face_iterator;
 
 public:
 	RestrictedPolygonVoronoiDiagram();
@@ -109,10 +133,19 @@ public:
 	void iDT_update(); // edge flip to preserve intrinsic Delaunay structure
 
 	/** access functions **/
-	const VertGroup& sample_points_group(unsigned int polygon_id) { return samp_pnts[polygon_id]; }
+	const VertGroup& sample_points_group(unsigned int polygon_id) const { return samp_pnts[polygon_id]; }
+	VertGroup& sample_points_group(unsigned int polygon_id) { return samp_pnts[polygon_id]; }
+	
+	Vertex_iterator vertices_begin() const { return rdt_ds.vertices_begin(); }
+	Vertex_iterator vertices_end() const { return rdt_ds.vertices_end(); }
+	Edge_iterator edges_begin() const { return rdt_ds.edges_begin(); }
+	Edge_iterator edges_end() const { return rdt_ds.edges_end(); }
+	Face_iterator faces_begin() const { return rdt_ds.faces_begin(); }
+	Face_iterator faces_end() const { return rdt_ds.faces_end(); }
+	unsigned int number_of_groups() const { return nb_groups; }
 
 //#if _DEBUG
-	void draw_DT();
+
 	void draw_clipped_VD();
 	inline void setGroupColor(unsigned int i, unsigned int nb_groups)
 	{

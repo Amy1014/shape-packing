@@ -45,6 +45,9 @@ namespace Geex
 		mean_pgn_area /= pgn_lib.size();
 		std::cout<<"Maximum polygon area: "<<max_pgn_area<<std::endl;
 
+		rpvd.set_mesh(pio.attribute_value("MeshFile"));
+		rpvd.set_trimesh(&mesh);
+
 		// distribute polygons by different strategies
 		// 1. random 
 		unsigned int nb_init_polygons = mesh_area / mean_pgn_area;
@@ -117,8 +120,6 @@ namespace Geex
 
 	void Packer::generate_RDT()
 	{
-		rpvd.set_mesh(pio.attribute_value("MeshFile"));
-		rpvd.set_trimesh(&mesh);
 		rpvd.begin_insert();
 		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
 		rpvd.insert_bounding_points(10);
@@ -160,11 +161,11 @@ namespace Geex
 		return avg_norm;
 	}
 
-	Packer::Lloyd_res Packer::optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution)
+	Packer::Optimization_res Packer::optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution)
 	{
 		// choose a local frame
 		lf.o = pack_objects[id].centroid();
-		lf.w = pack_objects[id].normal(); // assume this vector has already been normalized
+		lf.w = pack_objects[id].norm(); // assume this vector has already been normalized
 		Vector_3 u(lf.o, pack_objects[id].vertex(0));
 		lf.u = u/CGAL::sqrt(u.squared_length());
 		lf.v = CGAL::cross_product(lf.w, lf.u);
@@ -183,7 +184,7 @@ namespace Geex
 				const Point_3& t = bisec_pnts[(j+1)%bisec_pnts.size()];
 				//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
 				// or use ?
-				containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3(), lf.to_uv(Segment_3(s,t), ref_point))));
+				containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s,t)), ref_point));
 			}
 		}
 		const unsigned int try_time_limit = 10;
@@ -195,10 +196,44 @@ namespace Geex
 			solution = Parameter(1.0, (rot_upper_bd-rot_lower_bd)*r+rot_lower_bd, 0.0, 0.0);
 			try_times++;
 		}
+		
 		if (try_times == try_time_limit)
-			return LLOYD_FAILED;
+			return FAILED;
 		else
-			return LLOYD_SUCCESS;
+		{
+			//std::cout<<"k = "<<solution.k<<", theta = "<<solution.theta<<", tx = "<<solution.tx<<", ty = "<<solution.ty<<std::endl;
+			return SUCCESS;
+		}
+	}
+
+	void Packer::lloyd(bool enlarge)
+	{
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			Local_frame lf;
+			Parameter solution;
+			Optimization_res res = optimize_one_polygon(i, lf, solution);
+			if (!enlarge)
+				solution.k = 1.0;
+			if (res == SUCCESS)
+			{
+				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), Apply_transformation(solution, lf));
+				//RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+				//std::transform(samp_pnts.begin(), samp_pnts.end(), samp_pnts.begin(), Apply_transformation(solution, lf));
+			}
+		}
+		//generate_RDT();
+	}
+
+	void Packer::pack(void (*update_func)())
+	{
+		for (unsigned int i = 0; i < 2; i++)
+		{
+			lloyd(false);
+			generate_RDT();
+			if (update_func != NULL)
+				update_func();
+		}
 	}
 	
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2)
