@@ -80,9 +80,6 @@ namespace Geex
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		bounding_pnts.clear();
-		//std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
-		//clipped_VD.clear();
-		//if (!pnt_coord) delete pnt_coord;
 	}
 	
 	void RestrictedPolygonVoronoiDiagram::end_insert()
@@ -163,6 +160,94 @@ namespace Geex
 					}
 					++cur_edge;	++nxt_edge;
 				} while (cur_edge != end);
+			}
+		}
+	}
+
+	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(const Edge& e)
+	{
+		Face_handle fi = e.first;
+		int i = e.second;
+		Face_handle fj = fi->neighbor(i);
+		int j = fj->index(fi);
+		Vertex_handle vi = fi->vertex(i), vi_cw = fi->vertex(fi->cw(i)), vi_ccw = fi->vertex(fi->ccw(i));
+		Vertex_handle vj = fj->vertex(j), vj_cw = fj->vertex(fj->cw(j)), vj_ccw = fj->vertex(fj->ccw(j));
+		double a2 = CGAL::squared_distance(vi->point_3(), vi_cw->point_3()),
+			b2 = CGAL::squared_distance(vi->point_3(), vi_ccw->point_3()),
+			c2 = CGAL::squared_distance(vi_cw->point_3(), vi_ccw->point_3());
+		double cos_ang_i = (a2 + b2 - c2) / (2*std::sqrt(a2*b2));
+		double sin_ang_i = std::sqrt(1-cos_ang_i*cos_ang_i);
+		a2 = CGAL::squared_distance(vj->point_3(), vj_cw->point_3());
+		b2 = CGAL::squared_distance(vj->point_3(), vj_ccw->point_3());
+		c2 = CGAL::squared_distance(vj_cw->point_3(), vj_ccw->point_3());
+		double cos_ang_j = (a2 + b2 - c2)/(2*std::sqrt(a2*b2));
+		double sin_ang_j = std::sqrt(1 - cos_ang_j*cos_ang_j);
+		double sin_ij = sin_ang_i*cos_ang_j + sin_ang_j*cos_ang_i;
+		if (sin_ij >= 0.0) // sum of two opposite angles not larger than pi
+			return true;
+		else
+			return false;
+	}
+
+	inline bool RestrictedPolygonVoronoiDiagram::is_interior_edge(const Edge& e)
+	{
+		Face_handle f = e.first;
+		int i = eit.second;
+		Vertex_handle v0 = f->vertex(f->cw(i)), v1 = f->vertex(f->ccw(i));
+		return (v0->group_id >= 0) || (v1->group_id >= 0);
+	}
+	inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Face_handle f, int i, std::queue<Edge>& q)
+	{
+		Face_handle t = f->neighbor(i);
+		int ti = t->index(f);
+		Edge te(t, ti);
+		if (!t->visited[ti] && is_interior_edge(te))
+			q.push(te);
+		else
+			f->visited[i] = true;		
+	}
+	void RestrictedPolygonVoronoiDiagram::iDT_update()
+	{
+		// mark all edges as unvisited
+		for (RDT_data_structure::Face_iterator fit = rdt_ds.faces_begin(); fit != rdt_ds.faces_end(); ++fit)
+			fit->visited[0] = fit->visited[1] = fit->visited[2] = false;
+		//choose an arbitrary interior edge
+		RDT_data_structure::Edge_iterator eit = rdt_ds.edges_begin();
+		while (true)
+		{
+			if (is_interior_edge(*eit))
+				break;
+			++eit;
+		}
+		typedef RDT_data_structure::Edge Edge;
+		std::queue<Edge> q;
+		q.push(*eit);
+		while (!q.empty())
+		{
+			Edge e = q.front();
+			q.pop();
+			Face_handle f = e.first;
+			int i = e.second;
+			Face_handle nf = f->neighbor(i);
+			int ni = nf->index(f);
+			if (!is_delaunay_edge(e))
+			{
+				rdt_ds.flip(e.first, e.second);
+				// mark this diagonal as visisted, in both faces, respectively
+				f->visited[f->ccw(i)] = nf->visited[nf->ccw(ni)] = true;
+				// add the four edges of the quadrilateral
+				add_quadrilateral_edge(f, i, q);
+				add_quadrilateral_edge(f, f->cw(i), q);
+				add_quadrilateral_edge(nf, ni, q);
+				add_quadrilateral_edge(nf, nf->cw(ni), q);
+			}
+			else
+			{
+				f->visited[i] = nf->visited[ni] = true;
+				add_quadrilateral_edge(f, f->cw(i), q);
+				add_quadrilateral_edge(f, f->ccw(i), q);
+				add_quadrilateral_edge(nf, nf->cw(ni), q);
+				add_quadrilateral_edge(nf, nf->ccw(ni), q);
 			}
 		}
 	}

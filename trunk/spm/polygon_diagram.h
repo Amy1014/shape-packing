@@ -15,6 +15,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <queue>
 #include <algorithm>
 #include <numeric>
 //#include <LpCVT/combinatorics/delaunay.h>
@@ -66,7 +67,10 @@ namespace Geex
 
 	template < class Gt, class Fb = CGAL::Triangulation_face_base_2<Gt> >
 	class Embedded_face_2 : public Fb
-	{					};
+	{
+	public:
+		bool visited[3]; // edge flipping, wheter an edge has been visited
+	};
 
 	typedef CGAL::Triangulation_data_structure_2<Embedded_vertex_2<K>, Embedded_face_2<K>> RDT_data_structure; // representation of RDT
 
@@ -80,6 +84,7 @@ public:
 	typedef RDT_data_structure::Face_handle Face_handle;
 	typedef std::pair<Vertex_handle, Vertex_handle> Vertex_pair;
 	typedef std::vector<Vertex_handle> VertGroup; // vertices belonging to the same group
+	typedef RDT_data_structure::Edge Edge;
 
 public:
 	RestrictedPolygonVoronoiDiagram();
@@ -124,6 +129,11 @@ public:
 
 private: // private functions
 
+	/** geometry **/
+	bool is_delaunay_edge(const Edge& e);
+	inline bool is_interior_edge(const Edge& e);
+	inline void add_quadrilateral_edge(Face_handle f, int i, std::queue<Edge>& q);
+
 	/** computation **/
 	inline Plane_3 get_bisector(Vertex_handle v0, Vertex_handle v1)
 	{
@@ -155,7 +165,8 @@ private:
 	RDT_data_structure rdt_ds;
 	std::map<Vertex_pair, Face_handle> edge_face_adjacency;
 
-	/** construct of RDT, helper class **/
+	/** helper classes **/
+	// construct of RDT
 	struct Construct_RDT_structure
 	{
 		Construct_RDT_structure(RDT_data_structure& _rdt_ds, std::vector<Vertex_handle>& _samp_pnts, std::map<Vertex_pair, Face_handle>& ef_adj) 
@@ -169,6 +180,7 @@ private:
 		std::vector<Vertex_handle>& samp_pnts;
 		std::map<Vertex_pair, Face_handle>& edge_face_adjacency;
 	};
+
 
 //#if _DEBUG	
 	/** debug for DT draw **/
