@@ -167,8 +167,8 @@ namespace Geex
 			{
 				const RPVD::VertGroup& vg = rpvd.sample_points_group(i);
 				gl_table_color(i);
-				glBegin(GL_TRIANGLES);
-				//glBegin(GL_LINES);
+				//glBegin(GL_TRIANGLES);
+				glBegin(GL_LINES);
 				Point_3 c = po[i].centroid();
 				for (unsigned int j = 0; j < vg.size(); j++)
 				{
@@ -177,7 +177,7 @@ namespace Geex
 					if (sz > 1)
 						for (unsigned int k = 0; k < sz-1; k++)
 						{
-							glPoint_3(c);
+							//glPoint_3(c);
 							glPoint_3(verts[k]);
 							//glPoint_3(verts[(k+1)%sz]);
 							glPoint_3(verts[(k+1)]);
