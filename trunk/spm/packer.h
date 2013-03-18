@@ -6,6 +6,11 @@
 #include <cfloat>
 #include <cmath>
 #include <set>
+
+#ifdef _CILK_
+#include <cilk/cilk.h>
+#endif
+
 #include "project_io.h"
 #include "packing_object.h"
 #include "meshes.h"
@@ -44,7 +49,7 @@ namespace Geex
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
 
 		// driver
-		void pack(void (*update_func)() = NULL); 
+		void pack(void (*post_action)() = NULL); 
 
 		/** debug **/
 		void draw_clipped_VD() {rpvd.draw_clipped_VD();}
@@ -64,7 +69,7 @@ namespace Geex
 							const double * const x,	const double * const lambda, double * const obj, double * const c,
 							double * const objGrad,	double * const jac,	double * const hessian,	double * const hessVector, void * userParams);
 		// optimize by Knitro
-		int KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2);
+		int KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx);
 
 		// get the transformation parameter for one polygon in a local frame
 		struct Local_frame;
@@ -81,7 +86,12 @@ namespace Geex
 		TriMesh mesh;
 
 		/** optimization **/
+#ifdef _CILK_
+		std::vector<Containment> containments;
+#else
 		Containment containment;
+#endif
+
 		static double PI;
 		double rot_lower_bd;
 		double rot_upper_bd;

@@ -21,8 +21,8 @@ namespace Geex
 		rdt_ds.clear();
 		//std::for_each(clipped_VD.begin(), clipped_VD.end(), std::mem_fun_ref(&std::vector<Point_3>::clear));
 		//clipped_VD.clear();
-		glDeleteLists(RDT_disp_list, 1);
-		glDeleteLists(clipped_VD_disp_list, 1);
+		//glDeleteLists(RDT_disp_list, 1);
+		//glDeleteLists(clipped_VD_disp_list, 1);
 	}
 
 	void RestrictedPolygonVoronoiDiagram::set_mesh(const std::string& mesh_file_name)
@@ -58,11 +58,14 @@ namespace Geex
 				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
 				RDT_data_structure::Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(p, group_id));
 				samp_pnts.back().push_back(vh);
+				vec3 dummyn;
+				vec3 pp = trimesh->project_to_mesh(to_geex_pnt(p), dummyn);
+				vh->mp = to_cgal_pnt(pp);
 				nb_pnts++;
 			}
 		}
 
-		cents.push_back(polygon.centroid());
+		//cents.push_back(polygon.centroid());
 		return nb_pnts;
 	}
 	
@@ -83,6 +86,8 @@ namespace Geex
 		samp_pnts.clear();
 		bounding_pnts.clear();
 		edge_face_adjacency.clear();
+		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != rdt_ds.vertices_end(); ++vit)
+			vit->vd_vertices.clear();
 		rdt_ds.clear();
 	}
 	
@@ -98,10 +103,12 @@ namespace Geex
 		for ( unsigned int i = 0; i < samp_pnts.size(); i++ )
 			for (unsigned int j = 0; j < samp_pnts[i].size(); j++)
 			{
-				Point_3 p = samp_pnts[i][j]->point_3();
-				vec3 dummyn;
-				vec3 prjp = trimesh->project_to_mesh(to_geex_pnt(p), dummyn);
-				*ptr++ = prjp.x; *ptr++ = prjp.y; *ptr++ = prjp.z;
+				//Point_3 p = samp_pnts[i][j]->point_3();
+				Point_3 p = samp_pnts[i][j]->mp;
+				//vec3 dummyn;
+				//vec3 prjp = trimesh->project_to_mesh(to_geex_pnt(p), dummyn);
+				*ptr++ = p.x(); *ptr++ = p.y(); *ptr++ = p.z();
+				//*ptr++ = prjp.x; *ptr++ = prjp.y; *ptr++ = prjp.z;
 				all_vertices.push_back(samp_pnts[i][j]);
 			}
 		for ( unsigned int i = 0; i < bounding_pnts.size(); i++ )
@@ -135,12 +142,50 @@ namespace Geex
 			//clipped_VD.push_back(std::vector<Point_3>());
 			for (unsigned int j = 0; j < vg.size(); j++)
 			{
-				RDT_data_structure::Edge_circulator cur_edge, nxt_edge, end;
+				RDT_data_structure::Edge_circulator cur_edge, nxt_edge, end, start_edge, end_edge;
 				Plane_3 curpln, nxtpln;
+				bool start_found = false, end_found = false;
 				//assert(vg[j]->face() != Face_handle());
 				end = cur_edge = rdt_ds.incident_edges(vg[j]);
 				nxt_edge = cur_edge;
-				++nxt_edge; 			
+				++nxt_edge;
+				//--pre_edge;
+				do 
+				{
+					Face_handle/* pre_fc = pre_edge->first,*/ cur_fc = cur_edge->first, nxt_fc = nxt_edge->first;
+					int /*pre_idx = pre_edge->second,*/ cur_idx = cur_edge->second, nxt_idx = nxt_edge->second;
+					//Vertex_handle pre_other_vert = pre_fc->vertex(pre_fc->cw(pre_fc))==vg[j]?
+					//					pre_fc->vertex(pre_fc->ccw(pre_fc)):pre_fc->vertex(pre_fc->cw(pre_fc));
+					Vertex_handle cur_other_vert = cur_fc->vertex(cur_fc->cw(cur_idx))==vg[j]?
+										cur_fc->vertex(cur_fc->ccw(cur_idx)):cur_fc->vertex(cur_fc->cw(cur_idx));
+					Vertex_handle nxt_other_vert = nxt_fc->vertex(nxt_fc->cw(nxt_idx))==vg[j]?
+										nxt_fc->vertex(nxt_fc->ccw(nxt_idx)):nxt_fc->vertex(nxt_fc->cw(nxt_idx));
+					if ( cur_other_vert->group_id == vg[j]->group_id 
+							&& nxt_other_vert->group_id != vg[j]->group_id 
+							/*&& pre_other_vert->group_id == vg[j]->group_id*/ )
+					{
+							//break;
+						start_edge = cur_edge;
+						start_found = true;
+						if (end_found)
+							break;					
+					}
+					else if ( cur_other_vert->group_id != vg[j]->group_id
+							&& nxt_other_vert->group_id == vg[j]->group_id )
+					{
+						end_edge = cur_edge;
+						end_found = true;
+						if (start_found)
+							break;					
+					}
+					/*++pre_edge;*/ ++cur_edge; ++nxt_edge;
+
+				} while (cur_edge != end /*true*/ );
+				if (!start_found && !end_found )
+					continue;
+				/*end_edge = */nxt_edge = cur_edge = start_edge;
+				++nxt_edge;
+				++end_edge;
 				do 
 				{
 					// check whether inside the same group
@@ -163,7 +208,7 @@ namespace Geex
 						}
 					}
 					++cur_edge;	++nxt_edge;
-				} while (cur_edge != end);
+				} while (cur_edge != end_edge);
 			}
 		}
 	}
@@ -236,7 +281,7 @@ namespace Geex
 			if (!is_delaunay_edge(e))
 			{
 				rdt_ds.flip(e.first, e.second);
-				// mark this diagonal as visisted, in both faces, respectively
+				// mark this diagonal as visited, in both faces, respectively
 				f->visited[f->ccw(i)] = nf->visited[nf->ccw(ni)] = true;
 				// add the four edges of the quadrilateral
 				add_quadrilateral_edge(f, i, q);
@@ -256,41 +301,41 @@ namespace Geex
 	}
 
 //#if _DEBUG
-	void RestrictedPolygonVoronoiDiagram::draw_clipped_VD()
-	{
-		if (mesh)
-		{
-			if (!glIsList(clipped_VD_disp_list))
-			{
-				unsigned int max_uint = std::numeric_limits<unsigned int>::max();
-				clipped_VD_disp_list = glGenLists(1);
-				glNewList(clipped_VD_disp_list, GL_COMPILE);
-				glDisable(GL_LIGHTING);
-				for (unsigned int i = 0; i < nb_groups; i++)
-				{
-					setGroupColor(i, nb_groups);
-					const VertGroup& vg = samp_pnts[i];
-					glBegin(GL_TRIANGLES);
-					for (unsigned int j = 0; j < vg.size(); j++)
-					{	
-						const std::vector<Point_3>& verts = vg[j]->vd_vertices;
-						unsigned int sz = verts.size();
-						if (sz > 1)
-							for (unsigned int k = 0; k < sz; k++)
-							{
-								glVertex3d(cents[i].x(), cents[i].y(), cents[i].z());
-								glVertex3d(verts[k].x(), verts[k].y(), verts[k].z());
-								glVertex3d(verts[(k+1)%sz].x(), verts[(k+1)%sz].y(), verts[(k+1)%sz].z());
-							}
-					}
-					glEnd();
-				}
-				glEnable(GL_LIGHTING);
-				glEndList();
-			}
-			glCallList(clipped_VD_disp_list);
-		}
-	}
+	//void RestrictedPolygonVoronoiDiagram::draw_clipped_VD()
+	//{
+	//	if (mesh)
+	//	{
+	//		if (!glIsList(clipped_VD_disp_list))
+	//		{
+	//			unsigned int max_uint = std::numeric_limits<unsigned int>::max();
+	//			clipped_VD_disp_list = glGenLists(1);
+	//			glNewList(clipped_VD_disp_list, GL_COMPILE);
+	//			glDisable(GL_LIGHTING);
+	//			for (unsigned int i = 0; i < nb_groups; i++)
+	//			{
+	//				setGroupColor(i, nb_groups);
+	//				const VertGroup& vg = samp_pnts[i];
+	//				glBegin(GL_TRIANGLES);
+	//				for (unsigned int j = 0; j < vg.size(); j++)
+	//				{	
+	//					const std::vector<Point_3>& verts = vg[j]->vd_vertices;
+	//					unsigned int sz = verts.size();
+	//					if (sz > 1)
+	//						for (unsigned int k = 0; k < sz; k++)
+	//						{
+	//							glVertex3d(cents[i].x(), cents[i].y(), cents[i].z());
+	//							glVertex3d(verts[k].x(), verts[k].y(), verts[k].z());
+	//							glVertex3d(verts[(k+1)%sz].x(), verts[(k+1)%sz].y(), verts[(k+1)%sz].z());
+	//						}
+	//				}
+	//				glEnd();
+	//			}
+	//			glEnable(GL_LIGHTING);
+	//			glEndList();
+	//		}
+	//		glCallList(clipped_VD_disp_list);
+	//	}
+	//}
 //#endif
 
 

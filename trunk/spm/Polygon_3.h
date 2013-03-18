@@ -44,6 +44,8 @@ public:
 
 	template <class InputIterator> MyPolygon_3(InputIterator first, InputIterator last);
 
+	void align(const Vector_3& v, const Point_3& p); // move the polygon to p and oriented with v
+
 	/** destructors **/
 	~MyPolygon_3();
 
@@ -120,7 +122,7 @@ MyPolygon_3<Kernel, Container>::MyPolygon_3(const CGAL::Polygon_2<PolygonTraits_
 		// to local frame
 		Vector_3 ln(n*lx, n*ly, FT(0));
 		FT len = CGAL::sqrt(ln.squared_length());
-		Vector_3 ex(Vector_3(FT(1), FT(0), FT(0)));
+		Vector_3 ex(FT(1), FT(0), FT(0));
 		FT cos_theta = ln*ex/len, sin_theta = CGAL::sqrt(CGAL::cross_product(ex, ln).squared_length())/len;
 		Transformation_3 rot(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
 		Transformation_3 to_global(lx.x(), ly.x(), lz.x(), lx.y(), ly.y(), lz.y(), lx.z(), ly.z(), lz.z());
@@ -176,6 +178,36 @@ MyPolygon_3<Kernel, Container>& MyPolygon_3<Kernel, Container>::operator*=(const
 	//cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
 	normal = normal.transform(t);
 	return *this;
+}
+
+template <class Kernel, class Container>
+void MyPolygon_3<Kernel, Container>::align(const Vector_3& v, const Point_3& p)
+{
+	Point_3 c = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
+	Transformation_3 to_org(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN));
+	Transformation_3 to_pos(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, p));
+	// assume v is unit vector
+	Transformation_3 t;
+	Vector_3 lz = CGAL::cross_product(normal, v);
+	FT lz_len2 = lz.squared_length();
+	if (lz_len2 != FT(0))
+	{
+		lz = lz / CGAL::sqrt(lz_len2);
+		const Vector_3& lx = v;
+		Vector_3 ly = CGAL::cross_product(lz, lx);
+		Vector_3 ln(normal*lx, normal*ly, FT(0));
+		FT len = CGAL::sqrt(ln.squared_length());
+		Vector_3 ex(FT(1), FT(0), FT(0));
+		FT cos_theta = ln*ex/len, sin_theta = CGAL::sqrt(CGAL::cross_product(ex, ln).squared_length())/len;
+		Transformation_3 rot(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
+		Transformation_3 to_global(lx.x(), ly.x(), lz.x(), lx.y(), ly.y(), lz.y(), lx.z(), ly.z(), lz.z());
+		Transformation_3 to_local(lx.x(), lx.y(), lx.z(), ly.x(), ly.y(), ly.z(), lz.x(), lz.y(), lz.z());
+		t = (to_pos*to_global)*rot*(to_local*to_org);
+	}
+	else
+		t = to_pos*to_org;
+	std::transform(verts.begin(), verts.end(), verts.begin(), t);
+	normal = v;
 }
 
 /* 

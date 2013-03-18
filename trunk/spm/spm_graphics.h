@@ -30,10 +30,12 @@ namespace Geex
 		GLboolean& show_polygons()	{ return show_polygons_; }
 
 		GLboolean& show_voronoi_cell() { return show_voronoi_cell_; }
-		void redraw_voronoi_cell() { glDeleteLists(vc_displist); }
+		void redraw_voronoi_cell() { glDeleteLists(vc_displist, 1); }
 
 		GLboolean& show_triangulation() { return show_triangulation_; }
 		void redraw_triangulation() { glDeleteLists(triangulation_displist, 1); }
+
+		GLboolean& show_tiles() { return show_polygons_; }
 
 		int& highlighted_group_id() { return highlighted_group; }
 

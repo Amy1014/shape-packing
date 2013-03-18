@@ -23,6 +23,8 @@ namespace Geex
 	SPM_Graphics::SPM_Graphics(Packer *_packer): packer(_packer)
 	{
 		how_to_draw_polygons = OUTLINE_DRAW;
+		show_mesh_ = true;
+		show_polygons_ = true;
 		show_voronoi_cell_ = false;
 		show_triangulation_ = false;
 		highlighted_group = -1;
@@ -157,18 +159,35 @@ namespace Geex
 		if (!glIsList(vc_displist))
 		{
 			vc_displist = glGenLists(1);
-			glNewList(vc_displist);
+			glNewList(vc_displist, GL_COMPILE);
 			glDisable(GL_LIGHTING);
 			const RPVD& rpvd = packer->get_rpvd();
+			const std::vector<Packing_object>& po = packer->get_tiles();
 			for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
 			{
 				const RPVD::VertGroup& vg = rpvd.sample_points_group(i);
 				gl_table_color(i);
 				glBegin(GL_TRIANGLES);
+				//glBegin(GL_LINES);
+				Point_3 c = po[i].centroid();
+				for (unsigned int j = 0; j < vg.size(); j++)
+				{
+					const std::vector<Point_3>& verts = vg[j]->vd_vertices;
+					unsigned int sz = verts.size();
+					if (sz > 1)
+						for (unsigned int k = 0; k < sz-1; k++)
+						{
+							glPoint_3(c);
+							glPoint_3(verts[k]);
+							//glPoint_3(verts[(k+1)%sz]);
+							glPoint_3(verts[(k+1)]);
+						}
+				}
 				glEnd();
 			}
 			glEnable(GL_LIGHTING);
 			glEndList();
 		}
+		glCallList(vc_displist);
 	}
 }

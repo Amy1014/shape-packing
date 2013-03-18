@@ -58,12 +58,14 @@ namespace Geex {
 		{
 			spm()->lloyd();
 			spm()->redraw_triangulation();
+			spm()->redraw_voronoi_cell();
 			glut_viewer_redraw();
 		}
 
 		void post_update()
 		{
 			spm()->redraw_triangulation();
+			spm()->redraw_voronoi_cell();
 			glut_viewer_redraw();
 		}
 
@@ -79,6 +81,7 @@ namespace Geex {
             TwBar* graphics_bar = TwNewBar("Graphics");
 			TwDefine("Graphics position='16 10' size='200 250' alpha=200"); 
 			TwAddVarRW(graphics_bar, "Domain Mesh", TW_TYPE_BOOL8, &spm()->show_mesh(), "");
+			TwAddVarRW(graphics_bar, "Polygons", TW_TYPE_BOOL8, &spm()->show_polygons(), "");
 			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "");
 			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "");
 			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "");
