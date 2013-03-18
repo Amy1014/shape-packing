@@ -190,7 +190,7 @@ namespace Geex
 				const Point_3& t = bisec_pnts[j+1];
 #ifdef _CILK_
 				//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s,t)), ref_point));
-				containment[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
+				containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
 #else
 				containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s,t)), ref_point));
 				//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
