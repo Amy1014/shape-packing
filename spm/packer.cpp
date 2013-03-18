@@ -121,7 +121,7 @@ namespace Geex
 	void Packer::generate_RDT()
 	{
 		rpvd.begin_insert();
-		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
+		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 24);
 		rpvd.insert_bounding_points(10);
 		rpvd.end_insert();
 		std::vector<Plane_3> tangent_planes;
@@ -171,26 +171,36 @@ namespace Geex
 		lf.v = CGAL::cross_product(lf.w, lf.u);
 
 		// formulate optimization 
+#ifdef _CILK_
+		containments[id].clear();
+#else
 		containment.clear();
+#endif
 		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
 		for (unsigned int i = 0; i < samp_pnts.size(); i++)
 		{
 			const vector<Point_3>& bisec_pnts = samp_pnts[i]->vd_vertices;
 			Point_2 ref_point = lf.to_uv(samp_pnts[i]->point_3());
+			if (bisec_pnts.size() == 0)
+				continue;
 			assert(bisec_pnts.size() != 1);
-			for (unsigned int j = 0; j < bisec_pnts.size(); j++)
+			for (unsigned int j = 0; j < bisec_pnts.size()-1; j++)
 			{
 				const Point_3& s = bisec_pnts[j];
-				const Point_3& t = bisec_pnts[(j+1)%bisec_pnts.size()];
-				//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
-				// or use ?
+				const Point_3& t = bisec_pnts[j+1];
+#ifdef _CILK_
+				//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s,t)), ref_point));
+				containment[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
+#else
 				containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s,t)), ref_point));
+				//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
+#endif
 			}
 		}
 		const unsigned int try_time_limit = 10;
 		unsigned int try_times = 1;
 		int knitro_res;
-		while ( (knitro_res = KTR_optimize(&solution.k, &solution.theta, &solution.tx, &solution.ty)) && try_times < try_time_limit )
+		while ( (knitro_res = KTR_optimize(&solution.k, &solution.theta, &solution.tx, &solution.ty, id)) && try_times < try_time_limit )
 		{
 			double r = Numeric::random_float64();
 			solution = Parameter(1.0, (rot_upper_bd-rot_lower_bd)*r+rot_lower_bd, 0.0, 0.0);
@@ -208,7 +218,12 @@ namespace Geex
 
 	void Packer::lloyd(bool enlarge)
 	{
+#ifdef _CILK_
+		containments.resize(pack_objects.size());
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
+#endif
 		{
 			Local_frame lf;
 			Parameter solution;
@@ -218,25 +233,41 @@ namespace Geex
 			if (res == SUCCESS)
 			{
 				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), Apply_transformation(solution, lf));
-				//RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
-				//std::transform(samp_pnts.begin(), samp_pnts.end(), samp_pnts.begin(), Apply_transformation(solution, lf));
+				Point_3 c = pack_objects[i].centroid();
+				vec3 dummyv, p;
+				int fid;
+				p = mesh.project_to_mesh(to_geex_pnt(c), dummyv, fid);
+				vec3 n = approx_normal(fid);
+				pack_objects[i].align(to_cgal_vec(n), to_cgal_pnt(p));
+				//if (enlarge)
+				//{
+				//	RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+				//	std::transform(samp_pnts.begin(), samp_pnts.end(), samp_pnts.begin(), Apply_transformation(solution, lf));			
+				//}
 			}
 		}
 		//generate_RDT();
 	}
 
-	void Packer::pack(void (*update_func)())
+	void Packer::pack(void (*post_action)())
 	{
-		for (unsigned int i = 0; i < 2; i++)
+		for (unsigned int i = 0; i < 4; i++)
 		{
 			lloyd(false);
 			generate_RDT();
-			if (update_func != NULL)
-				update_func();
+			if (post_action != NULL)
+				post_action();
+		}
+		for (unsigned int i = 0; i < 2; i++)
+		{
+			lloyd(true);
+			generate_RDT();
+			if (post_action != NULL)
+				post_action();
 		}
 	}
 	
-	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2)
+	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{
 		int  nStatus;
 		/* variables that are passed to KNITRO */
@@ -249,8 +280,11 @@ namespace Geex
 
 		/*problem size and mem allocation */
 		n = 4;
+#ifdef _CILK_
+		m = containments[idx].get_constaint_list_size();
+#else
 		m = containment.get_constaint_list_size();
-
+#endif
 		nnzJ = n*m;
 		nnzH = 0;
 		x = (double *)malloc(n * sizeof(double));
@@ -323,7 +357,11 @@ namespace Geex
 		free(cLoBnds);	free(cUpBnds);
 		free(jacIndexVars);	free(jacIndexCons);
 
+#ifdef _CILK_
+		nStatus = KTR_solve(kc, x, lambda, 0, &obj, NULL, NULL, NULL, NULL, NULL, &idx);
+#else
 		nStatus = KTR_solve(kc, x, lambda, 0, &obj, NULL, NULL, NULL, NULL, NULL, NULL);
+#endif
 
 		if(nStatus ==0)
 		{	
@@ -349,7 +387,11 @@ namespace Geex
 			/* objective function */
 			// x[0]- x[4]: k cos sin t1 t2
 			*obj    = x[0];
+#ifdef _CILK_
+			p->containments[*(unsigned int*)userParams].compute_constraints(x, c, m);
+#else
 			p->containment.compute_constraints(x,c,m);
+#endif
 			return 0;
 		}
 		else if (evalRequestCode == KTR_RC_EVALGA)
@@ -358,7 +400,11 @@ namespace Geex
 			objGrad[1] = 0.0;
 			objGrad[2] = 0.0;
 			objGrad[3] = 0.0;
+#ifdef _CILK_
+			p->containments[*(unsigned int*)userParams].compute_constraint_grads(x, jac);
+#else
 			p->containment.compute_constraint_grads(x, jac);
+#endif
 			return 0;
 		}
 		else 

@@ -38,6 +38,7 @@ namespace Geex
 		Embedded_point_2() {}
 		Embedded_point_2(const Point_3& _p) : p(_p) {}
 		Point_3 p;
+		Point_3 mp; // projection point on mesh
 	};
 
 
@@ -170,7 +171,8 @@ private: // private functions
 	/** computation **/
 	inline Plane_3 get_bisector(Vertex_handle v0, Vertex_handle v1)
 	{
-		return CGAL::bisector(v0->point_3(), v1->point_3());
+		//return CGAL::bisector(v0->point_3(), v1->point_3());
+		return CGAL::bisector(v0->mp, v1->mp);
 	}
 
 	// insert one polygon, return how many sample points are actually inserted
@@ -217,9 +219,9 @@ private:
 
 //#if _DEBUG	
 	/** debug for DT draw **/
-	GLuint RDT_disp_list;
-	GLuint clipped_VD_disp_list;
-	std::vector<Point_3> cents;
+	//GLuint RDT_disp_list;
+	//GLuint clipped_VD_disp_list;
+	//std::vector<Point_3> cents;
 //#endif
 };
 
@@ -229,7 +231,7 @@ void RestrictedPolygonVoronoiDiagram::insert_polygons(InputIterator first, Input
 	assert(open);
 	unsigned int group_id = 0, nb_pnts = 0;
 	samp_pnts.reserve(last - first);
-	cents.reserve(last - first);
+	//cents.reserve(last - first);
 	while (first != last)
 	{
 		nb_pnts += insert_polygons(*first, group_id, samp_nb);
@@ -256,12 +258,14 @@ unsigned int RestrictedPolygonVoronoiDiagram::insert_bounding_edges(EdgeInputIte
 		{
 			Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(to_cgal_pnt(v0), -1));
 			bounding_pnts.push_back(vh);
+			vh->mp = to_cgal_pnt(v0);
 			vert_idx.insert(vi0);
 		}
 		if ( vert_idx.find(vi1) == vert_idx.end() )
 		{
 			Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(to_cgal_pnt(v1), -1));
 			bounding_pnts.push_back(vh);
+			vh->mp = to_cgal_pnt(v1);
 			vert_idx.insert(vi1);
 		}
 		for ( unsigned int i = 1; i < samp_nb; i++ )
@@ -269,6 +273,7 @@ unsigned int RestrictedPolygonVoronoiDiagram::insert_bounding_edges(EdgeInputIte
 			vec3 sv = ( (samp_nb - i)*v0 + i*v1 ) / samp_nb;
 			Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(to_cgal_pnt(sv), -1));
 			bounding_pnts.push_back(vh);
+			vh->mp = to_cgal_pnt(sv);
 			cnt++;
 		}
 		
