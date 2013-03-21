@@ -6,6 +6,7 @@
 #include <cfloat>
 #include <cmath>
 #include <set>
+#include <numeric>
 
 #ifdef _CILK_
 #include <cilk/cilk.h>
@@ -24,7 +25,8 @@ namespace Geex
 	{
 
 		typedef enum {SUCCESS, FAILED} Optimization_res;
-
+		typedef enum {MORE_ENLARGEMENT, NO_MORE_ENLARGEMENT} Lloyd_res;
+		
 	public:
 		
 		Packer();
@@ -43,16 +45,16 @@ namespace Geex
 
 		/** optimization **/
 		// one Lloyd iteration
-		void lloyd(bool enlarge = true);
+		Lloyd_res lloyd(bool enlarge = true);
 
 		/** miscellaneous **/
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
 
 		// driver
 		void pack(void (*post_action)() = NULL); 
-
-		/** debug **/
-		void draw_clipped_VD() {rpvd.draw_clipped_VD();}
+		// debug
+		void rpack(void (*post_action)() = NULL);
+		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
 
 	private:
 
@@ -61,6 +63,8 @@ namespace Geex
 
 		/** geometry **/
 		void generate_RDT();
+
+		void compute_clipped_VD();
 
 		vec3 approx_normal(unsigned int facet_idx);
 
@@ -75,6 +79,10 @@ namespace Geex
 		struct Local_frame;
 		struct Parameter;
 		Optimization_res optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution);
+
+		// constraint transformation to avoid triangle flip
+		void constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs);
+
 
 	private:
 
@@ -127,6 +135,15 @@ namespace Geex
 			double ty;
 			Parameter(void): k(1.0), theta(0.0), tx(0.0), ty(0.0) {}
 			Parameter(double _k, double _theta, double _tx, double _ty) : k(_k), theta(_theta), tx(_tx), ty(_ty) {}
+			Parameter& operator*=(double f)
+			{
+				/*k *= f;*/ theta *= f;	tx *= f; ty *= f;
+				return *this;
+			}
+			inline Parameter operator*(double f)
+			{
+				return Packer::Parameter(k, f*theta, f*tx, f*ty);
+			}
 		};
 
 		// apply a 2D transformation to a 3D polygon inside the plane where the polygon is embedded
@@ -138,7 +155,7 @@ namespace Geex
 			Transformation_2 t;
 
 			Apply_transformation(const Parameter& _parameter, const Local_frame& _local_frame)
-				: parameter(_parameter), local_frame(_local_frame) 
+				: parameter(_parameter), local_frame(_local_frame)
 			{
 				double ksin = parameter.k*std::sin(parameter.theta), kcos = parameter.k*std::cos(parameter.theta);
 				t = Transformation_2(kcos, -ksin, parameter.tx, ksin, kcos, parameter.ty);
@@ -162,6 +179,8 @@ namespace Geex
 
 
 	};
+
+
 }
 
 #endif

@@ -118,12 +118,8 @@ namespace Geex
 		}
 	}
 
-	void Packer::generate_RDT()
+	void Packer::compute_clipped_VD()
 	{
-		rpvd.begin_insert();
-		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 24);
-		rpvd.insert_bounding_points(10);
-		rpvd.end_insert();
 		std::vector<Plane_3> tangent_planes;
 		tangent_planes.reserve(pack_objects.size());
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -133,6 +129,17 @@ namespace Geex
 			tangent_planes.push_back(Plane_3(c, n));
 		}
 		rpvd.compute_clipped_VD(tangent_planes);
+	}
+
+	void Packer::generate_RDT()
+	{
+		rpvd.begin_insert();
+		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
+		rpvd.insert_bounding_points(10);
+		rpvd.end_insert();
+		std::cout<<"Start computing clipped Voronoi region\n";
+		compute_clipped_VD();
+		std::cout<<"End computing.\n";
 	}
 
 	vec3 Packer::approx_normal(unsigned int facet_idx)
@@ -216,8 +223,11 @@ namespace Geex
 		}
 	}
 
-	void Packer::lloyd(bool enlarge)
+	Packer::Lloyd_res Packer::lloyd(bool enlarge)
 	{
+		std::vector<Local_frame> lfs(pack_objects.size());
+		std::vector<Parameter> solutions(pack_objects.size());
+		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
 		containments.resize(pack_objects.size());
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -225,48 +235,151 @@ namespace Geex
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{
-			Local_frame lf;
-			Parameter solution;
-			Optimization_res res = optimize_one_polygon(i, lf, solution);
+			opti_res[i] = optimize_one_polygon(i, lfs[i], solutions[i]);
 			if (!enlarge)
-				solution.k = 1.0;
-			if (res == SUCCESS)
+				solutions[i].k = 1.0;
+		}
+		double mink = std::numeric_limits<double>::max();
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			if (opti_res[i] == SUCCESS)
+				mink = std::min(solutions[i].k, mink);
+			else
 			{
-				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), Apply_transformation(solution, lf));
-				Point_3 c = pack_objects[i].centroid();
-				vec3 dummyv, p;
-				int fid;
-				p = mesh.project_to_mesh(to_geex_pnt(c), dummyv, fid);
-				vec3 n = approx_normal(fid);
-				pack_objects[i].align(to_cgal_vec(n), to_cgal_pnt(p));
-				//if (enlarge)
-				//{
-				//	RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
-				//	std::transform(samp_pnts.begin(), samp_pnts.end(), samp_pnts.begin(), Apply_transformation(solution, lf));			
-				//}
+				solutions[i].k = 1.0;
+				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
 			}
 		}
+		if (mink >= 1.005)
+		{
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+				if (opti_res[i] == SUCCESS)
+					solutions[i].k = mink;
+		}
+		constraint_transformation(solutions, lfs);
+#ifdef _CILK_
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+#endif
+		{
+			Apply_transformation t(solutions[i], lfs[i]);
+			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), t);
+			//RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+			//std::transform(samp_pnts.begin(), samp_pnts.end(), samp_pnts.begin(), t);
+			Point_3 c = pack_objects[i].centroid();
+			vec3 dummyv, p;
+			int fid;
+			p = mesh.project_to_mesh(to_geex_pnt(c), dummyv, fid);
+			vec3 n = approx_normal(fid);
+			Transformation_3 same_t = pack_objects[i].align(to_cgal_vec(n), to_cgal_pnt(p));
+			//for (unsigned int j = 0; j < samp_pnts.size(); j++)
+			//{
+				//vec3 dummyv;
+				//Point_3 temp = same_t(samp_pnts[j]->point_3());
+				//samp_pnts[j]->mp = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(temp), dummyv));
+			//}
+		}
+		for (RestrictedPolygonVoronoiDiagram::Face_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
+		{
+			int i0 = fit->vertex(0)->group_id, i1 = fit->vertex(1)->group_id, i2 = fit->vertex(2)->group_id;
+			if (i0 < 0 || i1 < 0 || i2 < 0)
+				continue;
+			Point_3 p0 = fit->vertex(0)->mp, p1 = fit->vertex(1)->mp, p2 = fit->vertex(2)->mp;
+			Vector_3 v01(p0, p1), v12(p1, p2);
+			Vector_3 v = CGAL::cross_product(v01, v12);
+			Vector_3 ov = fit->n;
+			//std::cout<<v*ov<<std::endl;
+			//system("pause");
+			//if (v*ov < 0.0)
+			//	system("pause");
+		}
+		if (enlarge && mink < 1.005)
+			return NO_MORE_ENLARGEMENT;
+		else
+			return MORE_ENLARGEMENT;
 		//generate_RDT();
 	}
 
 	void Packer::pack(void (*post_action)())
 	{
-		for (unsigned int i = 0; i < 4; i++)
+		for (unsigned int i = 0; i < 1; i++)
 		{
 			lloyd(false);
 			generate_RDT();
+			//rpvd.iDT_update();
+			//compute_clipped_VD();
 			if (post_action != NULL)
 				post_action();
 		}
-		for (unsigned int i = 0; i < 2; i++)
-		{
-			lloyd(true);
-			generate_RDT();
-			if (post_action != NULL)
-				post_action();
-		}
+		//Lloyd_res r;
+		//do 
+		//{
+		//	r = lloyd(true);
+		//	generate_RDT();
+		//	if (post_action != NULL)
+		//		post_action();
+		//} while ( r == MORE_ENLARGEMENT);
 	}
 	
+	void Packer::rpack(void (*post_action)())
+	{
+		Lloyd_res r;
+		r = lloyd(true);
+		//generate_RDT();
+		update_iDT();
+		if (post_action != NULL)
+			post_action();
+	}
+
+	void Packer::constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs)
+	{
+		vector<double> min_factors(parameters.size(), 1.0); // minimum constraint control factors
+		typedef RestrictedPolygonVoronoiDiagram RPVD;
+		for (RPVD::Face_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
+		{
+			int i0 = fit->vertex(0)->group_id, i1 = fit->vertex(1)->group_id, i2 = fit->vertex(2)->group_id;
+			if (i0 < 0 || i1 < 0 || i2 < 0) // involving boundary edges
+				continue;
+			// original normal
+			//Vector_3 n01(fit->vertex(0)->point_3(), fit->vertex(1)->point_3());
+			//Vector_3 n12(fit->vertex(1)->point_3(), fit->vertex(2)->point_3());
+			Vector_3 n01(fit->vertex(0)->mp, fit->vertex(1)->mp);
+			Vector_3 n12(fit->vertex(1)->mp, fit->vertex(2)->mp);
+			Vector_3 on = CGAL::cross_product(n01, n12);
+			fit->n = on;
+			double m = 1.0;
+			unsigned int N = 1000, n = 1;
+			while (n < N)
+			{
+				Apply_transformation t0(parameters[i0]*m, lfs[i0]), t1(parameters[i1]*m, lfs[i1]), t2(parameters[i2]*m, lfs[i2]);
+				vec3 dummyn;
+				//Point_3 tp0 = t0(fit->vertex(0)->point_3());
+				//Point_3 tp1 = t1(fit->vertex(1)->point_3());
+				//Point_3 tp2 = t2(fit->vertex(2)->point_3());
+				Point_3 tp0 = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(t0(fit->vertex(0)->point_3())), dummyn));
+				Point_3 tp1 = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(t1(fit->vertex(1)->point_3())), dummyn));
+				Point_3 tp2 = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(t2(fit->vertex(2)->point_3())), dummyn));
+				Vector_3 tn = CGAL::cross_product(Vector_3(tp0, tp1), Vector_3(tp1, tp2));
+				if (tn*on > 0.0)
+					break;
+				m /= 2.0;
+				n++;
+			}
+			if (n == N)	m = 0.0;
+			min_factors[i0] = std::min(m, min_factors[i0]);
+			min_factors[i1] = std::min(m, min_factors[i1]);
+			min_factors[i2] = std::min(m, min_factors[i2]);
+		}
+		for (unsigned int i = 0; i < parameters.size(); i++)
+		{
+			if (min_factors[i] < 1.0)
+				parameters[i] *= min_factors[i];
+			if (min_factors[i] == 0.0)
+				parameters[i].k = 1.0;// don't allow the polygon to change
+		}
+			
+	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{
 		int  nStatus;

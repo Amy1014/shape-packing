@@ -44,7 +44,7 @@ public:
 
 	template <class InputIterator> MyPolygon_3(InputIterator first, InputIterator last);
 
-	void align(const Vector_3& v, const Point_3& p); // move the polygon to p and oriented with v
+	Transformation_3 align(const Vector_3& v, const Point_3& p); // move the polygon to p and oriented with v
 
 	/** destructors **/
 	~MyPolygon_3();
@@ -181,7 +181,7 @@ MyPolygon_3<Kernel, Container>& MyPolygon_3<Kernel, Container>::operator*=(const
 }
 
 template <class Kernel, class Container>
-void MyPolygon_3<Kernel, Container>::align(const Vector_3& v, const Point_3& p)
+MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>::align(const Vector_3& v, const Point_3& p)
 {
 	Point_3 c = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
 	Transformation_3 to_org(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN));
@@ -208,6 +208,7 @@ void MyPolygon_3<Kernel, Container>::align(const Vector_3& v, const Point_3& p)
 		t = to_pos*to_org;
 	std::transform(verts.begin(), verts.end(), verts.begin(), t);
 	normal = v;
+	return t;
 }
 
 /* 

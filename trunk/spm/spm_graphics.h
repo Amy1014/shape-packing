@@ -35,12 +35,11 @@ namespace Geex
 		GLboolean& show_triangulation() { return show_triangulation_; }
 		void redraw_triangulation() { glDeleteLists(triangulation_displist, 1); }
 
+		GLboolean& show_vertices() { return show_vertices_; }
+
 		GLboolean& show_tiles() { return show_polygons_; }
 
 		int& highlighted_group_id() { return highlighted_group; }
-
-		// debug
-		void draw_all_vertices();
 
 		typedef enum {OUTLINE_DRAW, FILL_DRAW, TEXTURE_DRAW} Polygon_draw_type;
 
@@ -51,7 +50,8 @@ namespace Geex
 		void draw_polygons();
 		void draw_triangulation();
 		void draw_voronoi_cell();
-
+		// debug
+		void draw_all_vertices();
 		/** call opengl **/
 		inline void glPoint_3(const Point_3& p) { glVertex3d(p.x(), p.y(), p.z()); }
 
@@ -62,6 +62,7 @@ namespace Geex
 		GLboolean show_polygons_;
 		GLboolean show_voronoi_cell_;
 		GLboolean show_triangulation_;
+		GLboolean show_vertices_;
 
 		/** display list **/
 		GLuint triangulation_displist;

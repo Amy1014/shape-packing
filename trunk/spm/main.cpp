@@ -16,6 +16,7 @@ namespace Geex {
 	void TW_CALL tw_lloyd(void *clientData);
 	void TW_CALL tw_pack(void *clientData);
 	void update();
+	void TW_CALL tw_idt_update(void *clientData);
 	//void TW_CALL tw_rpack(void*);
 	//void TW_CALL tw_replace(void *clientData);
 	//void TW_CALL tw_detect_holes(void*);
@@ -56,9 +57,13 @@ namespace Geex {
 		/** optimization **/
 		void lloyd()
 		{
-			spm()->lloyd();
-			spm()->redraw_triangulation();
+			//spm()->lloyd();
+			//spm()->redraw_triangulation();
+			//spm()->redraw_voronoi_cell();
+			//glut_viewer_redraw();
+			spm()->pack(NULL);
 			spm()->redraw_voronoi_cell();
+			spm()->redraw_triangulation();
 			glut_viewer_redraw();
 		}
 
@@ -71,7 +76,16 @@ namespace Geex {
 
 		void pack()
 		{
-			spm()->pack(&update);
+			//spm()->pack(&update);
+			spm()->rpack(&update);
+		}
+
+		void idt_update()
+		{
+			spm()->update_iDT();
+			spm()->redraw_triangulation();
+			spm()->redraw_triangulation();
+			glut_viewer_redraw();
 		}
 
         void init_gui() 
@@ -84,11 +98,13 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Polygons", TW_TYPE_BOOL8, &spm()->show_polygons(), "");
 			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "");
 			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "");
+			TwAddVarRW(graphics_bar, "Vertices", TW_TYPE_BOOL8, &spm()->show_vertices(), "");
 			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "");
 			TwBar* function_bar = TwNewBar("Functions");
 			TwDefine("Functions position='16 250' size='200 250' alpha=200");
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p");
+			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i");
 			//TwAddVarRW(function_bar, "Iter Number.", TW_TYPE_INT32, &spm()->setPackIterLim(), "min=1");
 			//TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->setMinScalor(), ""/*"min=0.01 max=0.99"*/);
 			//TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->setMaxScalor(), ""/*"min=1.0 max=1.99"*/);
@@ -113,6 +129,7 @@ Geex::SPMApp* spm_app() { return static_cast<Geex::SPMApp*>(Geex::GeexApp::insta
 void TW_CALL tw_lloyd(void *clientData) {spm_app()->lloyd();}
 void update() { spm_app()->post_update(); }
 void TW_CALL tw_pack(void *clientData) { spm_app()->pack(); }
+void TW_CALL tw_idt_update(void *clientData) { spm_app()->idt_update(); }
 //void TW_CALL tw_replace(void *clientData) { spm_app()->replace(); }
 //void TW_CALL tw_detect_holes(void *clientData) { spm_app()->detect_holes(); }
 //void TW_CALL tw_save( void *clientData ) { spm_app()->save(); }
