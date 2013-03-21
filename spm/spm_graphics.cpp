@@ -25,8 +25,9 @@ namespace Geex
 		how_to_draw_polygons = OUTLINE_DRAW;
 		show_mesh_ = true;
 		show_polygons_ = true;
-		show_voronoi_cell_ = false;
+		show_voronoi_cell_ = true;
 		show_triangulation_ = false;
+		show_vertices_ = false;
 		highlighted_group = -1;
 	}
 
@@ -53,7 +54,8 @@ namespace Geex
 			draw_triangulation();
 		if (show_voronoi_cell_)
 			draw_voronoi_cell();
-		//draw_all_vertices();
+		if (show_vertices_)
+			draw_all_vertices();
 	}
 
 	void SPM_Graphics::draw_mesh()
@@ -115,15 +117,18 @@ namespace Geex
 	{
 		const RDT_data_structure& rdt = packer->rpvd.get_rdt();
 		
-		glColor3f(0.0f, 1.0f, 1.0f);
-		glPointSize(4.0f);
+		glDisable(GL_LIGHTING);
+		glColor3f(0.0f, 0.0f, 0.0f);
+		glPointSize(2.0f);
 		glBegin(GL_POINTS);
 		for (RDT_data_structure::Vertex_iterator vi = rdt.vertices_begin(); vi != rdt.vertices_end(); ++vi)
 		{
-			Point_3 p = vi->point_3();
+			//Point_3 p = vi->point_3();
+			Point_3 p = vi->mp;
 			glPoint_3(p);
 		}
 		glEnd();
+		glEnable(GL_LIGHTING);
 	}
 
 	void SPM_Graphics::draw_triangulation()
@@ -143,8 +148,10 @@ namespace Geex
 				RPVD::Face_iterator f = eit->first;
 				int i = eit->second;
 				RPVD::Vertex_iterator vh0 = f->vertex(f->cw(i)), vh1 = f->vertex(f->ccw(i));
-				glPoint_3(vh0->point_3());
-				glPoint_3(vh1->point_3());
+				//glPoint_3(vh0->point_3());
+				//glPoint_3(vh1->point_3());
+				glPoint_3(vh0->mp);
+				glPoint_3(vh1->mp);
 			}
 			glEnd();
 			glEnable(GL_LIGHTING);
@@ -155,19 +162,22 @@ namespace Geex
 
 	void SPM_Graphics::draw_voronoi_cell()
 	{
+		//std::cout<<"Drawing Voronoi cells...\n";
 		typedef RestrictedPolygonVoronoiDiagram RPVD;
-		if (!glIsList(vc_displist))
-		{
-			vc_displist = glGenLists(1);
-			glNewList(vc_displist, GL_COMPILE);
+		//if (!glIsList(vc_displist))
+		//{
+			//vc_displist = glGenLists(1);
+			//glNewList(vc_displist, GL_COMPILE);
 			glDisable(GL_LIGHTING);
 			const RPVD& rpvd = packer->get_rpvd();
 			const std::vector<Packing_object>& po = packer->get_tiles();
 			for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
 			{
+				//if (i == highlighted_group) {
 				const RPVD::VertGroup& vg = rpvd.sample_points_group(i);
 				gl_table_color(i);
 				//glBegin(GL_TRIANGLES);
+				glLineWidth(1.5f);
 				glBegin(GL_LINES);
 				Point_3 c = po[i].centroid();
 				for (unsigned int j = 0; j < vg.size(); j++)
@@ -184,10 +194,11 @@ namespace Geex
 						}
 				}
 				glEnd();
+				//}
 			}
 			glEnable(GL_LIGHTING);
-			glEndList();
-		}
-		glCallList(vc_displist);
+			//glEndList();
+		//}
+		//glCallList(vc_displist);
 	}
 }
