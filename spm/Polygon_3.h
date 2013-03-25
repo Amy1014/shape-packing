@@ -45,7 +45,7 @@ public:
 	template <class InputIterator> MyPolygon_3(InputIterator first, InputIterator last);
 
 	Transformation_3 align(const Vector_3& v, const Point_3& p); // move the polygon to p and oriented with v
-
+	Transformation_3 align_transformation(const Vector_3& v, const Point_3& p);
 	/** destructors **/
 	~MyPolygon_3();
 
@@ -60,6 +60,11 @@ public:
 		return verts[i]; 
 	}
 
+	Point_3& operator[](size_type i)
+	{
+		return verts[i];
+	}
+
 	inline Vertex_iterator vertices_begin()	{ return verts.begin(); }
 	inline Vertex_iterator vertices_end()		{ return verts.end(); }
 	inline Const_vertex_iterator vertices_begin() const { return verts.begin(); }
@@ -72,6 +77,8 @@ public:
 	size_type size() const { return verts.size(); }
 
 	bool empty() const { return size() == 0; }
+
+	bool operator==(const MyPolygon_3& p) const;
 
 	Segment_3 edge(size_type i) const 
 	{ 
@@ -124,7 +131,12 @@ MyPolygon_3<Kernel, Container>::MyPolygon_3(const CGAL::Polygon_2<PolygonTraits_
 		FT len = CGAL::sqrt(ln.squared_length());
 		Vector_3 ex(FT(1), FT(0), FT(0));
 		FT cos_theta = ln*ex/len, sin_theta = CGAL::sqrt(CGAL::cross_product(ex, ln).squared_length())/len;
-		Transformation_3 rot(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
+		//Transformation_3 rot(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
+		Transformation_3 rot;
+		//if (ln.y()>=0.0)
+		//	rot = Transformation_3(cos_theta, sin_theta, FT(0), -sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
+		//else
+			rot = Transformation_3(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
 		Transformation_3 to_global(lx.x(), ly.x(), lz.x(), lx.y(), ly.y(), lz.y(), lx.z(), ly.z(), lz.z());
 		Transformation_3 to_local(lx.x(), lx.y(), lx.z(), ly.x(), ly.y(), ly.z(), lz.x(), lz.y(), lz.z());
 		t = (to_pos*to_global)*rot*(to_local*to_org);
@@ -139,6 +151,12 @@ MyPolygon_3<Kernel, Container>::MyPolygon_3(const CGAL::Polygon_2<PolygonTraits_
 	normal = n;
 	//cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
 
+}
+
+template <class Kernel, class Container> 
+bool MyPolygon_3<Kernel, Container>::operator==(const MyPolygon_3<Kernel, Container>& p) const
+{
+	return (normal == p.normal) && std::equal(this->vertices_begin(), this->vertices_end(), p.vertices_begin());
 }
 
 template <class Kernel, class Container> MyPolygon_3<Kernel, Container>::~MyPolygon_3()
@@ -181,25 +199,32 @@ MyPolygon_3<Kernel, Container>& MyPolygon_3<Kernel, Container>::operator*=(const
 }
 
 template <class Kernel, class Container>
-MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>::align(const Vector_3& v, const Point_3& p)
+MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>::align(const Vector_3& v_, const Point_3& p)
 {
 	Point_3 c = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
 	Transformation_3 to_org(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN));
 	Transformation_3 to_pos(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, p));
 	// assume v is unit vector
-	Transformation_3 t;
+	Transformation_3 t(CGAL::IDENTITY);
+	Vector_3 v = v_ / CGAL::sqrt(v_.squared_length());
 	Vector_3 lz = CGAL::cross_product(normal, v);
 	FT lz_len2 = lz.squared_length();
 	if (lz_len2 != FT(0))
 	{
 		lz = lz / CGAL::sqrt(lz_len2);
-		const Vector_3& lx = v;
+		const Vector_3& lx = normal;
 		Vector_3 ly = CGAL::cross_product(lz, lx);
-		Vector_3 ln(normal*lx, normal*ly, FT(0));
+		Vector_3 ln(v*lx, v*ly, FT(0));
 		FT len = CGAL::sqrt(ln.squared_length());
 		Vector_3 ex(FT(1), FT(0), FT(0));
 		FT cos_theta = ln*ex/len, sin_theta = CGAL::sqrt(CGAL::cross_product(ex, ln).squared_length())/len;
-		Transformation_3 rot(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
+		//FT cos_theta = normal*lx, sin_theta = CGAL::sqrt(FT(1) - cos_theta*cos_theta);
+		//Transformation_3 rot(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
+		Transformation_3 rot;
+		//if (ln.y()>=0.0)
+		//	rot = Transformation_3(cos_theta, sin_theta, FT(0), -sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
+		//else
+			rot = Transformation_3(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
 		Transformation_3 to_global(lx.x(), ly.x(), lz.x(), lx.y(), ly.y(), lz.y(), lx.z(), ly.z(), lz.z());
 		Transformation_3 to_local(lx.x(), lx.y(), lx.z(), ly.x(), ly.y(), ly.z(), lz.x(), lz.y(), lz.z());
 		t = (to_pos*to_global)*rot*(to_local*to_org);

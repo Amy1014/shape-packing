@@ -82,9 +82,11 @@ namespace Geex {
 
 		void idt_update()
 		{
-			spm()->update_iDT();
-			spm()->redraw_triangulation();
-			spm()->redraw_triangulation();
+
+				spm()->update_iDT();
+				spm()->redraw_triangulation();
+				spm()->redraw_triangulation();
+
 			glut_viewer_redraw();
 		}
 
