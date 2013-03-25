@@ -2,8 +2,9 @@
 
 namespace Geex
 {
-	
-	RestrictedPolygonVoronoiDiagram::RestrictedPolygonVoronoiDiagram() 
+	int nb_invalid_edges = 0;
+
+	RestrictedPolygonVoronoiDiagram::RestrictedPolygonVoronoiDiagram()
 	{
 		mesh = 0;
 		trimesh = 0;
@@ -17,7 +18,7 @@ namespace Geex
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		bounding_pnts.clear();
-		edge_face_adjacency.clear();
+		//edge_face_adjacency.clear();
 		rdt_ds.clear();
 	}
 
@@ -31,8 +32,8 @@ namespace Geex
 	
 	unsigned int RestrictedPolygonVoronoiDiagram::insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb)
 	{	
-		samp_pnts.push_back(VertGroup());
-		samp_pnts.back().reserve(samp_nb+1);
+		//samp_pnts.push_back(VertGroup());
+		//samp_pnts.back().reserve(samp_nb+1);
 		unsigned int nb_pnts = 0; // for debug
 		// sample on polygon edges
 		double perimeter = 0.0;
@@ -52,12 +53,12 @@ namespace Geex
 			for ( unsigned int j = 0; j < n+1; j++ )
 			{
 				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
-				RDT_data_structure::Vertex_handle vh = rdt_ds.create_vertex(RDT_data_structure::Vertex(p, group_id));
-				samp_pnts.back().push_back(vh);
+				//all_points.push_back(p);
+				//p->group_id = group_id;
 				vec3 n;
 				vec3 pp = trimesh->project_to_mesh(to_geex_pnt(p), n);
-				vh->mp = to_cgal_pnt(pp);
-				vh->n = to_cgal_vec(n);
+				all_points.push_back(MyPoint(p, to_cgal_pnt(pp), group_id));
+				//all_points.back().mp = to_cgal_pnt(pp);
 				nb_pnts++;
 			}
 		}
@@ -69,9 +70,7 @@ namespace Geex
 		const TriMesh::BoundaryEdgeSet& bes = trimesh->getBoundary(); // boundary edges
 		const std::vector<std::pair<int,int>>& fes = trimesh->getFeatureEdges(); // feature edges
 		unsigned int nbe = insert_bounding_edges(bes.begin(), bes.end(), samp_nb);
-		//std::cout<<nbe<<" bounding edges\n";
 		unsigned int nfe = insert_bounding_edges(fes.begin(), fes.end(), samp_nb);
-		//std::cout<<nfe<<" feature edges\n";
 	}
 	void RestrictedPolygonVoronoiDiagram::begin_insert()
 	{
@@ -80,66 +79,43 @@ namespace Geex
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		bounding_pnts.clear();
-		edge_face_adjacency.clear();
-		edge_valance.clear();
-		//for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != rdt_ds.vertices_end(); ++vit)
-		//	vit->vd_vertices.clear();
 		rdt_ds.clear();
 	}
 	
 	void RestrictedPolygonVoronoiDiagram::end_insert()
 	{
 		assert(trimesh); 
-		unsigned int nb_pnts = rdt_ds.number_of_vertices();
+		//unsigned int nb_pnts = rdt_ds.size_of_vertices();
+		unsigned int nb_pnts = all_points.size();
 		std::cout<<"Number of sample points: "<<nb_pnts<<std::endl;
 		double *pnt_coord = new double[nb_pnts*3];
 		double *ptr = pnt_coord;
-		std::vector<Vertex_handle> all_vertices;
-		all_vertices.reserve(nb_pnts);
-		for ( unsigned int i = 0; i < samp_pnts.size(); i++ )
-			for (unsigned int j = 0; j < samp_pnts[i].size(); j++)
-			{
-				//Point_3 p = samp_pnts[i][j]->point_3();
-				Point_3 p = samp_pnts[i][j]->mp;
-				//vec3 dummyn;
-				//vec3 prjp = trimesh->project_to_mesh(to_geex_pnt(p), dummyn);
-				*ptr++ = p.x(); *ptr++ = p.y(); *ptr++ = p.z();
-				//*ptr++ = prjp.x; *ptr++ = prjp.y; *ptr++ = prjp.z;
-				all_vertices.push_back(samp_pnts[i][j]);
-			}
-		for ( unsigned int i = 0; i < bounding_pnts.size(); i++ )
+		for (unsigned int i = 0; i < all_points.size(); i++)
 		{
-			Point_3 p = bounding_pnts[i]->point_3();
-			*ptr++ = p.x();	*ptr++ = p.y();	*ptr++ = p.z();
-			all_vertices.push_back(bounding_pnts[i]);
+			Point_3 p = all_points[i].prj_pnt;
+			*ptr++ = p.x(); *ptr++ = p.y(); *ptr++ = p.z();
 		}
 		Delaunay *del = Delaunay::create("CGAL");
 		del->set_vertices(nb_pnts, pnt_coord);
-		rdt_ds.set_dimension(2);
+		//rdt_ds.set_dimension(2);
 		RestrictedVoronoiDiagram *rvd = new RestrictedVoronoiDiagram(del, mesh);
-		rvd->for_each_primal_triangle(Construct_RDT_structure(rdt_ds, all_vertices, edge_face_adjacency, edge_valance));
-		for (std::map<Vertex_pair, int>::iterator it = edge_valance.begin(); it != edge_valance.end(); ++it)
-			if (it->second == 1)
-			{
-				Vertex_handle v0 = it->first.first, v1 = it->first.second;
-				Face_handle infinite_face = rdt_ds.create_face(v0, v1, rdt_ds.infinite_vertex());
-				Face_handle f = edge_face_adjacency[it->first];
-				int i0 = f->index(v0), i1 = f->index(v1);
-				bool mask[] = {true, true, true};
-				mask[i0] = mask[i1] = false;
-				if (mask[0])	
-					rdt_ds.set_adjacency(f, 0, infinite_face, infinite_face->index(rdt_ds.infinite_vertex()));
-				if (mask[1])	
-					rdt_ds.set_adjacency(f, 1, infinite_face, infinite_face->index(rdt_ds.infinite_vertex()));
-				if (mask[2])	
-					rdt_ds.set_adjacency(f, 2, infinite_face, infinite_face->index(rdt_ds.infinite_vertex()));
-			}
+		rdt_ds.delegate(Builder(*rvd, all_points, *trimesh));
+		assert(nb_pnts == rdt_ds.size_of_vertices());
+		assert(rdt_ds.is_pure_triangle());
+		assert(rdt_ds.is_valid(false, 0));
+		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != rdt_ds.vertices_end(); ++vit)
+		{
+			if (vit->group_id >= 0)
+				samp_pnts[vit->group_id].push_back(vit);
+			else
+				bounding_pnts.push_back(vit);
+		}
 		delete rvd;
 		delete del;
 		delete pnt_coord;
 		open = false;
-		edge_valance.clear();
 	}
+
 	void RestrictedPolygonVoronoiDiagram::compute_clipped_VD(std::vector<Plane_3>& clipping_planes)
 	{
 		if (nb_groups == 0)
@@ -147,101 +123,35 @@ namespace Geex
 		assert(clipping_planes.size() == nb_groups);
 		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != rdt_ds.vertices_end(); ++vit)
 			vit->vd_vertices.clear();
+		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 		for (unsigned int i = 0; i < nb_groups; i++)
 		{
 			const VertGroup& vg = samp_pnts[i];
 			const Plane_3& pln = clipping_planes[i];
 			for (unsigned int j = 0; j < vg.size(); j++)
 			{
-				//RDT_data_structure::Edge_circulator cur_edge, nxt_edge, end, start_edge, end_edge;
-				//Plane_3 curpln, nxtpln;
-				//bool start_found = false, end_found = false;
-				//end = cur_edge = rdt_ds.incident_edges(vg[j]);
-				//nxt_edge = cur_edge;
-				//++nxt_edge;
-				//do 
-				//{
-				//	Face_handle cur_fc = cur_edge->first, nxt_fc = nxt_edge->first;
-				//	int cur_idx = cur_edge->second, nxt_idx = nxt_edge->second;
-				//	Vertex_handle cur_other_vert = cur_fc->vertex(cur_fc->cw(cur_idx))==vg[j]?
-				//						cur_fc->vertex(cur_fc->ccw(cur_idx)):cur_fc->vertex(cur_fc->cw(cur_idx));
-				//	Vertex_handle nxt_other_vert = nxt_fc->vertex(nxt_fc->cw(nxt_idx))==vg[j]?
-				//						nxt_fc->vertex(nxt_fc->ccw(nxt_idx)):nxt_fc->vertex(nxt_fc->cw(nxt_idx));
-				//	if ( cur_other_vert->group_id == vg[j]->group_id 
-				//			&& nxt_other_vert->group_id != vg[j]->group_id )
-				//	{
-				//		start_edge = cur_edge;
-				//		start_found = true;
-				//		if (end_found)
-				//			break;					
-				//	}
-				//	else if ( cur_other_vert->group_id != vg[j]->group_id
-				//			&& nxt_other_vert->group_id == vg[j]->group_id )
-				//	{
-				//		end_edge = cur_edge;
-				//		end_found = true;
-				//		if (start_found)
-				//			break;					
-				//	}
-				//	++cur_edge; ++nxt_edge;
-
-				//} while (cur_edge != end );
-				//if (!start_found && !end_found )
-				//	continue;
-				//nxt_edge = cur_edge = start_edge;
-				//++nxt_edge;
-				//++end_edge;
-				//do 
-				//{
-				//	// check whether inside the same group
-				//	Face_handle cur_fc = cur_edge->first, nxt_fc = nxt_edge->first;
-				//	int cur_idx = cur_edge->second, nxt_idx = nxt_edge->second;
-				//	Vertex_handle cur_other_vert = cur_fc->vertex(cur_fc->cw(cur_idx))==vg[j]?
-				//								cur_fc->vertex(cur_fc->ccw(cur_idx)):cur_fc->vertex(cur_fc->cw(cur_idx));
-				//	Vertex_handle nxt_other_vert = nxt_fc->vertex(nxt_fc->cw(nxt_idx))==vg[j]?
-				//								nxt_fc->vertex(nxt_fc->ccw(nxt_idx)):nxt_fc->vertex(nxt_fc->cw(nxt_idx));
-				//	assert(cur_other_vert != nxt_other_vert);
-				//	if (vg[j]->group_id != cur_other_vert->group_id || vg[j]->group_id != nxt_other_vert->group_id)
-				//	{
-				//		// get two adjacent bisector planes
-				//		curpln = get_bisector(vg[j], cur_other_vert), nxtpln = get_bisector(vg[j], nxt_other_vert);
-				//		CGAL::Object o = CGAL::intersection(pln, curpln, nxtpln);
-				//		if (const Point_3 *interp = CGAL::object_cast<Point_3>(&o))
-				//			vg[j]->vd_vertices.push_back(*interp);
-				//	}
-				//	++cur_edge;	++nxt_edge;
-				//} while (cur_edge != end_edge);
 				int gid = vg[j]->group_id;
-				RDT_data_structure::Face_circulator fc = rdt_ds.incident_faces(vg[j]), end, nxt_fc;
-				nxt_fc = end = fc;
-				++nxt_fc;
+				Edge_circulator start_edge = vg[j]->vertex_begin();
+				Edge_circulator current_edge = start_edge;
 				do 
 				{
-					//Vertex_handle v0 = fc->vertex(0), v1 = fc->vertex(1), v2 = fc->vertex(2);
-					//if ((v0->group_id == gid && v1->group_id == gid && v2->group_id == gid))
-					//	break;
-					Vertex_handle v = fc->vertex(fc->ccw(fc->index(vg[j])));
-					if (v->group_id != vg[j]->group_id)
+					Vertex_handle v_pre = current_edge->prev()->vertex();
+					if ( v_pre->group_id == vg[j]->group_id)
 						break;
-					++fc; ++nxt_fc;
-				} while (fc != end);
-				//if (fc == end)
-				//	continue;
-				//end = fc = nxt_fc;
-				end = fc;
+					++current_edge;
+				} while (current_edge != start_edge);
+				Edge_circulator end = current_edge;
 				do 
 				{
-					//Vertex_handle v0 = fc->vertex(0), v1 = fc->vertex(1), v2 = fc->vertex(2);
-					Vertex_handle v = fc->vertex(fc->ccw(fc->index(vg[j])));
-					//if (v0->group_id != gid || v1->group_id != gid || v2->group_id != gid)
-					if (v->group_id != vg[j]->group_id)
-					{
-						Vertex_handle v0 = fc->vertex(0), v1 = fc->vertex(1), v2 = fc->vertex(2);
-						Point_3 c = CGAL::circumcenter(v0->point_3(), v1->point_3(), v2->point_3());
+					Vertex_handle v_pre = current_edge->prev()->vertex();
+					Vertex_handle v_nxt = current_edge->next()->vertex();
+					if ( v_pre->group_id != vg[j]->group_id || v_nxt->group_id != vg[j]->group_id)
+					{					
+						Point_3 c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
 						vg[j]->vd_vertices.push_back(c);
 					}
-					++fc;
-				} while (fc != end);
+					++current_edge;
+				} while (current_edge != end);
 				std::vector<Point_3>& vd_vertices = vg[j]->vd_vertices;
 				for (unsigned int k = 0; k <  vd_vertices.size(); k++)
 				{
@@ -251,25 +161,16 @@ namespace Geex
 		}
 	}
 
-	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(const Edge& e)
+	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(HalfEdge_handle e)
 	{
-		Face_handle fi = e.first;
-		int i = e.second;
-		Face_handle fj = fi->neighbor(i);
-		int j = fj->index(fi);
-		Vertex_handle vi = fi->vertex(i), vi_cw = fi->vertex(fi->cw(i)), vi_ccw = fi->vertex(fi->ccw(i));
-		Vertex_handle vj = fj->vertex(j), vj_cw = fj->vertex(fj->cw(j)), vj_ccw = fj->vertex(fj->ccw(j));
-		//double a2 = CGAL::squared_distance(vi->point_3(), vi_cw->point_3()),
-		//	b2 = CGAL::squared_distance(vi->point_3(), vi_ccw->point_3()),
-		//	c2 = CGAL::squared_distance(vi_cw->point_3(), vi_ccw->point_3());
+		Vertex_handle vi = e->next()->vertex(), vi_cw = e->vertex(), vi_ccw = e->prev()->vertex();
+		HalfEdge_handle oe = e->opposite();
+		Vertex_handle vj = oe->next()->vertex(), vj_cw = oe->vertex(), vj_ccw = oe->prev()->vertex();
 		double a2 = CGAL::squared_distance(vi->mp, vi_cw->mp),
 			b2 = CGAL::squared_distance(vi->mp, vi_ccw->mp),
 			c2 = CGAL::squared_distance(vi_cw->mp, vi_ccw->mp);
 		double cos_ang_i = (a2 + b2 - c2) / (2*std::sqrt(a2*b2));
 		double sin_ang_i = std::sqrt(1-cos_ang_i*cos_ang_i);
-		//a2 = CGAL::squared_distance(vj->point_3(), vj_cw->point_3());
-		//b2 = CGAL::squared_distance(vj->point_3(), vj_ccw->point_3());
-		//c2 = CGAL::squared_distance(vj_cw->point_3(), vj_ccw->point_3());
 		a2 = CGAL::squared_distance(vj->mp, vj_cw->mp);
 		b2 = CGAL::squared_distance(vj->mp, vj_ccw->mp);
 		c2 = CGAL::squared_distance(vj_cw->mp, vj_ccw->mp);
@@ -282,180 +183,195 @@ namespace Geex
 			return false;
 	}
 
-	inline bool RestrictedPolygonVoronoiDiagram::is_interior_edge(const Edge& e)
+	//inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(HalfEdge_handle e, std::queue<HalfEdge_handle>& q, std::set<HalfEdge_handle>& s)
+	inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(HalfEdge_handle e, std::stack<HalfEdge_handle>& q, std::set<HalfEdge_handle>& s)
 	{
-		Face_handle f = e.first;
-		int i = e.second;
-		Vertex_handle v0 = f->vertex(f->cw(i)), v1 = f->vertex(f->ccw(i));
-		return (v0->group_id >= 0) && (v1->group_id >= 0);
-	}
-	void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Face_handle f, int i, std::queue<Edge>& q)
-	{
-		Face_handle tf = f->neighbor(i);
-		assert(tf != Face_handle());
-		int ti = tf->index(f);
-		Edge te(tf, ti);
-		if (is_interior_edge(te) && !tf->visited[ti] && !rdt_ds.is_infinite(tf) && !rdt_ds.is_infinite(f))
+		if (!e->is_border() && !e->opposite()->is_border())
 		{
-			q.push(te);
-			assert(is_interior_edge(te));
+			std::set<HalfEdge_handle>::iterator it = s.find(e);
+			std::set<HalfEdge_handle>::iterator oit = s.find(e->opposite());
+			if (it != s.end() && oit != s.end())
+			{
+				q.push(e);
+				q.push(e->opposite());
+				s.erase(it);
+				s.erase(oit);
+			}
 		}
-		else
-			f->visited[i] = tf->visited[ti] = true;		
 	}
-	void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Vertex_handle v0, Vertex_handle v1, 
-												std::queue<Vertex_pair>&q, std::set<Vertex_pair>& s)
+#if 0
+	void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(std::pair<Vertex_handle, Vertex_handle> e, 
+		std::stack<std::pair<Vertex_handle, Vertex_handle>>& q, 
+		std::set<std::pair<Vertex_handle, Vertex_handle>>& s)
 	{
-		std::map<Vertex_pair, Face_handle>::iterator it;
-		if ( (it = edge_face_adjacency.find(Vertex_pair(v0, v1))) == edge_face_adjacency.end() )
-			it = edge_face_adjacency.find(Vertex_pair(v1, v0));
-		assert(it != edge_face_adjacency.end());
+		typedef std::pair<Vertex_handle, Vertex_handle> Edge;
+		using std::make_pair;
 
-		if (s.find(Vertex_pair(v0, v1)) != s.end())
-			return;
-		if (s.find(Vertex_pair(v1, v0)) != s.end())
-			return;
-		if (v0->group_id < 0 && v1->group_id < 0)
-			return;
-		q.push(Vertex_pair(v0, v1));
-		s.insert(Vertex_pair(v0, v1));
+		Vertex_handle v = e.first;
+		HalfEdge_handle h = v->halfedge();
+		HalfEdge_handle oh = h->opposite();
+		while ( oh->vertex() != e.second)
+		{
+			if (h->is_border() || oh->is_border())
+				break;
+			h = h->next()->opposite();
+			oh = h->opposite();
+		}
+		if (oh->vertex() != e.second)
+		{
+			h = h->opposite()->prev();
+			oh = h->opposite();
+			while ( oh->vertex() != e.second)
+			{
+				h = h->opposite()->prev();
+				oh = h->opposite();
+			}
+		}
+		if (!h->is_border() && !oh->is_border())
+		{
+			std::set<Edge>::iterator it = s.find(e);
+			if (it == s.end())
+				it = s.find(make_pair(e.second, e.first));
+			if (it != s.end())
+			{
+				q.push(e);
+				s.erase(it);
+			}
+		}
 	}
 	void RestrictedPolygonVoronoiDiagram::iDT_update()
 	{
-		std::set<Vertex_pair> edges_visited;
-		//for (Edge_iterator eit = rdt_ds.edges_begin(); eit != rdt_ds.edges_end(); ++eit)
-		//{
-		//	Face_handle f = eit->first;
-		//	int i = eit->second;
-		//	Vertex_handle v0 = f->vertex(f->cw(i)), v1 = f->vertex(f->ccw(i));
-		//	Vertex_pair e(v0, v1);
-		//	std::map<Vertex_pair, Face_handle>::iterator it;
-		//	if ( (it = edge_face_adjacency.find(e)) == edge_face_adjacency.end() )
-		//		it = edge_face_adjacency.find(Vertex_pair(v1, v0));
-		//	assert(it != edge_face_adjacency.end());
-		//}
-		RDT_data_structure::Edge_iterator eit = rdt_ds.edges_begin();
-		while (true)
+		typedef std::pair<Vertex_handle, Vertex_handle> Edge;
+		using std::make_pair;
+		std::stack<Edge> q;
+		std::set<Edge> marked_edges;
+		std::set<Edge> added_set;
+		for (Halfedge_iterator eit = rdt_ds.halfedges_begin(); eit != rdt_ds.halfedges_end(); ++eit)
 		{
-			if (is_interior_edge(*eit) && !rdt_ds.is_infinite(*eit))
-				break;
-			++eit;
+			if (!eit->is_border() && !eit->opposite()->is_border())
+			{
+				Vertex_handle v0 = eit->vertex(), v1 = eit->opposite()->vertex();
+				std::set<Edge>::iterator it, oit;
+				it = added_set.find(make_pair(v0, v1));
+				oit = added_set.find(make_pair(v1, v0));
+				if (it == added_set.end() && oit == added_set.end())
+				{
+					q.push(make_pair(v0, v1));
+					added_set.insert(make_pair(v0, v1));
+				}
+			}
 		}
-		std::queue<Vertex_pair> q;
-		Face_handle f = eit->first;
-		int i = eit->second;
-		Vertex_handle v0 = f->vertex(f->cw(i)), v1 = f->vertex(f->ccw(i));
-		q.push(Vertex_pair(v0, v1));
-		edges_visited.insert(Vertex_pair(v0, v1));
 		while (!q.empty())
 		{
-			Vertex_pair e = q.front();
-			Vertex_handle v0 = e.first, v1 = e.second;
-			std::map<Vertex_pair, Face_handle>::iterator it = edge_face_adjacency.find(Vertex_pair(v0, v1));
-			if ( it == edge_face_adjacency.end() )
-				it = edge_face_adjacency.find(Vertex_pair(v1, v0));
-			assert(it != edge_face_adjacency.end());
-			Face_handle f = it->second;
-			bool mask[] = {true, true, true};
-			mask[f->index(v0)] = mask[f->index(v1)] = false;
-			int i;
-			if (mask[0]) i = 0;
-			if (mask[1]) i = 1;
-			if (mask[2]) i = 2;
-			Face_handle nf = f->neighbor(i);
-			int ni = nf->index(f);
-			Vertex_handle P = f->vertex(i), Q = nf->vertex(ni);
-			//Vertex_handle r = nf->vertex(nf->cw(ni)), s = nf->vertex(nf->ccw(ni));
-			if (!is_delaunay_edge(Edge(f, i)))
-			{
-				rdt_ds.flip(f, i);
-				edge_face_adjacency.erase(it);
-				edge_face_adjacency[Vertex_pair(P,Q)] = f;
-				//edge_face_adjacency[Vertex_pair(v0, P)] = edge_face_adjacency[Vertex_pair(v0, Q)] = f;
-				if (f->has_vertex(v0))
-				{
-					edge_face_adjacency[Vertex_pair(v0, P)] = edge_face_adjacency[Vertex_pair(v0, Q)] = f;
-					assert(f->has_vertex(v0) && f->has_vertex(P) && f->has_vertex(Q));
-					edge_face_adjacency[Vertex_pair(v1, P)] = edge_face_adjacency[Vertex_pair(v1, Q)] = nf;
-					assert(nf->has_vertex(v1) && nf->has_vertex(P) && nf->has_vertex(Q));
-				}
-				else if (f->has_vertex(v1))
-				{
-					edge_face_adjacency[Vertex_pair(v1, P)] = edge_face_adjacency[Vertex_pair(v1, Q)] = f;
-					assert(f->has_vertex(v1) && f->has_vertex(P) && f->has_vertex(Q));
-					edge_face_adjacency[Vertex_pair(v0, P)] = edge_face_adjacency[Vertex_pair(v0, Q)] = nf;
-					assert(nf->has_vertex(v0) && nf->has_vertex(P) && nf->has_vertex(Q));
-				}
-				edges_visited.insert(Vertex_pair(P, Q));
-			}
-			//edges_visited.insert(e);
-			add_quadrilateral_edge(v0, P, q, edges_visited);
-			add_quadrilateral_edge(v0, Q, q, edges_visited);
-			add_quadrilateral_edge(v1, P, q, edges_visited);
-			add_quadrilateral_edge(v1, Q, q, edges_visited);
-			
+			Edge e = q.top();
 			q.pop();
+			Vertex_handle v0 = e.first, v1 = e.second;
+			HalfEdge_handle eh = v0->halfedge();
+			HalfEdge_handle oeh = eh->opposite();
+			while ( oeh->vertex() != v1)
+			{
+				if (eh->is_border() || oeh->is_border())
+					break;
+				eh = eh->next()->opposite();
+				oeh = eh->opposite();
+			}
+			if (oeh->vertex() != v1)
+			{
+				eh = eh->opposite()->prev();
+				oeh = eh->opposite();
+				while ( oeh->vertex() != v1)
+				{
+					eh = eh->opposite()->prev();
+					oeh = eh->opposite();
+				}
+			}
+			Vertex_handle v2 = eh->next()->vertex(), v3 = oeh->next()->vertex();
+			marked_edges.insert(e);
+			if (!is_delaunay_edge(eh))
+			{
+				rdt_ds.flip_edge(eh);
+				marked_edges.erase(e);
+				marked_edges.insert(Edge(v2, v3));
+				add_quadrilateral_edge(Edge(v0, v2), q, marked_edges);
+				add_quadrilateral_edge(Edge(v0, v3), q, marked_edges);
+				add_quadrilateral_edge(Edge(v1, v2), q, marked_edges);
+				add_quadrilateral_edge(Edge(v1, v3), q, marked_edges);
+			}
 		}
 	}
-	void RestrictedPolygonVoronoiDiagram::Construct_RDT_structure::find_adjacency(const Vertex_handle& v0, const Vertex_handle& v1, int v2, const Face_handle& f) const
+#endif
+
+	void RestrictedPolygonVoronoiDiagram::iDT_update()
 	{
-		Vertex_pair vp01(v0, v1), vp10(v1, v0);
-		std::map<Vertex_pair, Face_handle>::iterator it;
-		if ( (it = edge_face_adjacency.find(vp01)) != edge_face_adjacency.end() )
+		std::set<HalfEdge_handle> visited_edges;
+		std::stack<HalfEdge_handle> q;
+		std::set<HalfEdge_handle> added_set;
+		for (Halfedge_iterator eit = rdt_ds.halfedges_begin(); eit != rdt_ds.halfedges_end(); ++eit)
 		{
-			int idx0 = it->second->index(v0), idx1 = it->second->index(v1);
-			bool mask[] = {true, true, true};
-			mask[idx0] = false;
-			mask[idx1] = false;
-			if (mask[0])	rdt_ds.set_adjacency(it->second, 0, f, v2);
-			if (mask[1])	rdt_ds.set_adjacency(it->second, 1, f, v2);
-			if (mask[2])	rdt_ds.set_adjacency(it->second, 2, f, v2);
-			edge_valance[vp01]++;
-		}
-		else if ( (it = edge_face_adjacency.find(vp10)) != edge_face_adjacency.end() )
+			if (!eit->is_border() && !eit->opposite()->is_border())
+			{
+				std::set<HalfEdge_handle>::iterator it = added_set.find(eit);
+				std::set<HalfEdge_handle>::iterator oit = added_set.find(eit->opposite());
+				if (it == added_set.end() && oit == added_set.end())
+				{
+					q.push(eit);
+					q.push(eit->opposite());
+					added_set.insert(eit);
+					added_set.insert(eit->opposite());
+				}
+			}
+		}	
+		while (!q.empty())
 		{
-			int idx0 = it->second->index(v0), idx1 = it->second->index(v1);
-			bool mask[] = {true, true, true};
-			mask[idx0] = false;
-			mask[idx1] = false;
-			if (mask[0])	rdt_ds.set_adjacency(it->second, 0, f, v2);
-			if (mask[1])	rdt_ds.set_adjacency(it->second, 1, f, v2);
-			if (mask[2])	rdt_ds.set_adjacency(it->second, 2, f, v2);
-			edge_valance[vp10]++;
+			//HalfEdge_handle e = q.front();
+			HalfEdge_handle e = q.top();
+			visited_edges.insert(e);
+			q.pop();
+			//HalfEdge_handle oe = q.front();
+			HalfEdge_handle oe = q.top();
+			q.pop();
+			visited_edges.insert(oe);
+			//HalfEdge_handle pre_e0 = e->prev(), pre_e1 = e->next();
+			//HalfEdge_handle pre_e2 = oe->prev(), pre_e3 = oe->next();
+			if (!is_delaunay_edge(e))
+			{
+				//HalfEdge_handle fe = rdt_ds.flip_edge(e);
+				HalfEdge_handle fe = rdt_ds.join_facet(e);
+				fe = rdt_ds.split_facet(fe->next(), fe->prev());
+				visited_edges.erase(e);
+				visited_edges.erase(oe);
+				visited_edges.insert(fe);
+				visited_edges.insert(fe->opposite());
+				assert(!fe->is_border() && !fe->opposite()->is_border());
+				HalfEdge_handle e0 = fe->next(), e1 = fe->prev();
+				HalfEdge_handle e2 = fe->opposite()->next(), e3 = fe->opposite()->prev();
+				//if (!(e0 == pre_e0 && e3 == pre_e1 && e2 == pre_e2 && e1 == pre_e3))
+				//	std::cout<<"HalfEdge incosistency!\n";
+				add_quadrilateral_edge(e0, q, visited_edges);
+				add_quadrilateral_edge(e1, q, visited_edges);
+				add_quadrilateral_edge(e2, q, visited_edges);
+				add_quadrilateral_edge(e3, q, visited_edges);
+			}
 		}
-		else
-		{
-			edge_face_adjacency[vp01] = f;
-			edge_valance[vp01] = 1;
-			//F_face = ace_handle infiniterdt_ds.create_face(v0, v1, rdt_ds.infinite_vertex());
-			//rdt_ds.set_adjacency(infinite_face, infinite_face->index(rdt_ds.infinite_vertex()), f, v2);
-		}
-	}
-	void RestrictedPolygonVoronoiDiagram::Construct_RDT_structure::operator()(unsigned int i, unsigned int j, unsigned int k) const
-	{
-		Face_handle f = rdt_ds.create_face(samp_pnts[i], samp_pnts[j], samp_pnts[k]);
-		//Vector_3 n = samp_pnts[i]->n + samp_pnts[j]->n + samp_pnts[k]->n;
-		//Vector_3 nij(samp_pnts[i]->point_3(), samp_pnts[j]->point_3());
-		//Vector_3 njk(samp_pnts[j]->point_3(), samp_pnts[k]->point_3());
-		//Vector_3 det = CGAL::cross_product(nij, njk);
-		//if (det*n > 0.0)
-		//{
-		//	f->set_vertex(0, samp_pnts[i]);
-		//	f->set_vertex(f->ccw(0), samp_pnts[j]);
-		//	f->set_vertex(f->cw(0), samp_pnts[k]);
-		//}
-		//else
-		//{
-		//	f->set_vertex(0, samp_pnts[i]);
-		//	f->set_vertex(f->cw(0), samp_pnts[j]);
-		//	f->set_vertex(f->ccw(0), samp_pnts[k]);
-		//}
-		find_adjacency(samp_pnts[i], samp_pnts[j], f->index(samp_pnts[k]), f);
-		find_adjacency(samp_pnts[j], samp_pnts[k], f->index(samp_pnts[i]), f);
-		find_adjacency(samp_pnts[k], samp_pnts[i], f->index(samp_pnts[j]), f);
-		samp_pnts[i]->set_face(f);
-		samp_pnts[j]->set_face(f);
-		samp_pnts[k]->set_face(f);
 	}
 
+	void RestrictedPolygonVoronoiDiagram::save_triangulation(const std::string fn)
+	{
+		std::ofstream os(fn.c_str());
+		std::vector<Point_3> pnts(rdt_ds.size_of_vertices());
+		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != vertices_end(); ++vit)
+			pnts[vit->idx] = vit->point();
+		for (unsigned int i = 0; i < pnts.size() ; i++)
+			os<<"v "<<pnts[i].x()<<' '<<pnts[i].y()<<' '<<pnts[i].z()<<'\n';
+		for (Facet_iterator fit = rdt_ds.facets_begin(); fit != rdt_ds.facets_end(); ++fit)
+		{
+			HalfEdge_handle eh = fit->halfedge();
+			int i0 = eh->vertex()->idx;
+			eh = eh->next();
+			int i1 = eh->vertex()->idx;
+			eh = eh->next();
+			int i2 = eh->vertex()->idx;		
+			os<<"f "<<i0+1<<' '<<i1+1<<' '<<i2+1<<'\n';			
+		}
+	}
 }

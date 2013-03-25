@@ -7,6 +7,9 @@
 #include <cmath>
 #include <set>
 #include <numeric>
+#include <sstream>
+
+#include <CGAL/Timer.h>
 
 #ifdef _CILK_
 #include <cilk/cilk.h>
@@ -26,6 +29,8 @@ namespace Geex
 
 		typedef enum {SUCCESS, FAILED} Optimization_res;
 		typedef enum {MORE_ENLARGEMENT, NO_MORE_ENLARGEMENT} Lloyd_res;
+
+		typedef RestrictedPolygonVoronoiDiagram::Vertex_handle Vertex_handle;
 		
 	public:
 		
@@ -39,7 +44,7 @@ namespace Geex
 		/** access functions **/
 		const TriMesh& mesh_domain() const { return mesh; }
 		const vector<Packing_object>& get_tiles() const { return pack_objects; }
-		const RestrictedPolygonVoronoiDiagram& get_rpvd() const { return rpvd; }
+		RestrictedPolygonVoronoiDiagram& get_rpvd() const { return rpvd; }
 
 		static Packer* instance() { return instance_; }
 
@@ -54,7 +59,7 @@ namespace Geex
 		void pack(void (*post_action)() = NULL); 
 		// debug
 		void rpack(void (*post_action)() = NULL);
-		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
+		void update_iDT() { for (int i = 0; i < 1; i++) rpvd.iDT_update(); compute_clipped_VD();}
 
 	private:
 
@@ -125,6 +130,13 @@ namespace Geex
 			{
 				return o + ( p.x()*u + p.y()*v );
 			}
+			void print()
+			{
+				std::cout<<"u = ("<<u.x()<<','<<u.y()<<','<<u.z()<<"), ";
+				std::cout<<"v = ("<<v.x()<<','<<v.y()<<','<<v.z()<<"), ";
+				std::cout<<"w = ("<<w.x()<<','<<w.y()<<','<<w.z()<<"), ";
+				std::cout<<"o = ("<<o.x()<<','<<o.y()<<','<<o.z()<<"). \n";
+			}
 		};
 
 		struct Parameter // represent a 2D transformation parameter
@@ -137,18 +149,24 @@ namespace Geex
 			Parameter(double _k, double _theta, double _tx, double _ty) : k(_k), theta(_theta), tx(_tx), ty(_ty) {}
 			Parameter& operator*=(double f)
 			{
-				/*k *= f;*/ theta *= f;	tx *= f; ty *= f;
+				k = std::max(f*k, 1.0); 
+				theta *= f;	tx *= f; ty *= f;
 				return *this;
 			}
 			inline Parameter operator*(double f)
 			{
-				return Packer::Parameter(k, f*theta, f*tx, f*ty);
+				return Packer::Parameter(std::max(f*k, 1.0), f*theta, f*tx, f*ty);
+			}
+			inline bool is_identity() const 
+			{
+				return /*k == 1.0 && */theta == 0.0 && tx == 0.0 && ty == 0.0;
 			}
 		};
 
 		// apply a 2D transformation to a 3D polygon inside the plane where the polygon is embedded
 		struct Apply_transformation
 		{
+			typedef RestrictedPolygonVoronoiDiagram::Vertex_handle Vertex_handle;
 			const Parameter& parameter;
 			const Local_frame& local_frame;
 
@@ -167,9 +185,11 @@ namespace Geex
 				return local_frame.to_xy(tp);
 			}
 
-			inline RestrictedPolygonVoronoiDiagram::Vertex_handle operator()(RestrictedPolygonVoronoiDiagram::Vertex_handle v)
+			inline RestrictedPolygonVoronoiDiagram::Vertex_handle operator()(Vertex_handle v)
 			{
-				v->Embedded_point_2::p = operator()(v->point_3());
+				//v->Embedded_point_2::p = operator()(v->point_3());
+				Point_3 p = operator()(v->point());
+				v->point() = p;
 				return v;
 			}
 		};

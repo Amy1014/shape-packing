@@ -115,7 +115,7 @@ namespace Geex
 
 	void SPM_Graphics::draw_all_vertices()
 	{
-		const RDT_data_structure& rdt = packer->rpvd.get_rdt();
+		RDT_data_structure& rdt = packer->rpvd.get_rdt();
 		
 		glDisable(GL_LIGHTING);
 		glColor3f(0.0f, 0.0f, 0.0f);
@@ -141,17 +141,18 @@ namespace Geex
 			glColor3f(0.6f, 0.0f, 0.0f);
 			glDisable(GL_LIGHTING);
 			typedef RestrictedPolygonVoronoiDiagram RPVD;
-			const RPVD& rpvd = packer->get_rpvd();
+			RPVD& rpvd = packer->get_rpvd();
 			glBegin(GL_LINES);
-			for (RPVD::Edge_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
+			for (RPVD::Halfedge_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
 			{
-				RPVD::Face_iterator f = eit->first;
-				int i = eit->second;
-				RPVD::Vertex_iterator vh0 = f->vertex(f->cw(i)), vh1 = f->vertex(f->ccw(i));
-				//glPoint_3(vh0->point_3());
-				//glPoint_3(vh1->point_3());
+				if (!eit->is_border()&& !eit->is_border() && rpvd.is_delaunay_edge(eit))
+					glColor3f(0.6f, 0.0f, 0.0f);
+				else
+					glColor3f(0.0f, 0.0f, 0.4f);
+				RDT_data_structure::Vertex_handle vh0 = eit->vertex(), vh1 = eit->opposite()->vertex();
 				glPoint_3(vh0->mp);
 				glPoint_3(vh1->mp);
+				
 			}
 			glEnd();
 			glEnable(GL_LIGHTING);
