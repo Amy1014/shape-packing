@@ -28,6 +28,7 @@ namespace Geex
 		show_voronoi_cell_ = true;
 		show_triangulation_ = false;
 		show_vertices_ = false;
+		show_hole_triangles_ = false;
 		highlighted_group = -1;
 	}
 
@@ -56,6 +57,10 @@ namespace Geex
 			draw_voronoi_cell();
 		if (show_vertices_)
 			draw_all_vertices();
+		if (show_hole_triangles_)
+			draw_hole_triangles();
+		if (show_holes_)
+			draw_holes();
 	}
 
 	void SPM_Graphics::draw_mesh()
@@ -121,7 +126,7 @@ namespace Geex
 		glColor3f(0.0f, 0.0f, 0.0f);
 		glPointSize(2.0f);
 		glBegin(GL_POINTS);
-		for (RDT_data_structure::Vertex_iterator vi = rdt.vertices_begin(); vi != rdt.vertices_end(); ++vi)
+		for (Vertex_iterator vi = rdt.vertices_begin(); vi != rdt.vertices_end(); ++vi)
 		{
 			//Point_3 p = vi->point_3();
 			Point_3 p = vi->mp;
@@ -140,10 +145,9 @@ namespace Geex
 			glLineWidth(1.0f);
 			glColor3f(0.6f, 0.0f, 0.0f);
 			glDisable(GL_LIGHTING);
-			typedef RestrictedPolygonVoronoiDiagram RPVD;
 			RPVD& rpvd = packer->get_rpvd();
 			glBegin(GL_LINES);
-			for (RPVD::Halfedge_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
+			for (Halfedge_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
 			{
 				if (!eit->is_border()&& !eit->is_border() && rpvd.is_delaunay_edge(eit))
 					glColor3f(0.6f, 0.0f, 0.0f);
@@ -163,12 +167,10 @@ namespace Geex
 
 	void SPM_Graphics::draw_voronoi_cell()
 	{
-		//std::cout<<"Drawing Voronoi cells...\n";
-		typedef RestrictedPolygonVoronoiDiagram RPVD;
-		//if (!glIsList(vc_displist))
-		//{
-			//vc_displist = glGenLists(1);
-			//glNewList(vc_displist, GL_COMPILE);
+		if (!glIsList(vc_displist))
+		{
+			vc_displist = glGenLists(1);
+			glNewList(vc_displist, GL_COMPILE);
 			glDisable(GL_LIGHTING);
 			const RPVD& rpvd = packer->get_rpvd();
 			const std::vector<Packing_object>& po = packer->get_tiles();
@@ -198,8 +200,57 @@ namespace Geex
 				//}
 			}
 			glEnable(GL_LIGHTING);
-			//glEndList();
-		//}
-		//glCallList(vc_displist);
+			glEndList();
+		}
+		glCallList(vc_displist);
+	}
+
+	void SPM_Graphics::draw_hole_triangles()
+	{
+		RPVD& rpvd = packer->get_rpvd();
+		glColor3f(0.3f, 0.3f, 0.3f);
+		glDisable(GL_LIGHTING);
+		for (Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
+		{
+			if (fit->vacant)
+			{
+				RPVD::Halfedge_handle eh = fit->halfedge();
+				Vertex_handle v0 = eh->vertex();
+				eh = eh->next();
+				Vertex_handle v1 = eh->vertex();
+				eh = eh->next();
+				Vertex_handle v2 = eh->vertex();
+				glBegin(GL_TRIANGLES);
+				glPoint_3(v0->mp);
+				glPoint_3(v1->mp);
+				glPoint_3(v2->mp);
+				glEnd();
+			}
+		}
+		glEnable(GL_LIGHTING);
+	}
+
+	void SPM_Graphics::draw_holes()
+	{
+		std::vector<Packer::Hole>& holes = packer->get_holes();
+		glDisable(GL_LIGHTING);
+		//glColor3f(0.0f, 0.0f, 1.0f);
+		
+		for (unsigned int i = 0; i < holes.size(); i++)
+		{
+			Packer::Hole h = holes[i];
+			gl_table_color(i);
+			glBegin(GL_LINES);
+			for (unsigned int j = 0; j < h.size(); j++)
+			{
+				Halfedge_handle e = h[j];
+				Halfedge_handle oe = e->opposite();
+				glPoint_3(e->vertex()->mp);
+				glPoint_3(oe->vertex()->mp);
+			}
+			glEnd();
+		}
+		
+		glEnable(GL_LIGHTING);
 	}
 }

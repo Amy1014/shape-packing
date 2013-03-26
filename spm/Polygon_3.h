@@ -179,14 +179,15 @@ template <class Kernel, class Container> void MyPolygon_3<Kernel, Container>::cl
 
 template <class Kernel, class Container> typename MyPolygon_3<Kernel, Container>::FT MyPolygon_3<Kernel, Container>::area() const 
 {
-	Vector_3 a(FT(0.0), FT(0.0), FT(0.0));
+	FT a(0);
 	Point_3 cent = centroid();
 	for (unsigned int i = 0; i < verts.size(); i++)
 	{
 		Vector_3 ta = CGAL::cross_product(Vector_3(cent, verts[i]), Vector_3(cent, verts[(i+1)%verts.size()]));
-		a = a + ta;
+		a = a + CGAL::sqrt(ta.squared_length());
 	}
-	return 0.5*CGAL::sqrt(a.squared_length());
+	//return 0.5*CGAL::sqrt(a.squared_length());
+	return 0.5*a;
 }
 
 template <class Kernel, class Container> 

@@ -2,6 +2,7 @@
 #define _PACKER_H_
 
 #include <vector>
+#include <queue>
 #include <string>
 #include <cfloat>
 #include <cmath>
@@ -31,8 +32,17 @@ namespace Geex
 		typedef enum {MORE_ENLARGEMENT, NO_MORE_ENLARGEMENT} Lloyd_res;
 
 		typedef RestrictedPolygonVoronoiDiagram::Vertex_handle Vertex_handle;
+		typedef RestrictedPolygonVoronoiDiagram::Facet_iterator Facet_iterator;
+		typedef RestrictedPolygonVoronoiDiagram::Facet_handle Facet_handle;
+		typedef RestrictedPolygonVoronoiDiagram::Halfedge_handle Halfedge_handle;
+		typedef RestrictedPolygonVoronoiDiagram::Halfedge_iterator Halfedge_iterator;
+
+		struct Local_frame;
+		struct Parameter;
 		
 	public:
+
+		typedef std::vector<Halfedge_handle> Hole; // representing a hole, consisting of non-border edges
 		
 		Packer();
 
@@ -45,15 +55,22 @@ namespace Geex
 		const TriMesh& mesh_domain() const { return mesh; }
 		const vector<Packing_object>& get_tiles() const { return pack_objects; }
 		RestrictedPolygonVoronoiDiagram& get_rpvd() const { return rpvd; }
+		double hole_size() const { return hole_face_size; }
+		double hole_size(double sz) { hole_face_size = sz; }
+		double front_edge_len() const { return frontier_edge_size; }
+		double front_edge_len(double len) { frontier_edge_size = len; }
+		std::vector<Hole>& get_holes() const { return holes; }
 
 		static Packer* instance() { return instance_; }
 
 		/** optimization **/
-		// one Lloyd iteration
-		Lloyd_res lloyd(bool enlarge = true);
+		void lloyd(void (*post_action)() = NULL, bool enlarge = false);
 
 		/** miscellaneous **/
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
+
+		// hole detection
+		void detect_holes();
 
 		// driver
 		void pack(void (*post_action)() = NULL); 
@@ -74,6 +91,9 @@ namespace Geex
 		vec3 approx_normal(unsigned int facet_idx);
 
 		/** optimization **/
+		// one Lloyd iteration
+		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
+
 		static int callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
 							const double * const x,	const double * const lambda, double * const obj, double * const c,
 							double * const objGrad,	double * const jac,	double * const hessian,	double * const hessVector, void * userParams);
@@ -81,12 +101,13 @@ namespace Geex
 		int KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx);
 
 		// get the transformation parameter for one polygon in a local frame
-		struct Local_frame;
-		struct Parameter;
 		Optimization_res optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution);
 
+		// transform polygons inside local frames
+		void transform_one_polygon(unsigned int id, Local_frame& lf, Parameter& param);
+
 		// constraint transformation to avoid triangle flip
-		void constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs);
+		void constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, vector<double>& min_factors);
 
 
 	private:
@@ -98,13 +119,16 @@ namespace Geex
 		std::vector<Polygon_2> pgn_lib;
 		TriMesh mesh;
 
+		/** holes **/
+		std::vector<Hole> holes;
+		double frontier_edge_size;
+		double hole_face_size;
 		/** optimization **/
 #ifdef _CILK_
 		std::vector<Containment> containments;
 #else
 		Containment containment;
 #endif
-
 		static double PI;
 		double rot_lower_bd;
 		double rot_upper_bd;
@@ -153,6 +177,15 @@ namespace Geex
 				theta *= f;	tx *= f; ty *= f;
 				return *this;
 			}
+			// compute the remaining transformation after applying transformation p
+			Parameter& operator-=(const Parameter& p)
+			{
+				k /= p.k;
+				theta -= p.theta;
+				tx -= p.tx;
+				ty -= p.ty;
+				return *this;
+			}
 			inline Parameter operator*(double f)
 			{
 				return Packer::Parameter(std::max(f*k, 1.0), f*theta, f*tx, f*ty);
@@ -187,7 +220,6 @@ namespace Geex
 
 			inline RestrictedPolygonVoronoiDiagram::Vertex_handle operator()(Vertex_handle v)
 			{
-				//v->Embedded_point_2::p = operator()(v->point_3());
 				Point_3 p = operator()(v->point());
 				v->point() = p;
 				return v;
