@@ -18,7 +18,6 @@ namespace Geex
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		bounding_pnts.clear();
-		//edge_face_adjacency.clear();
 		rdt_ds.clear();
 	}
 
@@ -161,10 +160,10 @@ namespace Geex
 		}
 	}
 
-	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(HalfEdge_handle e)
+	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(Halfedge_handle e)
 	{
 		Vertex_handle vi = e->next()->vertex(), vi_cw = e->vertex(), vi_ccw = e->prev()->vertex();
-		HalfEdge_handle oe = e->opposite();
+		Halfedge_handle oe = e->opposite();
 		Vertex_handle vj = oe->next()->vertex(), vj_cw = oe->vertex(), vj_ccw = oe->prev()->vertex();
 		double a2 = CGAL::squared_distance(vi->mp, vi_cw->mp),
 			b2 = CGAL::squared_distance(vi->mp, vi_ccw->mp),
@@ -183,13 +182,13 @@ namespace Geex
 			return false;
 	}
 
-	//inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(HalfEdge_handle e, std::queue<HalfEdge_handle>& q, std::set<HalfEdge_handle>& s)
-	inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(HalfEdge_handle e, std::stack<HalfEdge_handle>& q, std::set<HalfEdge_handle>& s)
+	//inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Halfedge_handle e, std::queue<Halfedge_handle>& q, std::set<Halfedge_handle>& s)
+	inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Halfedge_handle e, std::stack<Halfedge_handle>& q, std::set<Halfedge_handle>& s)
 	{
 		if (!e->is_border() && !e->opposite()->is_border())
 		{
-			std::set<HalfEdge_handle>::iterator it = s.find(e);
-			std::set<HalfEdge_handle>::iterator oit = s.find(e->opposite());
+			std::set<Halfedge_handle>::iterator it = s.find(e);
+			std::set<Halfedge_handle>::iterator oit = s.find(e->opposite());
 			if (it != s.end() && oit != s.end())
 			{
 				q.push(e);
@@ -199,119 +198,17 @@ namespace Geex
 			}
 		}
 	}
-#if 0
-	void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(std::pair<Vertex_handle, Vertex_handle> e, 
-		std::stack<std::pair<Vertex_handle, Vertex_handle>>& q, 
-		std::set<std::pair<Vertex_handle, Vertex_handle>>& s)
-	{
-		typedef std::pair<Vertex_handle, Vertex_handle> Edge;
-		using std::make_pair;
-
-		Vertex_handle v = e.first;
-		HalfEdge_handle h = v->halfedge();
-		HalfEdge_handle oh = h->opposite();
-		while ( oh->vertex() != e.second)
-		{
-			if (h->is_border() || oh->is_border())
-				break;
-			h = h->next()->opposite();
-			oh = h->opposite();
-		}
-		if (oh->vertex() != e.second)
-		{
-			h = h->opposite()->prev();
-			oh = h->opposite();
-			while ( oh->vertex() != e.second)
-			{
-				h = h->opposite()->prev();
-				oh = h->opposite();
-			}
-		}
-		if (!h->is_border() && !oh->is_border())
-		{
-			std::set<Edge>::iterator it = s.find(e);
-			if (it == s.end())
-				it = s.find(make_pair(e.second, e.first));
-			if (it != s.end())
-			{
-				q.push(e);
-				s.erase(it);
-			}
-		}
-	}
 	void RestrictedPolygonVoronoiDiagram::iDT_update()
 	{
-		typedef std::pair<Vertex_handle, Vertex_handle> Edge;
-		using std::make_pair;
-		std::stack<Edge> q;
-		std::set<Edge> marked_edges;
-		std::set<Edge> added_set;
+		std::set<Halfedge_handle> visited_edges;
+		std::stack<Halfedge_handle> q;
+		std::set<Halfedge_handle> added_set;
 		for (Halfedge_iterator eit = rdt_ds.halfedges_begin(); eit != rdt_ds.halfedges_end(); ++eit)
 		{
 			if (!eit->is_border() && !eit->opposite()->is_border())
 			{
-				Vertex_handle v0 = eit->vertex(), v1 = eit->opposite()->vertex();
-				std::set<Edge>::iterator it, oit;
-				it = added_set.find(make_pair(v0, v1));
-				oit = added_set.find(make_pair(v1, v0));
-				if (it == added_set.end() && oit == added_set.end())
-				{
-					q.push(make_pair(v0, v1));
-					added_set.insert(make_pair(v0, v1));
-				}
-			}
-		}
-		while (!q.empty())
-		{
-			Edge e = q.top();
-			q.pop();
-			Vertex_handle v0 = e.first, v1 = e.second;
-			HalfEdge_handle eh = v0->halfedge();
-			HalfEdge_handle oeh = eh->opposite();
-			while ( oeh->vertex() != v1)
-			{
-				if (eh->is_border() || oeh->is_border())
-					break;
-				eh = eh->next()->opposite();
-				oeh = eh->opposite();
-			}
-			if (oeh->vertex() != v1)
-			{
-				eh = eh->opposite()->prev();
-				oeh = eh->opposite();
-				while ( oeh->vertex() != v1)
-				{
-					eh = eh->opposite()->prev();
-					oeh = eh->opposite();
-				}
-			}
-			Vertex_handle v2 = eh->next()->vertex(), v3 = oeh->next()->vertex();
-			marked_edges.insert(e);
-			if (!is_delaunay_edge(eh))
-			{
-				rdt_ds.flip_edge(eh);
-				marked_edges.erase(e);
-				marked_edges.insert(Edge(v2, v3));
-				add_quadrilateral_edge(Edge(v0, v2), q, marked_edges);
-				add_quadrilateral_edge(Edge(v0, v3), q, marked_edges);
-				add_quadrilateral_edge(Edge(v1, v2), q, marked_edges);
-				add_quadrilateral_edge(Edge(v1, v3), q, marked_edges);
-			}
-		}
-	}
-#endif
-
-	void RestrictedPolygonVoronoiDiagram::iDT_update()
-	{
-		std::set<HalfEdge_handle> visited_edges;
-		std::stack<HalfEdge_handle> q;
-		std::set<HalfEdge_handle> added_set;
-		for (Halfedge_iterator eit = rdt_ds.halfedges_begin(); eit != rdt_ds.halfedges_end(); ++eit)
-		{
-			if (!eit->is_border() && !eit->opposite()->is_border())
-			{
-				std::set<HalfEdge_handle>::iterator it = added_set.find(eit);
-				std::set<HalfEdge_handle>::iterator oit = added_set.find(eit->opposite());
+				std::set<Halfedge_handle>::iterator it = added_set.find(eit);
+				std::set<Halfedge_handle>::iterator oit = added_set.find(eit->opposite());
 				if (it == added_set.end() && oit == added_set.end())
 				{
 					q.push(eit);
@@ -323,28 +220,28 @@ namespace Geex
 		}	
 		while (!q.empty())
 		{
-			//HalfEdge_handle e = q.front();
-			HalfEdge_handle e = q.top();
+			//Halfedge_handle e = q.front();
+			Halfedge_handle e = q.top();
 			visited_edges.insert(e);
 			q.pop();
-			//HalfEdge_handle oe = q.front();
-			HalfEdge_handle oe = q.top();
+			//Halfedge_handle oe = q.front();
+			Halfedge_handle oe = q.top();
 			q.pop();
 			visited_edges.insert(oe);
-			//HalfEdge_handle pre_e0 = e->prev(), pre_e1 = e->next();
-			//HalfEdge_handle pre_e2 = oe->prev(), pre_e3 = oe->next();
+			//Halfedge_handle pre_e0 = e->prev(), pre_e1 = e->next();
+			//Halfedge_handle pre_e2 = oe->prev(), pre_e3 = oe->next();
 			if (!is_delaunay_edge(e))
 			{
-				//HalfEdge_handle fe = rdt_ds.flip_edge(e);
-				HalfEdge_handle fe = rdt_ds.join_facet(e);
+				//Halfedge_handle fe = rdt_ds.flip_edge(e);
+				Halfedge_handle fe = rdt_ds.join_facet(e);
 				fe = rdt_ds.split_facet(fe->next(), fe->prev());
 				visited_edges.erase(e);
 				visited_edges.erase(oe);
 				visited_edges.insert(fe);
 				visited_edges.insert(fe->opposite());
 				assert(!fe->is_border() && !fe->opposite()->is_border());
-				HalfEdge_handle e0 = fe->next(), e1 = fe->prev();
-				HalfEdge_handle e2 = fe->opposite()->next(), e3 = fe->opposite()->prev();
+				Halfedge_handle e0 = fe->next(), e1 = fe->prev();
+				Halfedge_handle e2 = fe->opposite()->next(), e3 = fe->opposite()->prev();
 				//if (!(e0 == pre_e0 && e3 == pre_e1 && e2 == pre_e2 && e1 == pre_e3))
 				//	std::cout<<"HalfEdge incosistency!\n";
 				add_quadrilateral_edge(e0, q, visited_edges);
@@ -365,7 +262,7 @@ namespace Geex
 			os<<"v "<<pnts[i].x()<<' '<<pnts[i].y()<<' '<<pnts[i].z()<<'\n';
 		for (Facet_iterator fit = rdt_ds.facets_begin(); fit != rdt_ds.facets_end(); ++fit)
 		{
-			HalfEdge_handle eh = fit->halfedge();
+			Halfedge_handle eh = fit->halfedge();
 			int i0 = eh->vertex()->idx;
 			eh = eh->next();
 			int i1 = eh->vertex()->idx;

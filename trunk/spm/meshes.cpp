@@ -442,7 +442,7 @@ namespace Geex {
 //		    vertices_[i].weight() = pow(w*10, gamma) ;
 //		}
 		for (unsigned int i = 0; i< avgcurs.size(); i++)
-			vertices_[i].weight() = pow(avgcurs[i]*10, gamma);
+			vertices_[i].weight() = pow(avgcurs[i]*5, gamma);
 
 		// compute face's weight by averaging weight of vertices
 		for(unsigned int i=0; i<size(); ++i) {

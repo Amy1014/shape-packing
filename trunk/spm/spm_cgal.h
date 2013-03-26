@@ -37,6 +37,7 @@ namespace Geex {
 	typedef K::Ray_3		Ray_3;
 	typedef K::Direction_3	Direction_3;
 	typedef CGAL::Plane_3<K>	Plane_3;
+	typedef CGAL::Triangle_3<K> Triangle_3;
 	typedef CGAL::Object	Object;
 	typedef CGAL::Aff_transformation_3<K>	Transformation_3;
 	typedef MyPolygon_3<K> Polygon_3;

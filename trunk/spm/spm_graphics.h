@@ -17,6 +17,13 @@ namespace Geex
 	class SPM_Graphics
 	{
 
+		typedef RestrictedPolygonVoronoiDiagram RPVD;
+		typedef RPVD::Vertex_handle Vertex_handle;
+		typedef RPVD::Halfedge_handle Halfedge_handle;
+		typedef RPVD::Halfedge_iterator	Halfedge_iterator;
+		typedef RPVD::Vertex_iterator Vertex_iterator;
+		typedef RPVD::Facet_iterator Facet_iterator;
+
 	public:
 
 		SPM_Graphics(Packer *_packer);
@@ -39,6 +46,9 @@ namespace Geex
 
 		GLboolean& show_tiles() { return show_polygons_; }
 
+		GLboolean& show_hole_triangles() { return show_hole_triangles_; }
+		GLboolean& show_holes() { return show_holes_; }
+
 		int& highlighted_group_id() { return highlighted_group; }
 
 		typedef enum {OUTLINE_DRAW, FILL_DRAW, TEXTURE_DRAW} Polygon_draw_type;
@@ -50,6 +60,8 @@ namespace Geex
 		void draw_polygons();
 		void draw_triangulation();
 		void draw_voronoi_cell();
+		void draw_hole_triangles();
+		void draw_holes();
 		// debug
 		void draw_all_vertices();
 		/** call opengl **/
@@ -63,6 +75,8 @@ namespace Geex
 		GLboolean show_voronoi_cell_;
 		GLboolean show_triangulation_;
 		GLboolean show_vertices_;
+		GLboolean show_hole_triangles_;
+		GLboolean show_holes_;
 
 		/** display list **/
 		GLuint triangulation_displist;

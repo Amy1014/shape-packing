@@ -45,6 +45,7 @@ namespace Geex
 		typedef CGAL::HalfedgeDS_face_base<Refs> baseclass;
 	public:
 		Vector_3 n;
+		bool vacant;
 	};
 
 	class MyItems : public CGAL::Polyhedron_items_3

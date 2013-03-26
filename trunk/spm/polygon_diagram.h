@@ -133,8 +133,8 @@ public:
 	typedef RestrictedVoronoiDiagram_poly RestrictedVoronoiDiagram;
 	typedef RDT_data_structure::HalfedgeDS::Vertex_handle Vertex_handle;
 	//typedef RDT_data_structure::Vertex_handle Vertex_handle;
-	typedef RDT_data_structure::Halfedge_handle HalfEdge_handle;
-	typedef RDT_data_structure::Face_handle Face_handle;
+	typedef RDT_data_structure::Halfedge_handle Halfedge_handle;
+	typedef RDT_data_structure::Facet_handle Facet_handle;
 	//typedef std::pair<Vertex_handle, Vertex_handle> Vertex_pair;
 	typedef std::vector<Vertex_handle> VertGroup; // vertices belonging to the same group
 	typedef RDT_data_structure::Halfedge::Vertex Vertex;
@@ -181,21 +181,23 @@ public:
 	Edge_iterator edges_end() { return rdt_ds.edges_end(); }
 	Facet_iterator faces_begin()  { return rdt_ds.facets_begin(); }
 	Facet_iterator faces_end()  { return rdt_ds.facets_end(); }
+	Halfedge_iterator halfedges_begin() { return rdt_ds.halfedges_begin(); }
+	Halfedge_iterator halfedges_end() { return rdt_ds.halfedges_end(); }
 	unsigned int number_of_groups() const { return nb_groups; }
 
 	// for debug
 	const RDT_data_structure& get_rdt() const { return rdt_ds; }
 	void save_triangulation(const std::string fn);
 
-	bool is_delaunay_edge(HalfEdge_handle e);
+	bool is_delaunay_edge(Halfedge_handle e);
 
 private: // private functions
 
 	/** geometry **/
 	
 	//inline bool is_interior_edge(const Edge& e);
-	//inline void add_quadrilateral_edge(HalfEdge_handle e, std::queue<HalfEdge_handle>& q, std::set<HalfEdge_handle>& s);
-	inline void add_quadrilateral_edge(HalfEdge_handle e, std::stack<HalfEdge_handle>& q, std::set<HalfEdge_handle>& s);
+	//inline void add_quadrilateral_edge(Halfedge_handle e, std::queue<Halfedge_handle>& q, std::set<Halfedge_handle>& s);
+	inline void add_quadrilateral_edge(Halfedge_handle e, std::stack<Halfedge_handle>& q, std::set<Halfedge_handle>& s);
 	void add_quadrilateral_edge(std::pair<Vertex_handle, Vertex_handle>, 
 						std::stack<std::pair<Vertex_handle, Vertex_handle>>&, 
 						std::set<std::pair<Vertex_handle, Vertex_handle>>& s);

@@ -10,10 +10,13 @@ namespace Geex
 	{
 		assert( instance_ == nil );
 		instance_ = this;
-		srand(1);
-		//srand(time(NULL));
+		//srand(1);
+		srand(time(NULL));
 		rot_lower_bd = -PI/6.0;
 		rot_upper_bd = PI/6.0;
+
+		frontier_edge_size = 1.0;
+		hole_face_size = 1.0;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -136,7 +139,7 @@ namespace Geex
 	void Packer::generate_RDT()
 	{
 		rpvd.begin_insert();
-		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 20);
+		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
 		rpvd.insert_bounding_points(10);
 		CGAL::Timer t;
 		t.start();
@@ -208,7 +211,7 @@ namespace Geex
 				//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s,t)), ref_point));
 				containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s, t))));
 #else
-				containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s,t)), ref_point));
+				containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
 				//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
 #endif
 			}
@@ -232,10 +235,8 @@ namespace Geex
 		}
 	}
 
-	Packer::Lloyd_res Packer::lloyd(bool enlarge)
+	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs)
 	{
-		std::vector<Local_frame> lfs(pack_objects.size());
-		std::vector<Parameter> solutions(pack_objects.size());
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
 		containments.resize(pack_objects.size());
@@ -259,74 +260,62 @@ namespace Geex
 				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
 			}
 		}
-		if (mink >= 1.005)
+		if (mink >= 1.05)
 		{
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 				if (opti_res[i] == SUCCESS)
 					solutions[i].k = mink;
 		}
 		std::cout<<"Minimum enlargement factor = "<<mink<<std::endl;
-		constraint_transformation(solutions, lfs);
+		std::vector<double> min_factors(solutions.size()); // factors to constraint transformation
+		constraint_transformation(solutions, lfs, min_factors);
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{
-			Apply_transformation t(solutions[i], lfs[i]);
-			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), t);
-			RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
-			std::transform(samp_pnts.begin(), samp_pnts.end(), samp_pnts.begin(), t);
-			Point_3 c = pack_objects[i].centroid();
-			vec3 dummyv, p;
-			int fid;
-			p = mesh.project_to_mesh(to_geex_pnt(c), dummyv, fid);
-			vec3 n = approx_normal(fid);
-			Transformation_3 same_t = pack_objects[i].align(to_cgal_vec(n), to_cgal_pnt(p));
-			for (unsigned int j = 0; j < samp_pnts.size(); j++)
-				samp_pnts[j]->point() = same_t(samp_pnts[j]->point());
-			for (unsigned int j = 0; j < samp_pnts.size(); j++)
-			{
-				vec3 dummyv;
-				Point_3 temp = samp_pnts[j]->point();
-				samp_pnts[j]->mp = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(temp), dummyv));
-			}
+			Parameter constrained_parameter = solutions[i]*min_factors[i];
+			transform_one_polygon(i, lfs[i], constrained_parameter);
+			solutions[i] -= constrained_parameter;// residual transformation
 		}
-		typedef RestrictedPolygonVoronoiDiagram RPVD;
-		//for (RPVD::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
-		//{
-		//	RPVD::HalfEdge_handle eh = fit->halfedge();
-		//	Point_3 v0 = eh->vertex()->mp;
-		//	int i0 = eh->vertex()->group_id;
-
-		//	eh = eh->next();
-		//	Point_3 v1 = eh->vertex()->mp;
-		//	int i1 = eh->vertex()->group_id;
-
-		//	eh = eh->next();
-		//	Point_3 v2 = eh->vertex()->mp;
-		//	int i2 = eh->vertex()->group_id;
-
-		//	if (i0 < 0 || i1 < 0 || i2 < 0)
-		//		continue;
-
-		//	Vector_3 n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
-		//	n = n / CGAL::sqrt(n.squared_length());
-
-		//}
 		if (enlarge && mink < 1.005)
 			return NO_MORE_ENLARGEMENT;
 		else
 			return MORE_ENLARGEMENT;
-		//generate_RDT();
 	}
 
-	void Packer::pack(void (*post_action)())
+	void Packer::transform_one_polygon(unsigned int id, Local_frame& lf, Parameter& param)
+	{
+		Apply_transformation t(param, lf);
+		std::transform(pack_objects[id].vertices_begin(), pack_objects[id].vertices_end(), pack_objects[id].vertices_begin(), t);
+		RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
+		std::transform(samp_pnts.begin(), samp_pnts.end(), samp_pnts.begin(), t);
+		Point_3 c = pack_objects[id].centroid();
+		vec3 dummyv, p;
+		int fid;
+		p = mesh.project_to_mesh(to_geex_pnt(c), dummyv, fid);
+		vec3 n = approx_normal(fid);
+		Transformation_3 same_t = pack_objects[id].align(to_cgal_vec(n), to_cgal_pnt(p));
+		for (unsigned int j = 0; j < samp_pnts.size(); j++)
+			samp_pnts[j]->point() = same_t(samp_pnts[j]->point());
+		for (unsigned int j = 0; j < samp_pnts.size(); j++)
+		{
+			vec3 dummyv;
+			Point_3 temp = samp_pnts[j]->point();
+			samp_pnts[j]->mp = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(temp), dummyv));
+		}
+	}
+	void Packer::lloyd(void (*post_action)(), bool enlarge)
 	{
 		static int times = 0;
+
+		std::vector<Parameter> solutions(pack_objects.size());
+		std::vector<Local_frame> local_frames(pack_objects.size());
+
 		for (unsigned int i = 0; i < 1; i++)
 		{
-			lloyd(false);
+			one_lloyd(enlarge, solutions, local_frames);
 			std::cout<<"Start iDT updating...\n";
 
 			//std::ostringstream pre_fn(std::ostringstream::ate);
@@ -341,15 +330,36 @@ namespace Geex
 			std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
 			std::cout<<"End iDT updating\n";	
 
+			if (post_action != NULL)
+				post_action();
+
+			// compensate for the constrained transformation in the last step
+			std::cout<<"Compensate for lost transformation...\n";
+			std::vector<double> min_factors(solutions.size());
+			for (unsigned int comp_times = 0; comp_times < 6; comp_times++)
+			{
+				constraint_transformation(solutions, local_frames, min_factors);
+#ifdef _CILK_
+				cilk_for (unsigned int j = 0; j < pack_objects.size(); j++)
+#else
+				for (unsigned int j = 0; j < pack_objects.size(); j++)
+#endif
+				{
+					Parameter constrained_param = solutions[i]*min_factors[i];
+					transform_one_polygon(j, local_frames[j], constrained_param);
+					solutions[j] -= constrained_param;
+				}
+				rpvd.iDT_update();
+			}
+			compute_clipped_VD();
+			std::cout<<"End compensating.\n";
+			if (post_action != NULL)
+				post_action();
+
 			//std::ostringstream fn(std::ostringstream::ate);
 			//fn.str("../imme_data/");
 			//fn<<"rdt_"<<times<<".obj";
 			//rpvd.save_triangulation(fn.str());
-
-			compute_clipped_VD();
-			if (post_action != NULL)
-				post_action();
-
 			times++;
 		}
 		//Lloyd_res r;
@@ -362,23 +372,34 @@ namespace Geex
 		//} while ( r == MORE_ENLARGEMENT);
 	}
 	
-	void Packer::rpack(void (*post_action)())
+	void Packer::pack(void (*post_action)())
 	{
-		Lloyd_res r;
-		r = lloyd(true);
-		rpvd.iDT_update();
-		compute_clipped_VD();
+		//Lloyd_res r;
+
+		lloyd(post_action, true);
+
+		//std::cout<<"Start iDT updating...\n";
+		//CGAL::Timer t;
+		//t.start();
+		//rpvd.iDT_update();
+		//t.stop();
+		//std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
+		//std::cout<<"End iDT updating\n";
+
+		//compute_clipped_VD();
+
+
 		if (post_action != NULL)
 			post_action();
 	}
 
-	void Packer::constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs)
+	void Packer::constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, vector<double>& min_factors)
 	{
-		vector<double> min_factors(parameters.size(), 1.0); // minimum constraint control factors
+		min_factors.assign(parameters.size(), 1.0);
 		typedef RestrictedPolygonVoronoiDiagram RPVD;
 		for (RPVD::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
 		{
-			RPVD::HalfEdge_handle eh = fit->halfedge();
+			RPVD::Halfedge_handle eh = fit->halfedge();
 			Point_3 v0 = eh->vertex()->mp;
 			int i0 = eh->vertex()->group_id;
 
@@ -437,7 +458,7 @@ namespace Geex
 			int nb_flipped = 0;
 			for (RPVD::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
 			{
-				RPVD::HalfEdge_handle eh = fit->halfedge();
+				RPVD::Halfedge_handle eh = fit->halfedge();
 				Point_3 v0 = eh->vertex()->sim_p;
 				int i0 = eh->vertex()->group_id;
 
@@ -460,7 +481,7 @@ namespace Geex
 					stop = false;
 				}
 			}
-			std::cout<<"number of flipped facets: "<<nb_flipped<<std::endl;
+			//std::cout<<"number of flipped facets: "<<nb_flipped<<std::endl;
 			n++;
 			for (unsigned int j = 0; j < parameters.size() ; j++)
 			{
@@ -473,15 +494,93 @@ namespace Geex
 				}
 			}
 		}
-		std::cout<<"Try times: "<<n<<std::endl;
-
-		//std::ofstream res("factors.txt");
-		for (unsigned int i = 0; i < parameters.size(); i++)
-		{
-			parameters[i] *= min_factors[i];
-			//res<<i<<": "<<min_factors[i]<<std::endl;
-		}
+		std::cout<<"Try times for constraint: "<<n<<std::endl;
 			
+	}
+
+	void Packer::detect_holes()
+	{
+		std::for_each(holes.begin(), holes.end(), std::mem_fun_ref(&Hole::clear));
+		holes.clear();
+
+		double min_pgn_area = std::numeric_limits<double>::max();
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+			min_pgn_area = std::min(min_pgn_area, pack_objects[i].area());
+		double front_edge_len2_threshold = frontier_edge_size*min_pgn_area;
+		double hole_facet_area_threshold = hole_face_size*min_pgn_area;
+		std::queue<Facet_iterator> seed_faces;
+		// detect faces in holes
+		for (Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
+		{
+			Halfedge_handle eh = fit->halfedge();
+			Vertex_handle v0 = eh->vertex();
+			eh = eh->next();
+			Vertex_handle v1 = eh->vertex();
+			eh = eh->next();
+			Vertex_handle v2 = eh->vertex();
+			if (v0->group_id == v1->group_id && v0->group_id == v2->group_id && v1->group_id == v2->group_id)
+				fit->vacant = false;
+			else
+				fit->vacant = true;
+			if (fit->vacant)
+			{
+				double	d01 = CGAL::squared_distance(v0->mp, v1->mp),
+						d02 = CGAL::squared_distance(v0->mp, v2->mp),
+						d12 = CGAL::squared_distance(v1->mp, v2->mp);
+				if (d01 >= front_edge_len2_threshold || d02 >= front_edge_len2_threshold || d12 >= front_edge_len2_threshold)
+					seed_faces.push(fit);
+			}
+		}
+
+		while (!seed_faces.empty())
+		{
+			Facet_iterator f = seed_faces.front();
+			seed_faces.pop();
+			if (!f->vacant)
+				continue;
+			f->vacant = false;
+			std::queue<Halfedge_handle> active_front_edges;
+			std::list<Facet_iterator> ahole;
+			Hole hole_bd;
+			Halfedge_handle e = f->halfedge();
+			active_front_edges.push(e);
+			active_front_edges.push(e->next());
+			active_front_edges.push(e->next()->next());
+			ahole.push_back(f);
+			while (!active_front_edges.empty())
+			{
+				Halfedge_handle curr_edge = active_front_edges.front();
+				active_front_edges.pop();
+				Halfedge_handle occur_edge = curr_edge->opposite();
+				double len = CGAL::squared_distance(curr_edge->vertex()->mp, occur_edge->vertex()->mp);
+				if (!occur_edge->is_border() && len >= front_edge_len2_threshold)
+				{		
+					Facet_handle neighbor_face = occur_edge->face();
+					if (neighbor_face->vacant)
+					{
+						active_front_edges.push(occur_edge->prev());
+						active_front_edges.push(occur_edge->next());
+						neighbor_face->vacant = false;
+						ahole.push_back(neighbor_face);
+					}
+					else
+						hole_bd.push_back(curr_edge);
+				}
+				else
+					hole_bd.push_back(curr_edge);
+			}
+			double ahole_area = 0.0;
+			for (std::list<Facet_iterator>::const_iterator it = ahole.begin(); it != ahole.end(); ++it)
+			{
+				Halfedge_handle eh = (*it)->halfedge();
+				Triangle_3 tri(eh->vertex()->mp, eh->next()->vertex()->mp, eh->next()->next()->vertex()->mp);
+				ahole_area += CGAL::sqrt(tri.squared_area());
+			}
+
+			if (ahole_area >= hole_facet_area_threshold)
+				holes.push_back(hole_bd);
+		}
+		std::cout<<holes.size()<<" holes were detected. \n";
 	}
 
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
