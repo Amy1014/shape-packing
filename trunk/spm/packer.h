@@ -12,6 +12,8 @@
 
 #include <CGAL/Timer.h>
 
+#include <glut_viewer/glut_viewer.h>
+
 #ifdef _CILK_
 #include <cilk/cilk.h>
 #endif

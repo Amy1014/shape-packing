@@ -139,7 +139,7 @@ namespace Geex
 	void Packer::generate_RDT()
 	{
 		rpvd.begin_insert();
-		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 12);
+		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 16);
 		rpvd.insert_bounding_points(10);
 		CGAL::Timer t;
 		t.start();
@@ -336,20 +336,21 @@ namespace Geex
 			// compensate for the constrained transformation in the last step
 			std::cout<<"Compensate for lost transformation...\n";
 			std::vector<double> min_factors(solutions.size());
-			for (unsigned int comp_times = 0; comp_times < 6; comp_times++)
+			for (unsigned int comp_times = 0; comp_times < 1; comp_times++)
 			{
 				constraint_transformation(solutions, local_frames, min_factors);
-#ifdef _CILK_
-				cilk_for (unsigned int j = 0; j < pack_objects.size(); j++)
-#else
+//#ifdef _CILK_
+//				cilk_for (unsigned int j = 0; j < pack_objects.size(); j++)
+//#else
 				for (unsigned int j = 0; j < pack_objects.size(); j++)
-#endif
+//#endif
 				{
-					Parameter constrained_param = solutions[i]*min_factors[i];
+					Parameter constrained_param = solutions[j]*min_factors[j];
 					transform_one_polygon(j, local_frames[j], constrained_param);
 					solutions[j] -= constrained_param;
 				}
 				rpvd.iDT_update();
+				glut_viewer_redraw();
 			}
 			compute_clipped_VD();
 			std::cout<<"End compensating.\n";
