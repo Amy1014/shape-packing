@@ -198,9 +198,9 @@ private: // private functions
 	//inline bool is_interior_edge(const Edge& e);
 	//inline void add_quadrilateral_edge(Halfedge_handle e, std::queue<Halfedge_handle>& q, std::set<Halfedge_handle>& s);
 	inline void add_quadrilateral_edge(Halfedge_handle e, std::stack<Halfedge_handle>& q, std::set<Halfedge_handle>& s);
-	void add_quadrilateral_edge(std::pair<Vertex_handle, Vertex_handle>, 
-						std::stack<std::pair<Vertex_handle, Vertex_handle>>&, 
-						std::set<std::pair<Vertex_handle, Vertex_handle>>& s);
+	//void add_quadrilateral_edge(std::pair<Vertex_handle, Vertex_handle>, 
+	//					std::stack<std::pair<Vertex_handle, Vertex_handle>>&, 
+	//					std::set<std::pair<Vertex_handle, Vertex_handle>>& s);
 
 	// insert one polygon, return how many sample points are actually inserted
 	unsigned int insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb = 24);

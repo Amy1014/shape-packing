@@ -28,6 +28,7 @@ namespace Geex
 		initialize();
 		std::cout<<"Start computing RDT...\n";
 		generate_RDT();
+		//rpvd.save_triangulation("rdt.obj");
 	}
 
 	void Packer::initialize()
@@ -370,6 +371,7 @@ namespace Geex
 
 				CGAL::Timer t;
 				t.start();
+				rpvd.save_triangulation("pre_rdt.obj");
 				rpvd.iDT_update();
 				t.stop();
 				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
@@ -624,15 +626,26 @@ namespace Geex
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{
+			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+
 			Local_frame lf;
-			lf.o = pack_objects[i].centroid();
-			Vector_3 u(lf.o, pack_objects[i].vertex(0));
+			//lf.o = pack_objects[i].centroid();
+			std::vector<Point_3> vd_vertices;
+			for (unsigned int j = 0; j < samp_pnts.size(); j++)
+			{
+				const std::vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
+				for (unsigned int k = 0; k < bisec_pnts.size(); k++)
+					vd_vertices.push_back(bisec_pnts[k]);
+			}
+			lf.o = CGAL::centroid(vd_vertices.begin(), vd_vertices.end(), CGAL::Dimension_tag<0>());
+			//Vector_3 u(lf.o, pack_objects[i].vertex(0));
+			Vector_3 u(lf.o, vd_vertices[0]);
 			lf.u = u / CGAL::sqrt(u.squared_length());
 			lf.w = pack_objects[i].norm();
 			lf.w = lf.w / CGAL::sqrt(lf.w.squared_length());
 			lf.v = CGAL::cross_product(lf.w, lf.u);
 			std::vector<Segment_2> region2d;
-			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+			
 			for (unsigned int j = 0; j < samp_pnts.size(); j++)
 			{
 				const std::vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
@@ -661,15 +674,14 @@ namespace Geex
 					kcos = matcher.k * std::cos(matcher.theta);
 			Transformation_2 t(kcos, -ksin, matcher.tx, ksin, kcos, matcher.ty);
 			Polygon_2 transformed_pgn2d = CGAL::transform(t, pgn_lib[matcher.val]);
-			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
-										( Transformation_3(CGAL::SCALING, factor) *
-										Transformation_3(CGAL::TRANSLATION, Vector_3(lf.o, CGAL::ORIGIN)) );	
-			//unsigned int index = pack_objects[i].lib_idx;
+/*			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
+										( Transformation_3(CGAL::SCALING, 0.4) *
+										Transformation_3(CGAL::TRANSLATION, Vector_3(lf.o, CGAL::ORIGIN)) );*/	
 			pack_objects[i].clear();
 			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
 			{
 				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
-				pack_objects[i].push_back(rescalor(p));
+				pack_objects[i].push_back(p);
 			}
 
 			Point_3 c = pack_objects[i].centroid();
@@ -680,12 +692,20 @@ namespace Geex
 			v = approx_normal(fid);
 
 			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
+
+			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
+										( Transformation_3(CGAL::SCALING, 0.2) *
+										Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
+
+			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
 			
 			pack_objects[i].lib_idx = matcher.val;
 		}
 
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
+		stop_update_DT = false;
+		rpvd.save_triangulation("rdt.obj");
 	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{
