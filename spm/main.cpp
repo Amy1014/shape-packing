@@ -20,6 +20,7 @@ namespace Geex {
 	void TW_CALL tw_hole_size_set_callback(const void*, void *);
 	void TW_CALL tw_front_len_get_callback(void*, void*);
 	void TW_CALL tw_front_len_set_callback(const void*, void*);
+	void TW_CALL tw_replace(void*);
 	//void TW_CALL tw_save(void*);
 	//void TW_CALL tw_fill(void*);
 	//void TW_CALL tw_merge(void*);
@@ -110,6 +111,12 @@ namespace Geex {
 			*front_len = spm()->front_edge_len();
 		}
 
+		void replace()
+		{
+			spm()->replace();
+			post_update();
+		}
+
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -134,7 +141,7 @@ namespace Geex {
 						tw_hole_size_get_callback, NULL, "min=0.01 step=0.01");
 			TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,
 						tw_front_len_get_callback, NULL, "min=0.01 step=0.01");
-			//TwAddVarRW(function_bar, "Iter Number.", TW_TYPE_INT32, &spm()->setPackIterLim(), "min=1");
+			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r");
 			//TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->setMinScalor(), ""/*"min=0.01 max=0.99"*/);
 			//TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->setMaxScalor(), ""/*"min=1.0 max=1.99"*/);
 			//TwAddVarRW(function_bar, "Area Coverage", TW_TYPE_DOUBLE, &spm()->setAreaCoverage(), "min=0.01 max=1.0");
@@ -159,7 +166,7 @@ void TW_CALL tw_lloyd(void *clientData) {spm_app()->lloyd();}
 void update() { spm_app()->post_update(); }
 void TW_CALL tw_pack(void *clientData) { spm_app()->pack(); }
 void TW_CALL tw_idt_update(void *clientData) { spm_app()->idt_update(); }
-//void TW_CALL tw_replace(void *clientData) { spm_app()->replace(); }
+void TW_CALL tw_replace(void *clientData) { spm_app()->replace(); }
 void TW_CALL tw_detect_holes(void *clientData) { spm_app()->detect_holes(); }
 void TW_CALL tw_hole_size_set_callback(const void* size, void *clientData)
 {

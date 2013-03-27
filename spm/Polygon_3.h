@@ -73,6 +73,7 @@ public:
 	Point_3 centroid() const { return CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>()); }
 
 	Vector_3 norm() const { return normal; }
+	void norm(const Vector_3& n) { normal = n/CGAL::sqrt(n.squared_length()); }
 
 	size_type size() const { return verts.size(); }
 
