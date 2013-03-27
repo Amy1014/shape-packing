@@ -178,7 +178,8 @@ namespace Geex
 			{
 				//if (i == highlighted_group) {
 				const RPVD::VertGroup& vg = rpvd.sample_points_group(i);
-				gl_table_color(i);
+				//gl_table_color(i);
+				glColor3f(0.0f, 0.9f, 0.0f);
 				//glBegin(GL_TRIANGLES);
 				glLineWidth(1.5f);
 				glBegin(GL_LINES);
