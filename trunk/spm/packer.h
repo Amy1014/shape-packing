@@ -24,6 +24,7 @@
 #include "polygon_diagram.h"
 #include "Containment.h"
 #include "knitro.h"
+#include "polygon_matcher.h"
 
 namespace Geex
 {
@@ -58,9 +59,9 @@ namespace Geex
 		const vector<Packing_object>& get_tiles() const { return pack_objects; }
 		RestrictedPolygonVoronoiDiagram& get_rpvd() const { return rpvd; }
 		double hole_size() const { return hole_face_size; }
-		double hole_size(double sz) { hole_face_size = sz; }
+		void hole_size(double sz) { hole_face_size = sz; }
 		double front_edge_len() const { return frontier_edge_size; }
-		double front_edge_len(double len) { frontier_edge_size = len; }
+		void front_edge_len(double len) { frontier_edge_size = len; }
 		std::vector<Hole>& get_holes() const { return holes; }
 
 		static Packer* instance() { return instance_; }
@@ -73,6 +74,9 @@ namespace Geex
 
 		// hole detection
 		void detect_holes();
+
+		// replace
+		void replace();
 
 		// driver
 		void pack(void (*post_action)() = NULL); 
@@ -111,7 +115,6 @@ namespace Geex
 		// constraint transformation to avoid triangle flip
 		void constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, vector<double>& min_factors);
 
-
 	private:
 
 		static Packer *instance_;
@@ -135,6 +138,9 @@ namespace Geex
 		double rot_lower_bd;
 		double rot_upper_bd;
 
+		/** control variable **/
+		bool stop_update_DT;
+
 		/** helper classes **/
 
 		struct Local_frame // represent a local frame for which a transformation is effective
@@ -155,13 +161,6 @@ namespace Geex
 			inline Point_3 to_xy(const Point_2& p) const
 			{
 				return o + ( p.x()*u + p.y()*v );
-			}
-			void print()
-			{
-				std::cout<<"u = ("<<u.x()<<','<<u.y()<<','<<u.z()<<"), ";
-				std::cout<<"v = ("<<v.x()<<','<<v.y()<<','<<v.z()<<"), ";
-				std::cout<<"w = ("<<w.x()<<','<<w.y()<<','<<w.z()<<"), ";
-				std::cout<<"o = ("<<o.x()<<','<<o.y()<<','<<o.z()<<"). \n";
 			}
 		};
 
@@ -227,6 +226,8 @@ namespace Geex
 				return v;
 			}
 		};
+
+
 
 	public: // for debug
 		RestrictedPolygonVoronoiDiagram rpvd;

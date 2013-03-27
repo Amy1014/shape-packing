@@ -78,6 +78,7 @@ namespace Geex
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		bounding_pnts.clear();
+		all_points.clear();
 		rdt_ds.clear();
 	}
 	

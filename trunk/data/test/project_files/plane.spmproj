@@ -2,6 +2,6 @@
 
 < MeshFile >          ..\..\surfaces\plane.obj        </ MeshFile >    
             
-< polygonfile >      ..\..\polygons\voronoi418_plane.poly      </ PolygonFile >
+< polygonfile >      ..\..\polygons\voronoi417_plane.poly      </ PolygonFile >
 
 < TextureImageDir >  ./texture  </ TextureImageDir >

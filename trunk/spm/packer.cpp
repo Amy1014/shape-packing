@@ -17,6 +17,8 @@ namespace Geex
 
 		frontier_edge_size = 1.0;
 		hole_face_size = 1.0;
+
+		stop_update_DT = false;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -117,6 +119,7 @@ namespace Geex
 			s = 0.3*std::sqrt(s);
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
+			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
 			pgn_lib_idx++;
 		}
 	}
@@ -139,7 +142,7 @@ namespace Geex
 	void Packer::generate_RDT()
 	{
 		rpvd.begin_insert();
-		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 16);
+		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 20);
 		rpvd.insert_bounding_points(10);
 		CGAL::Timer t;
 		t.start();
@@ -195,26 +198,54 @@ namespace Geex
 		containment.clear();
 #endif
 		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
-		for (unsigned int i = 0; i < samp_pnts.size(); i++)
-		{
-			const vector<Point_3>& bisec_pnts = samp_pnts[i]->vd_vertices;
-			//Point_2 ref_point = lf.to_uv(samp_pnts[i]->point_3());
-			Point_2 ref_point = lf.to_uv(samp_pnts[i]->point());
-			if (bisec_pnts.size() == 0)
-				continue;
-			assert(bisec_pnts.size() != 1);
-			for (unsigned int j = 0; j < bisec_pnts.size()-1; j++)
+		if (!stop_update_DT)
+			for (unsigned int i = 0; i < samp_pnts.size(); i++)
 			{
-				const Point_3& s = bisec_pnts[j];
-				const Point_3& t = bisec_pnts[j+1];
+				const vector<Point_3>& bisec_pnts = samp_pnts[i]->vd_vertices;
+				//Point_2 ref_point = lf.to_uv(samp_pnts[i]->point_3());
+				Point_2 ref_point = lf.to_uv(samp_pnts[i]->point());
+				if (bisec_pnts.size() == 0)
+					continue;
+				assert(bisec_pnts.size() != 1);
+				for (unsigned int j = 0; j < bisec_pnts.size()-1; j++)
+				{
+					const Point_3& s = bisec_pnts[j];
+					const Point_3& t = bisec_pnts[j+1];
 #ifdef _CILK_
-				//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s,t)), ref_point));
-				containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s, t))));
+					containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
+					//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s, t))));
 #else
-				containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
-				//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
+					containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
+					//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
 #endif
+				}
 			}
+		else
+		{
+			for (unsigned int i = 0; i < pack_objects[id].size(); i++)
+			{
+				for (unsigned int j = 0; j < samp_pnts.size(); j++)
+				{
+					const vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
+					if (bisec_pnts.size() == 0)
+						continue;
+					assert(bisec_pnts.size() != 1);
+					for (unsigned int k = 0; k < bisec_pnts.size()-1; k++)
+					{
+						const Point_3& s = bisec_pnts[k];
+						const Point_3& t = bisec_pnts[k+1];
+#ifdef _CILK_
+						//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
+						containments[id].const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), lf.to_uv(Segment_3(s, t))));
+#else
+						//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
+						containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s, t))));
+#endif
+					}
+				}
+			}
+			rot_lower_bd = -PI/4.0;
+			rot_upper_bd = PI/4.0;
 		}
 		const unsigned int try_time_limit = 10;
 		unsigned int try_times = 1;
@@ -237,6 +268,7 @@ namespace Geex
 
 	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs)
 	{
+		const double min_scalor = 1.05;
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
 		containments.resize(pack_objects.size());
@@ -260,15 +292,18 @@ namespace Geex
 				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
 			}
 		}
-		if (mink >= 1.05)
+		if (mink >= min_scalor)
 		{
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 				if (opti_res[i] == SUCCESS)
 					solutions[i].k = mink;
 		}
 		std::cout<<"Minimum enlargement factor = "<<mink<<std::endl;
-		std::vector<double> min_factors(solutions.size()); // factors to constraint transformation
-		constraint_transformation(solutions, lfs, min_factors);
+		std::vector<double> min_factors(solutions.size(), 1.0);// factors to constraint transformation
+		if (!stop_update_DT)
+		{
+			constraint_transformation(solutions, lfs, min_factors);
+		}
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -279,7 +314,7 @@ namespace Geex
 			transform_one_polygon(i, lfs[i], constrained_parameter);
 			solutions[i] -= constrained_parameter;// residual transformation
 		}
-		if (enlarge && mink < 1.005)
+		if (enlarge && mink < min_scalor)
 			return NO_MORE_ENLARGEMENT;
 		else
 			return MORE_ENLARGEMENT;
@@ -289,6 +324,7 @@ namespace Geex
 	{
 		Apply_transformation t(param, lf);
 		std::transform(pack_objects[id].vertices_begin(), pack_objects[id].vertices_end(), pack_objects[id].vertices_begin(), t);
+		pack_objects[id].factor *= param.k;
 		RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
 		std::transform(samp_pnts.begin(), samp_pnts.end(), samp_pnts.begin(), t);
 		Point_3 c = pack_objects[id].centroid();
@@ -312,56 +348,63 @@ namespace Geex
 
 		std::vector<Parameter> solutions(pack_objects.size());
 		std::vector<Local_frame> local_frames(pack_objects.size());
-
 		for (unsigned int i = 0; i < 1; i++)
 		{
-			one_lloyd(enlarge, solutions, local_frames);
-			std::cout<<"Start iDT updating...\n";
+			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
 
-			//std::ostringstream pre_fn(std::ostringstream::ate);
-			//pre_fn.str("../imme_data/");
-			//pre_fn<<"pre_rdt_"<<times<<".obj";
-			//rpvd.save_triangulation(pre_fn.str());
+			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
 
-			CGAL::Timer t;
-			t.start();
-			rpvd.iDT_update();
-			t.stop();
-			std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
-			std::cout<<"End iDT updating\n";	
-
-			if (post_action != NULL)
-				post_action();
-
-			// compensate for the constrained transformation in the last step
-			std::cout<<"Compensate for lost transformation...\n";
-			std::vector<double> min_factors(solutions.size());
-			for (unsigned int comp_times = 0; comp_times < 1; comp_times++)
+			if (res == NO_MORE_ENLARGEMENT)
 			{
-				constraint_transformation(solutions, local_frames, min_factors);
-//#ifdef _CILK_
-//				cilk_for (unsigned int j = 0; j < pack_objects.size(); j++)
-//#else
-				for (unsigned int j = 0; j < pack_objects.size(); j++)
-//#endif
-				{
-					Parameter constrained_param = solutions[j]*min_factors[j];
-					transform_one_polygon(j, local_frames[j], constrained_param);
-					solutions[j] -= constrained_param;
-				}
-				rpvd.iDT_update();
-				glut_viewer_redraw();
+				stop_update_DT = true;
+				std::cout<<"Caution: Stopped updating iDT\n";
 			}
-			compute_clipped_VD();
-			std::cout<<"End compensating.\n";
+			if (!stop_update_DT)
+			{
+				std::cout<<"Start iDT updating...\n";
+
+				//std::ostringstream pre_fn(std::ostringstream::ate);
+				//pre_fn.str("../imme_data/");
+				//pre_fn<<"pre_rdt_"<<times<<".obj";
+				//rpvd.save_triangulation(pre_fn.str());
+
+				CGAL::Timer t;
+				t.start();
+				rpvd.iDT_update();
+				t.stop();
+				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
+				std::cout<<"End iDT updating\n";	
+
+				if (post_action != NULL)
+					post_action();
+
+				// compensate for the constrained transformation in the last step
+				std::cout<<"Compensate for lost transformation...\n";
+				std::vector<double> min_factors(solutions.size());
+				for (unsigned int comp_times = 0; comp_times < 2; comp_times++)
+				{
+					constraint_transformation(solutions, local_frames, min_factors);
+					for (unsigned int j = 0; j < pack_objects.size(); j++)
+					{
+						Parameter constrained_param = solutions[j]*min_factors[j];
+						transform_one_polygon(j, local_frames[j], constrained_param);
+						solutions[j] -= constrained_param;
+					}
+					rpvd.save_triangulation("pre_rdt.obj");
+					rpvd.iDT_update();
+					glut_viewer_redraw();
+				}
+				compute_clipped_VD();
+				std::cout<<"End compensating.\n";
+
+				//std::ostringstream fn(std::ostringstream::ate);
+				//fn.str("../imme_data/");
+				//fn<<"rdt_"<<times<<".obj";
+				//rpvd.save_triangulation(fn.str());
+			}
+
 			if (post_action != NULL)
 				post_action();
-
-			//std::ostringstream fn(std::ostringstream::ate);
-			//fn.str("../imme_data/");
-			//fn<<"rdt_"<<times<<".obj";
-			//rpvd.save_triangulation(fn.str());
-			times++;
 		}
 		//Lloyd_res r;
 		//do 
@@ -375,19 +418,8 @@ namespace Geex
 	
 	void Packer::pack(void (*post_action)())
 	{
-		//Lloyd_res r;
-
+		
 		lloyd(post_action, true);
-
-		//std::cout<<"Start iDT updating...\n";
-		//CGAL::Timer t;
-		//t.start();
-		//rpvd.iDT_update();
-		//t.stop();
-		//std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
-		//std::cout<<"End iDT updating\n";
-
-		//compute_clipped_VD();
 
 
 		if (post_action != NULL)
@@ -417,7 +449,7 @@ namespace Geex
 			fit->n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
 			fit->n = fit->n / CGAL::sqrt(fit->n.squared_length());
 		}
-		unsigned int N = 100, n = 1;
+		unsigned int N = 20, n = 1;
 		bool stop = false;
 		while (n < N && !stop)
 		{
@@ -584,6 +616,77 @@ namespace Geex
 		std::cout<<holes.size()<<" holes were detected. \n";
 	}
 
+	void Packer::replace()
+	{
+#ifdef _CILK_
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+#endif
+		{
+			Local_frame lf;
+			lf.o = pack_objects[i].centroid();
+			Vector_3 u(lf.o, pack_objects[i].vertex(0));
+			lf.u = u / CGAL::sqrt(u.squared_length());
+			lf.w = pack_objects[i].norm();
+			lf.w = lf.w / CGAL::sqrt(lf.w.squared_length());
+			lf.v = CGAL::cross_product(lf.w, lf.u);
+			std::vector<Segment_2> region2d;
+			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+			for (unsigned int j = 0; j < samp_pnts.size(); j++)
+			{
+				const std::vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
+				if (bisec_pnts.size() >= 2)
+				{
+					for (unsigned int k = 0; k < bisec_pnts.size()-1; k++)
+					{
+						const Point_3& s = bisec_pnts[k];
+						const Point_3& t = bisec_pnts[k+1];
+						region2d.push_back(Segment_2(lf.to_uv(s), lf.to_uv(t)));
+					}
+				}
+			}
+			Polygon_matcher pm(region2d, 100);
+			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
+			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+				match_res.push(pm.affine_match(pgn_lib[idx], idx));
+
+			// choose the result with the smallest match error now
+			Match_info_item<unsigned int> matcher = match_res.top();
+			// replace
+			//Transformation_2 rescale(CGAL::SCALING, pack_objects[i].factor);
+			pack_objects[i].factor *= 0.8;
+			double factor = pack_objects[i].factor;
+			double ksin = matcher.k * std::sin(matcher.theta), 
+					kcos = matcher.k * std::cos(matcher.theta);
+			Transformation_2 t(kcos, -ksin, matcher.tx, ksin, kcos, matcher.ty);
+			Polygon_2 transformed_pgn2d = CGAL::transform(t, pgn_lib[matcher.val]);
+			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
+										( Transformation_3(CGAL::SCALING, factor) *
+										Transformation_3(CGAL::TRANSLATION, Vector_3(lf.o, CGAL::ORIGIN)) );	
+			//unsigned int index = pack_objects[i].lib_idx;
+			pack_objects[i].clear();
+			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+			{
+				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+				pack_objects[i].push_back(rescalor(p));
+			}
+
+			Point_3 c = pack_objects[i].centroid();
+			vec3 v;
+			int fid;
+			vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
+
+			v = approx_normal(fid);
+
+			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
+			
+			pack_objects[i].lib_idx = matcher.val;
+		}
+
+		// rebuild the restricted delaunay triangulation and voronoi cell
+		generate_RDT();
+	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{
 		int  nStatus;

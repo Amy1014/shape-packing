@@ -20,6 +20,7 @@ namespace Geex
 
 	public:
 		double factor; //scaling factor
+		unsigned int lib_idx;
 		//int group_id;
 	};
 
