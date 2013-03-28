@@ -385,7 +385,7 @@ namespace Geex
 				// compensate for the constrained transformation in the last step
 				std::cout<<"Compensate for lost transformation...\n";
 				std::vector<double> min_factors(solutions.size());
-				for (unsigned int comp_times = 0; comp_times < 0; comp_times++)
+				for (unsigned int comp_times = 0; comp_times < 2; comp_times++)
 				{
 					constraint_transformation(solutions, local_frames, min_factors);
 					for (unsigned int j = 0; j < pack_objects.size(); j++)
@@ -448,8 +448,8 @@ namespace Geex
 			Point_3 v2 = eh->vertex()->mp;
 			int i2 = eh->vertex()->group_id;
 
-			//if (i0 < 0 || i1 < 0 || i2 < 0)
-			//	continue;
+// 			if (i0 < 0 || i1 < 0 || i2 < 0)
+// 				continue;
 			fit->n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
 			fit->n = fit->n / CGAL::sqrt(fit->n.squared_length());
 		}
@@ -506,9 +506,9 @@ namespace Geex
 				eh = eh->next();
 				Point_3 v2 = eh->vertex()->sim_p;
 				int i2 = eh->vertex()->group_id;
-
-				//if (i0 < 0 || i1 < 0 || i2 < 0)
-				//	continue;
+// 
+// 				if (i0 < 0 || i1 < 0 || i2 < 0)
+// 					continue;
 				Vector_3 n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
 				n = n / CGAL::sqrt(n.squared_length());
 				if (n*fit->n < 0.0)
@@ -626,11 +626,11 @@ namespace Geex
 	{
 		//std::ofstream res("parameters.txt");
 		rpvd.save_triangulation("pre_replace.obj");
-//#ifdef _CILK_
-//		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
-//#else
+#ifdef _CILK_
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
-//#endif
+#endif
 		{
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
 
@@ -650,7 +650,7 @@ namespace Geex
 			lf.w = pack_objects[i].norm();
 			lf.w = lf.w / CGAL::sqrt(lf.w.squared_length());
 			lf.v = CGAL::cross_product(lf.w, lf.u);
-			local_frames.push_back(lf);
+			//local_frames.push_back(lf);
 			//if (std::fabs(lf.w*lf.u) >= 0.01 )
 			//{
 			//	std::cout<<"u*u = "<<lf.u*lf.u<<std::endl;
@@ -682,12 +682,9 @@ namespace Geex
 			
 			// choose the result with the smallest match error now
 			Match_info_item<unsigned int> matcher = match_res.top();
-			pack_objects[i].factor *= 0.8;
-			double factor = pack_objects[i].factor;
-			double ksin = matcher.k * std::sin(matcher.theta), 
-					kcos = matcher.k * std::cos(matcher.theta);
-			Transformation_2 t(kcos, -ksin, matcher.tx, ksin, kcos, matcher.ty);
-			Polygon_2 transformed_pgn2d = CGAL::transform(t, pgn_lib[matcher.val]);
+
+			Point_2 cent = CGAL::centroid(pgn_lib[matcher.val].vertices_begin(), pgn_lib[matcher.val].vertices_end(), CGAL::Dimension_tag<0>());
+			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
 
 			pack_objects[i].clear();
 			
@@ -720,7 +717,7 @@ namespace Geex
 
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
-		//compute_clipped_VD();
+		compute_clipped_VD();
 		stop_update_DT = false;
 		rpvd.save_triangulation("rdt.obj");
 	}

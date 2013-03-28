@@ -150,7 +150,7 @@ namespace Geex
 			glBegin(GL_LINES);
 			for (Halfedge_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
 			{
-				if (!eit->is_border()&& !eit->is_border() && rpvd.is_delaunay_edge(eit))
+				if (!eit->is_border()&& !eit->opposite()->is_border() && rpvd.is_delaunay_edge(eit))
 					glColor3f(0.6f, 0.0f, 0.0f);
 				else
 					glColor3f(0.0f, 0.0f, 0.4f);
