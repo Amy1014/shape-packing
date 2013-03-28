@@ -82,7 +82,7 @@ namespace Geex
 		void pack(void (*post_action)() = NULL); 
 		// debug
 		void rpack(void (*post_action)() = NULL);
-		void update_iDT() { for (int i = 0; i < 1; i++) rpvd.iDT_update(); compute_clipped_VD();}
+		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
 
 	private:
 

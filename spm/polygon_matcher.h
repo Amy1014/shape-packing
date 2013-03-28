@@ -21,11 +21,11 @@ namespace Geex
 template <class UserDataType>
 struct Match_info_item
 {
-	//Transformation_2 t;
-	double k;
-	double theta;
-	double tx;
-	double ty;
+	Transformation_2 t;
+	//double k;
+	//double theta;
+	//double tx;
+	//double ty;
 	double error;//match error
 	UserDataType val; // index to library
 };
@@ -59,10 +59,13 @@ private:
 
 
 template <class UserDataType>
-Match_info_item<UserDataType> Polygon_matcher::affine_match(const Polygon_2& instance, const UserDataType& data)
+Match_info_item<UserDataType> Polygon_matcher::affine_match(const Polygon_2& instance_, const UserDataType& data)
 {
 	//cvReleaseMat(&modelMat);
 	//modelMat = CmAffine::CreatePointSetMat(modelPtsSet);
+	Point_2 c = CGAL::centroid(instance_.vertices_begin(), instance_.vertices_end(), CGAL::Dimension_tag<0>());
+	Transformation_2 to_cent(CGAL::TRANSLATION, Vector_2(c, CGAL::ORIGIN));
+	Polygon_2 instance = CGAL::transform(to_cent, instance_);
 	double perimeter = 0.0;
 	std::vector<double> edge_lens(instance.size());
 	for (unsigned int i = 0; i < instance.size(); i++)
@@ -120,11 +123,11 @@ Match_info_item<UserDataType> Polygon_matcher::affine_match(const Polygon_2& ins
 
 	Match_info_item<UserDataType> res;
 	res.error = mean_dist; 
-	//res.t = Transformation_2(rescalor*r[0], rescalor*r[1], shift->data.db[0], rescalor*r[2], rescalor*r[3], shift->data.db[1]);
-	res.k = scale;
-	res.theta = theta;
-	res.tx = shift->data.db[0];
-	res.ty = shift->data.db[1];
+	res.t = Transformation_2(r[0], r[1], shift->data.db[0], r[2], r[3], shift->data.db[1])*to_cent;
+	//res.k = scale;
+	//res.theta = theta;
+	//res.tx = shift->data.db[0];
+	//res.ty = shift->data.db[1];
 	res.val = data;
 
 	cvReleaseMat(&instanceMat);
