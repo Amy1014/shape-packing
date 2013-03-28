@@ -32,8 +32,10 @@
  
 namespace Geex
 {
-
+	//debug
 	extern int nb_invalid_edges;
+	//extern std::ofstream of;
+
 	struct MyPoint
 	{
 		Point_3 p;
@@ -63,6 +65,7 @@ namespace Geex
 				vh->group_id = points[i].group_id;
 				vh->mp = points[i].prj_pnt;
 				vh->idx = i;
+				//of<<"v "<<points[i].prj_pnt.x()<<' '<<points[i].prj_pnt.y()<<' '<<points[i].prj_pnt.z()<<std::endl;
 			}
 			rvd.for_each_primal_triangle(construct_faces(builder, points, m));
 			builder.end_surface();
@@ -80,6 +83,7 @@ namespace Geex
 			Internal_Builder& b;
 			std::vector<MyPoint>& points;
 			TriMesh& m;
+
 			//std::set<std::pair<unsigned int, unsigned int>>& ordering;
 			construct_faces(Internal_Builder& _b, std::vector<MyPoint>& _points, TriMesh& _m)
 				: b(_b), points(_points), m(_m) {}
@@ -93,6 +97,7 @@ namespace Geex
 				Vector_3 nij(points[i].prj_pnt, points[j].prj_pnt);
 				Vector_3 njk(points[j].prj_pnt, points[k].prj_pnt);
 				Vector_3 det = CGAL::cross_product(nij, njk);
+				det = det / CGAL::sqrt(det.squared_length());
 				if ( n*det < 0.0 )
 				{
 					unsigned int indices[] = {k, j, i};
@@ -123,8 +128,10 @@ namespace Geex
 					}
 
 				}
+				//of<<"f "<<i+1<<' '<<j+1<<' '<<k+1<<std::endl;
 			}
 		};
+
 	};
 class RestrictedPolygonVoronoiDiagram
 {

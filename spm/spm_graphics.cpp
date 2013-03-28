@@ -61,6 +61,7 @@ namespace Geex
 			draw_hole_triangles();
 		if (show_holes_)
 			draw_holes();
+		//draw_local_frames();
 	}
 
 	void SPM_Graphics::draw_mesh()
@@ -176,11 +177,9 @@ namespace Geex
 			const std::vector<Packing_object>& po = packer->get_tiles();
 			for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
 			{
-				//if (i == highlighted_group) {
+				if (i == highlighted_group || highlighted_group == unsigned int(-1)) {
 				const RPVD::VertGroup& vg = rpvd.sample_points_group(i);
-				//gl_table_color(i);
 				glColor3f(0.0f, 0.9f, 0.0f);
-				//glBegin(GL_TRIANGLES);
 				glLineWidth(1.5f);
 				glBegin(GL_LINES);
 				Point_3 c = po[i].centroid();
@@ -198,7 +197,7 @@ namespace Geex
 						}
 				}
 				glEnd();
-				//}
+				}
 			}
 			glEnable(GL_LIGHTING);
 			glEndList();
@@ -252,6 +251,25 @@ namespace Geex
 			glEnd();
 		}
 		
+		glEnable(GL_LIGHTING);
+	}
+
+	void SPM_Graphics::draw_local_frames()
+	{
+		std::vector<Packer::Local_frame> lfs = packer->local_frames;
+		glDisable(GL_LIGHTING);
+		glColor3f(0.0f, 0.0f, 1.0f);
+		for (unsigned int i = 0; i < lfs.size(); i++)
+		{
+			glBegin(GL_LINES);
+			glPoint_3(lfs[i].o);
+			glPoint_3(lfs[i].o + 3 * lfs[i].u);
+			glPoint_3(lfs[i].o);
+			glPoint_3(lfs[i].o + 3 * lfs[i].v);
+			glPoint_3(lfs[i].o);
+			glPoint_3(lfs[i].o + 3 * lfs[i].w);
+			glEnd();
+		}
 		glEnable(GL_LIGHTING);
 	}
 }

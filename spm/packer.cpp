@@ -28,6 +28,7 @@ namespace Geex
 		initialize();
 		std::cout<<"Start computing RDT...\n";
 		generate_RDT();
+		compute_clipped_VD();
 		//rpvd.save_triangulation("rdt.obj");
 	}
 
@@ -150,7 +151,7 @@ namespace Geex
 		rpvd.end_insert();
 		t.stop();
 		std::cout<<"time spent in RDT: "<<t.time()<<" seconds."<<std::endl;
-		compute_clipped_VD();
+		//compute_clipped_VD();
 	}
 
 	vec3 Packer::approx_normal(unsigned int facet_idx)
@@ -245,8 +246,6 @@ namespace Geex
 					}
 				}
 			}
-			rot_lower_bd = -PI/4.0;
-			rot_upper_bd = PI/4.0;
 		}
 		const unsigned int try_time_limit = 10;
 		unsigned int try_times = 1;
@@ -353,6 +352,7 @@ namespace Geex
 		{
 			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
 
+			//rpvd.save_triangulation("pre_lloyd.obj");
 			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
 
 			if (res == NO_MORE_ENLARGEMENT)
@@ -373,6 +373,8 @@ namespace Geex
 				t.start();
 				rpvd.save_triangulation("pre_rdt.obj");
 				rpvd.iDT_update();
+				rpvd.save_triangulation("rdt.obj");
+				//generate_RDT();
 				t.stop();
 				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
 				std::cout<<"End iDT updating\n";	
@@ -383,7 +385,7 @@ namespace Geex
 				// compensate for the constrained transformation in the last step
 				std::cout<<"Compensate for lost transformation...\n";
 				std::vector<double> min_factors(solutions.size());
-				for (unsigned int comp_times = 0; comp_times < 2; comp_times++)
+				for (unsigned int comp_times = 0; comp_times < 0; comp_times++)
 				{
 					constraint_transformation(solutions, local_frames, min_factors);
 					for (unsigned int j = 0; j < pack_objects.size(); j++)
@@ -446,8 +448,8 @@ namespace Geex
 			Point_3 v2 = eh->vertex()->mp;
 			int i2 = eh->vertex()->group_id;
 
-			if (i0 < 0 || i1 < 0 || i2 < 0)
-				continue;
+			//if (i0 < 0 || i1 < 0 || i2 < 0)
+			//	continue;
 			fit->n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
 			fit->n = fit->n / CGAL::sqrt(fit->n.squared_length());
 		}
@@ -505,14 +507,16 @@ namespace Geex
 				Point_3 v2 = eh->vertex()->sim_p;
 				int i2 = eh->vertex()->group_id;
 
-				if (i0 < 0 || i1 < 0 || i2 < 0)
-					continue;
+				//if (i0 < 0 || i1 < 0 || i2 < 0)
+				//	continue;
 				Vector_3 n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
 				n = n / CGAL::sqrt(n.squared_length());
 				if (n*fit->n < 0.0)
 				{
 					nb_flipped++;
-					flipped[i0] = flipped[i1] = flipped[i2] = true;
+					if (i0 >= 0)	flipped[i0] = true;
+					if (i1 >= 0)	flipped[i1] = true;
+					if (i2 >= 0)	flipped[i2] = true;
 					stop = false;
 				}
 			}
@@ -620,11 +624,13 @@ namespace Geex
 
 	void Packer::replace()
 	{
-#ifdef _CILK_
-		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
-#else
+		//std::ofstream res("parameters.txt");
+		rpvd.save_triangulation("pre_replace.obj");
+//#ifdef _CILK_
+//		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+//#else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
-#endif
+//#endif
 		{
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
 
@@ -644,6 +650,16 @@ namespace Geex
 			lf.w = pack_objects[i].norm();
 			lf.w = lf.w / CGAL::sqrt(lf.w.squared_length());
 			lf.v = CGAL::cross_product(lf.w, lf.u);
+			local_frames.push_back(lf);
+			//if (std::fabs(lf.w*lf.u) >= 0.01 )
+			//{
+			//	std::cout<<"u*u = "<<lf.u*lf.u<<std::endl;
+			//	std::cout<<"v*v = "<<lf.v*lf.v<<std::endl;
+			//	std::cout<<"w*w = "<<lf.w*lf.w<<std::endl;
+			//	system("pause");
+			//}
+
+
 			std::vector<Segment_2> region2d;
 			
 			for (unsigned int j = 0; j < samp_pnts.size(); j++)
@@ -659,25 +675,22 @@ namespace Geex
 					}
 				}
 			}
-			Polygon_matcher pm(region2d, 100);
+			Polygon_matcher pm(region2d, 200);
 			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
 			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
 				match_res.push(pm.affine_match(pgn_lib[idx], idx));
-
+			
 			// choose the result with the smallest match error now
 			Match_info_item<unsigned int> matcher = match_res.top();
-			// replace
-			//Transformation_2 rescale(CGAL::SCALING, pack_objects[i].factor);
 			pack_objects[i].factor *= 0.8;
 			double factor = pack_objects[i].factor;
 			double ksin = matcher.k * std::sin(matcher.theta), 
 					kcos = matcher.k * std::cos(matcher.theta);
 			Transformation_2 t(kcos, -ksin, matcher.tx, ksin, kcos, matcher.ty);
 			Polygon_2 transformed_pgn2d = CGAL::transform(t, pgn_lib[matcher.val]);
-/*			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
-										( Transformation_3(CGAL::SCALING, 0.4) *
-										Transformation_3(CGAL::TRANSLATION, Vector_3(lf.o, CGAL::ORIGIN)) );*/	
+
 			pack_objects[i].clear();
+			
 			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
 			{
 				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
@@ -690,20 +703,24 @@ namespace Geex
 			vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
 
 			v = approx_normal(fid);
-
+			pack_objects[i].norm(lf.w);
 			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
+			////Transformation_3 move(CGAL::TRANSLATION, Vector_3(c, to_cgal_pnt(prjp)));
+
+			////std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), move);
 
 			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
 										( Transformation_3(CGAL::SCALING, 0.2) *
 										Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
 
 			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
-			
+			//
 			pack_objects[i].lib_idx = matcher.val;
 		}
 
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
+		//compute_clipped_VD();
 		stop_update_DT = false;
 		rpvd.save_triangulation("rdt.obj");
 	}

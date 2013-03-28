@@ -61,6 +61,8 @@ private:
 template <class UserDataType>
 Match_info_item<UserDataType> Polygon_matcher::affine_match(const Polygon_2& instance, const UserDataType& data)
 {
+	//cvReleaseMat(&modelMat);
+	//modelMat = CmAffine::CreatePointSetMat(modelPtsSet);
 	double perimeter = 0.0;
 	std::vector<double> edge_lens(instance.size());
 	for (unsigned int i = 0; i < instance.size(); i++)
@@ -69,6 +71,7 @@ Match_info_item<UserDataType> Polygon_matcher::affine_match(const Polygon_2& ins
 		edge_lens[i] = CGAL::sqrt(s.squared_length());
 		perimeter += edge_lens[i];
 	}
+	nb_sampling = 200;
 	PointSet instancePtsSet;
 	instancePtsSet.reserve(nb_sampling);
 	for (unsigned int i = 0; i < instance.size(); i++)
@@ -106,14 +109,14 @@ Match_info_item<UserDataType> Polygon_matcher::affine_match(const Polygon_2& ins
 		instancePtsSet[i] = Point2d(x[i], y[i]);
 
 	double mean_dist = 0.0;
-	for (unsigned int i = 0; i < modelPtsSet.size(); i++)
+	for (unsigned int i = 0; i < instancePtsSet.size(); i++)
 	{
 		double min_dist = std::numeric_limits<double>::max();
-		for (unsigned int j = 0; j < instancePtsSet.size(); j++)
-			min_dist = std::min(min_dist, sqrDist(modelPtsSet[i], instancePtsSet[j]));
+		for (unsigned int j = 0; j < modelPtsSet.size(); j++)
+			min_dist = std::min(min_dist, sqrDist(instancePtsSet[i], modelPtsSet[j]));
 		mean_dist += std::sqrt(min_dist);
 	}
-	mean_dist /= modelPtsSet.size();
+	mean_dist /= instancePtsSet.size();
 
 	Match_info_item<UserDataType> res;
 	res.error = mean_dist; 

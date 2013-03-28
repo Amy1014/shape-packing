@@ -64,6 +64,8 @@ namespace Geex
 		void draw_holes();
 		// debug
 		void draw_all_vertices();
+
+		void draw_local_frames();
 		/** call opengl **/
 		inline void glPoint_3(const Point_3& p) { glVertex3d(p.x(), p.y(), p.z()); }
 
