@@ -4,6 +4,8 @@ namespace Geex
 {
 	int nb_invalid_edges = 0;
 
+	//std::ofstream of("test_rdt.obj");
+
 	RestrictedPolygonVoronoiDiagram::RestrictedPolygonVoronoiDiagram()
 	{
 		mesh = 0;

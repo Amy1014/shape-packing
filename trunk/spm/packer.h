@@ -142,7 +142,7 @@ namespace Geex
 		bool stop_update_DT;
 
 		/** helper classes **/
-
+public:
 		struct Local_frame // represent a local frame for which a transformation is effective
 		{
 			Vector_3 u;
@@ -231,6 +231,8 @@ namespace Geex
 
 	public: // for debug
 		RestrictedPolygonVoronoiDiagram rpvd;
+
+		std::vector<Local_frame> local_frames;
 
 
 	};

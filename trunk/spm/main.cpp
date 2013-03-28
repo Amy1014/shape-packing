@@ -68,7 +68,7 @@ namespace Geex {
 		void post_update()
 		{
 			spm()->redraw_triangulation();
-			spm()->redraw_voronoi_cell();
+			//spm()->redraw_voronoi_cell();
 			glut_viewer_redraw();
 		}
 
@@ -82,7 +82,7 @@ namespace Geex {
 		{
 
 			spm()->update_iDT();
-			spm()->redraw_triangulation();
+			spm()->redraw_voronoi_cell();
 			spm()->redraw_triangulation();
 
 			glut_viewer_redraw();
