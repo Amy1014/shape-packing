@@ -22,7 +22,7 @@ template <class UserDataType>
 struct Match_info_item
 {
 	Transformation_2 t;
-	//double k;
+	double scale;
 	//double theta;
 	//double tx;
 	//double ty;
@@ -124,7 +124,7 @@ Match_info_item<UserDataType> Polygon_matcher::affine_match(const Polygon_2& ins
 	Match_info_item<UserDataType> res;
 	res.error = mean_dist; 
 	res.t = Transformation_2(r[0], r[1], shift->data.db[0], r[2], r[3], shift->data.db[1])*to_cent;
-	//res.k = scale;
+	res.scale = scale;
 	//res.theta = theta;
 	//res.tx = shift->data.db[0];
 	//res.ty = shift->data.db[1];

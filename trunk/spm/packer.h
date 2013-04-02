@@ -84,6 +84,8 @@ namespace Geex
 		void rpack(void (*post_action)() = NULL);
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
 
+		void enlarge_one_polygon(unsigned int id, double f);
+
 	private:
 
 		/** initialization **/
