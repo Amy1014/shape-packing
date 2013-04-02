@@ -4,6 +4,8 @@ namespace Geex
 {
 	int nb_invalid_edges = 0;
 
+	double RestrictedPolygonVoronoiDiagram::pi = 3.141592653589793;
+
 	//std::ofstream of("test_rdt.obj");
 
 	RestrictedPolygonVoronoiDiagram::RestrictedPolygonVoronoiDiagram()
@@ -167,28 +169,78 @@ namespace Geex
 			}
 		}
 	}
-
+	
 	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(Halfedge_handle e)
 	{
 		Vertex_handle vi = e->next()->vertex(), vi_cw = e->vertex(), vi_ccw = e->prev()->vertex();
 		Halfedge_handle oe = e->opposite();
 		Vertex_handle vj = oe->next()->vertex(), vj_cw = oe->vertex(), vj_ccw = oe->prev()->vertex();
-		double a2 = CGAL::squared_distance(vi->mp, vi_cw->mp),
-			b2 = CGAL::squared_distance(vi->mp, vi_ccw->mp),
-			c2 = CGAL::squared_distance(vi_cw->mp, vi_ccw->mp);
-		double cos_ang_i = (a2 + b2 - c2) / (2*std::sqrt(a2*b2));
-		double sin_ang_i = std::sqrt(1-cos_ang_i*cos_ang_i);
-		a2 = CGAL::squared_distance(vj->mp, vj_cw->mp);
-		b2 = CGAL::squared_distance(vj->mp, vj_ccw->mp);
-		c2 = CGAL::squared_distance(vj_cw->mp, vj_ccw->mp);
-		double cos_ang_j = (a2 + b2 - c2)/(2*std::sqrt(a2*b2));
-		double sin_ang_j = std::sqrt(1 - cos_ang_j*cos_ang_j);
-		double sin_ij = sin_ang_i*cos_ang_j + sin_ang_j*cos_ang_i;
-		if (sin_ij >= 0.0) // sum of two opposite angles not larger than pi
+		Point_3 P = vi->mp, Q = vj->mp, R = vi_cw->mp, S = vi_ccw->mp;
+		Vector_3 PR(P, R), PS(P, S), QR(Q, R), QS(Q, S);
+		PR = PR / CGAL::sqrt(PR.squared_length());
+		PS = PS / CGAL::sqrt(PS.squared_length());
+		QR = QR / CGAL::sqrt(QR.squared_length());
+		QS = QS / CGAL::sqrt(QS.squared_length());
+		double cos_ang_P = PR*PS, sin_ang_P = std::fabs(CGAL::sqrt(CGAL::cross_product(PR, PS).squared_length()));
+		double cos_ang_Q = QS*QR, sin_ang_Q = std::fabs(CGAL::sqrt(CGAL::cross_product(QS, QR).squared_length()));
+		double sin_PQ = sin_ang_P*cos_ang_Q + sin_ang_Q*cos_ang_P;
+		if (sin_PQ >= 0.0) // sum of two opposite angles not larger than pi
 			return true;
 		else
 			return false;
 	}
+// 	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(Halfedge_handle e)
+// 	{
+// 		Vertex_handle vi = e->next()->vertex(), vi_cw = e->vertex(), vi_ccw = e->prev()->vertex();
+// 		Halfedge_handle oe = e->opposite();
+// 		Vertex_handle vj = oe->next()->vertex(), vj_cw = oe->vertex(), vj_ccw = oe->prev()->vertex();
+// 		double a2 = CGAL::squared_distance(vi->mp, vi_cw->mp),
+// 			b2 = CGAL::squared_distance(vi->mp, vi_ccw->mp),
+// 			c2 = CGAL::squared_distance(vi_cw->mp, vi_ccw->mp);
+// 		double cos_ang_i = (a2 + b2 - c2) / (2*std::sqrt(a2*b2));
+// 		
+// 		if (std::sqrt(a2*b2) == 0.0)
+// 		{
+// 			std::cout<<"zero denominator!\n";
+// 			system("pause");
+// 		}
+// 
+// 		double sin_ang_i = std::sqrt(1-cos_ang_i*cos_ang_i);
+// 		a2 = CGAL::squared_distance(vj->mp, vj_cw->mp);
+// 		b2 = CGAL::squared_distance(vj->mp, vj_ccw->mp);
+// 		c2 = CGAL::squared_distance(vj_cw->mp, vj_ccw->mp);
+// 		double cos_ang_j = (a2 + b2 - c2)/(2*std::sqrt(a2*b2));
+// 		if (std::sqrt(a2*b2) == 0.0)
+// 		{
+// 			std::cout<<"zero denominator!\n";
+// 			system("pause");
+// 		}
+// 		double sin_ang_j = std::sqrt(1 - cos_ang_j*cos_ang_j);
+// 		if (Geex::Numeric::is_nan(sin_ang_i) || Geex::Numeric::is_nan(sin_ang_j))
+// 		{
+// 			std::cout.precision(15);
+// 			std::cout<<"Non meaningful sine: sin_ang_i = "<<sin_ang_i<<", sin_ang_j = "<<sin_ang_j<<std::endl;
+// 			std::cout<<"cos_ang_i = "<<cos_ang_i<<", cos_ang_j = "<<cos_ang_j<<std::endl;
+// 			std::cout<<"1 - cos_ang_i^2 = "<<1-cos_ang_i*cos_ang_i<<", 1 - cos_ang_j^2 = "<<1 - cos_ang_j*cos_ang_j<<std::endl;
+// 			system("pause");
+// 		}
+// 		double sin_ij = sin_ang_i*cos_ang_j + sin_ang_j*cos_ang_i;
+// 
+// 		if (Geex::Numeric::is_nan(sin_ij) )
+// 		{
+// 			std::cout<<"sin_ij = "<<sin_ij<<std::endl;
+// 			std::ofstream of("four_points.txt");
+// 			of.precision(10);
+// 			of<<"triangle 1: <"<<vi->mp<<", "<<vi_cw->mp<<", "<<vi_ccw->mp<<">"<<std::endl;
+// 			of<<"triangle 2: <"<<vj->mp<<", "<<vj_cw->mp<<", "<<vj_ccw->mp<<">"<<std::endl;
+// 			system("pause");
+// 		}
+// 
+// 		if (sin_ij >= 0.0/*-1.0e-14*/) // sum of two opposite angles not larger than pi
+// 			return true;
+// 		else
+// 			return false;
+// 	}
 
 	//inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Halfedge_handle e, std::queue<Halfedge_handle>& q, std::set<Halfedge_handle>& s)
 	inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Halfedge_handle e, std::stack<Halfedge_handle>& q, std::set<Halfedge_handle>& s)

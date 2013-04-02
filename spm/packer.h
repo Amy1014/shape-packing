@@ -84,7 +84,7 @@ namespace Geex
 		void rpack(void (*post_action)() = NULL);
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
 
-		void enlarge_one_polygon(unsigned int id, double f);
+		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty);
 
 	private:
 
@@ -176,7 +176,8 @@ public:
 			Parameter(double _k, double _theta, double _tx, double _ty) : k(_k), theta(_theta), tx(_tx), ty(_ty) {}
 			Parameter& operator*=(double f)
 			{
-				k = std::max(f*k, 1.0); 
+				//k = std::max(f*k, 1.0); 
+				//k = 1.0 + (k - 1.0)*f;
 				theta *= f;	tx *= f; ty *= f;
 				return *this;
 			}
@@ -191,7 +192,8 @@ public:
 			}
 			inline Parameter operator*(double f)
 			{
-				return Packer::Parameter(std::max(f*k, 1.0), f*theta, f*tx, f*ty);
+				//return Packer::Parameter(1.0 + (k - 1.0)*f, f*theta, f*tx, f*ty);
+				return Packer::Parameter(k, f*theta, f*tx, f*ty);
 			}
 			inline bool is_identity() const 
 			{
