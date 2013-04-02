@@ -10,8 +10,8 @@ namespace Geex
 	{
 		assert( instance_ == nil );
 		instance_ = this;
-		srand(1);
-		//srand(time(NULL));
+		//srand(1);
+		srand(time(NULL));
 		rot_lower_bd = -PI/6.0;
 		rot_upper_bd = PI/6.0;
 
@@ -118,7 +118,7 @@ namespace Geex
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
 			double s = std::min(fa/pa, pa/fa);
-			s = 0.2*std::sqrt(s);
+			s = 0.4*std::sqrt(s);
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
 			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
@@ -311,12 +311,12 @@ namespace Geex
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 //#endif
 		{
-			if (min_factors[i] == 0.0)
-			{
-				std::cout<<"Polygon "<<i<<" cannot be enlarged\n";
-				std::cout<<solutions[i].k<<", "<<solutions[i].theta<<", ";
-				std::cout<<solutions[i].tx<<", "<<solutions[i].ty<<std::endl;			
-			}
+			//if (min_factors[i] == 0.0)
+			//{
+			//	std::cout<<"Polygon "<<i<<" cannot be enlarged\n";
+			//	std::cout<<solutions[i].k<<", "<<solutions[i].theta<<", ";
+			//	std::cout<<solutions[i].tx<<", "<<solutions[i].ty<<std::endl;			
+			//}
 			Parameter constrained_parameter = solutions[i]*min_factors[i];
 			//of<<constrained_parameter.k<<", "<<constrained_parameter.theta<<", ";
 			//of<<constrained_parameter.tx<<", "<<constrained_parameter.ty<<std::endl;
@@ -361,7 +361,7 @@ namespace Geex
 		{
 			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
 
-			rpvd.save_triangulation("pre_lloyd.obj");
+			//rpvd.save_triangulation("pre_lloyd.obj");
 			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
 
 			if (res == NO_MORE_ENLARGEMENT)
@@ -380,9 +380,9 @@ namespace Geex
 
 				CGAL::Timer t;
 				t.start();
-				rpvd.save_triangulation("pre_idt.obj");
+				//rpvd.save_triangulation("pre_idt.obj");
 				rpvd.iDT_update();
-				rpvd.save_triangulation("idt.obj");
+				//rpvd.save_triangulation("idt.obj");
 				//generate_RDT();
 				t.stop();
 				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
@@ -403,9 +403,9 @@ namespace Geex
 						transform_one_polygon(j, local_frames[j], constrained_param);
 						solutions[j] -= constrained_param;
 					}
-					rpvd.save_triangulation("pre_idt.obj");
+					//rpvd.save_triangulation("pre_idt.obj");
 					rpvd.iDT_update();
-					rpvd.save_triangulation("idt.obj");
+					//rpvd.save_triangulation("idt.obj");
 					glut_viewer_redraw();
 				}
 				compute_clipped_VD();
@@ -420,14 +420,6 @@ namespace Geex
 			if (post_action != NULL)
 				post_action();
 		}
-		//Lloyd_res r;
-		//do 
-		//{
-		//	r = lloyd(true);
-		//	generate_RDT();
-		//	if (post_action != NULL)
-		//		post_action();
-		//} while ( r == MORE_ENLARGEMENT);
 	}
 	
 	void Packer::pack(void (*post_action)())
@@ -520,7 +512,13 @@ namespace Geex
 // 				if (i0 < 0 || i1 < 0 || i2 < 0)
 // 					continue;
 				Vector_3 n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
-				n = n / CGAL::sqrt(n.squared_length());
+				double nlen2 = n.squared_length();
+				if (nlen2 == 0.0)
+				{
+					//std::cout<<"degenerate at <"<<i0<<", "<<i1<<", "<<i2<<">\n";
+					continue;
+				}
+				n = n / CGAL::sqrt(nlen2);
 				if (n*fit->n < 0.0)
 				{
 					nb_flipped++;
@@ -634,6 +632,9 @@ namespace Geex
 
 	void Packer::replace()
 	{
+		std::cout<<"Start replacing...\n";
+		CGAL::Timer replace_timer;
+		replace_timer.start();
 		//std::ofstream res("parameters.txt");
 		//rpvd.save_triangulation("pre_replace.obj");
 #ifdef _CILK_
@@ -739,15 +740,16 @@ namespace Geex
 			pack_objects[i].lib_idx = matcher.val;
 			pack_objects[i].factor = matcher.scale*0.4;
 		}
-
+		replace_timer.stop();
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
 		compute_clipped_VD();
 		stop_update_DT = false;
 		rpvd.save_triangulation("rdt.obj");
+		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
 
-	void Packer::enlarge_one_polygon(unsigned int id, double f)
+	void Packer::enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty)
 	{
 		// choose a local frame
 		Local_frame lf;
@@ -757,7 +759,7 @@ namespace Geex
 		lf.u = u/CGAL::sqrt(u.squared_length());
 		lf.v = CGAL::cross_product(lf.w, lf.u);
 
-		Parameter p(f, 0.0, 0.0, 0.0);
+		Parameter p(f, theta, tx, ty);
 
 		transform_one_polygon(id, lf, p);
 	}

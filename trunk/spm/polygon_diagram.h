@@ -105,11 +105,12 @@ namespace Geex
 						nb_invalid_edges++;
 					else
 					{
-						b.begin_facet();
+						HDS::Face_handle f = b.begin_facet();
 						b.add_vertex_to_facet(k);
 						b.add_vertex_to_facet(j);
 						b.add_vertex_to_facet(i);
 						b.end_facet();
+						f->is_delaunay = true;
 					}
 
 				}
@@ -120,11 +121,12 @@ namespace Geex
 						nb_invalid_edges++;
 					else
 					{
-						b.begin_facet();
+						HDS::Face_handle f = b.begin_facet();
 						b.add_vertex_to_facet(i);
 						b.add_vertex_to_facet(j);
 						b.add_vertex_to_facet(k);
 						b.end_facet();
+						f->is_delaunay = true;
 					}
 
 				}
@@ -227,6 +229,8 @@ private:
 	unsigned int nb_groups;
 
 	RDT_data_structure rdt_ds;
+
+	static double pi;
 };
 
 template <class InputIterator>

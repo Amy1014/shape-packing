@@ -46,6 +46,9 @@ namespace Geex {
 
 			enlarge_id = -1;
 			enlarge_factor = 1.0;
+			enlarge_theta = 0.0;
+			enlarge_tx = 0.0;
+			enlarge_ty = 0.0;
        }
 
         SPM* spm() { return static_cast<SPM*>(scene()) ; }
@@ -124,7 +127,7 @@ namespace Geex {
 		void enlarge_polygon()
 		{
 			if (enlarge_id >= 0 && enlarge_factor >= 1.0)
-				spm()->enlarge_one_polygon(enlarge_id, enlarge_factor);
+				spm()->enlarge_one_polygon(enlarge_id, enlarge_factor, enlarge_theta, enlarge_tx, enlarge_ty);
 			post_update();
 		}
 		void save_triangulation()
@@ -158,6 +161,9 @@ namespace Geex {
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r");
 			TwAddVarRW(function_bar, "enlarge id", TW_TYPE_INT32, &enlarge_id, "");
 			TwAddVarRW(function_bar, "enlarge factor", TW_TYPE_DOUBLE, &enlarge_factor, "");
+			TwAddVarRW(function_bar, "rot angle", TW_TYPE_DOUBLE, &enlarge_theta, "");
+			TwAddVarRW(function_bar, "trans_x", TW_TYPE_DOUBLE, &enlarge_tx, "");
+			TwAddVarRW(function_bar, "trans_y", TW_TYPE_DOUBLE, &enlarge_ty, "");
 			TwAddButton(function_bar, "enlarge", tw_enlarge, NULL, "key=e");
 			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t");
 			//TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->setMinScalor(), ""/*"min=0.01 max=0.99"*/);
@@ -177,6 +183,9 @@ namespace Geex {
 		//debug
 		int enlarge_id;
 		double enlarge_factor;
+		double enlarge_theta;
+		double enlarge_tx;
+		double enlarge_ty;
     } ;
 
 
