@@ -10,8 +10,8 @@ namespace Geex
 	{
 		assert( instance_ == nil );
 		instance_ = this;
-		//srand(1);
-		srand(time(NULL));
+		srand(1);
+		//srand(time(NULL));
 		rot_lower_bd = -PI/6.0;
 		rot_upper_bd = PI/6.0;
 
@@ -118,7 +118,7 @@ namespace Geex
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
 			double s = std::min(fa/pa, pa/fa);
-			s = 0.3*std::sqrt(s);
+			s = 0.2*std::sqrt(s);
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
 			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
@@ -304,13 +304,22 @@ namespace Geex
 		{
 			constraint_transformation(solutions, lfs, min_factors);
 		}
-#ifdef _CILK_
-		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
-#else
+		//std::ofstream of("parameters.txt");
+//#ifdef _CILK_
+//		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+//#else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
-#endif
+//#endif
 		{
+			if (min_factors[i] == 0.0)
+			{
+				std::cout<<"Polygon "<<i<<" cannot be enlarged\n";
+				std::cout<<solutions[i].k<<", "<<solutions[i].theta<<", ";
+				std::cout<<solutions[i].tx<<", "<<solutions[i].ty<<std::endl;			
+			}
 			Parameter constrained_parameter = solutions[i]*min_factors[i];
+			//of<<constrained_parameter.k<<", "<<constrained_parameter.theta<<", ";
+			//of<<constrained_parameter.tx<<", "<<constrained_parameter.ty<<std::endl;
 			transform_one_polygon(i, lfs[i], constrained_parameter);
 			solutions[i] -= constrained_parameter;// residual transformation
 		}
@@ -352,7 +361,7 @@ namespace Geex
 		{
 			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
 
-			//rpvd.save_triangulation("pre_lloyd.obj");
+			rpvd.save_triangulation("pre_lloyd.obj");
 			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
 
 			if (res == NO_MORE_ENLARGEMENT)
@@ -371,9 +380,9 @@ namespace Geex
 
 				CGAL::Timer t;
 				t.start();
-				rpvd.save_triangulation("pre_rdt.obj");
+				rpvd.save_triangulation("pre_idt.obj");
 				rpvd.iDT_update();
-				rpvd.save_triangulation("rdt.obj");
+				rpvd.save_triangulation("idt.obj");
 				//generate_RDT();
 				t.stop();
 				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
@@ -394,8 +403,9 @@ namespace Geex
 						transform_one_polygon(j, local_frames[j], constrained_param);
 						solutions[j] -= constrained_param;
 					}
-					rpvd.save_triangulation("pre_rdt.obj");
+					rpvd.save_triangulation("pre_idt.obj");
 					rpvd.iDT_update();
+					rpvd.save_triangulation("idt.obj");
 					glut_viewer_redraw();
 				}
 				compute_clipped_VD();
@@ -487,7 +497,7 @@ namespace Geex
 				for (unsigned int j = 0; j < future_samp_pnts.size(); j++)
 				{
 					vec3 dummyv;
-					samp_pnts[j]->sim_p = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(future_samp_pnts[j]), dummyv));
+					samp_pnts[j]->mp = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(future_samp_pnts[j]), dummyv));
 				}
 			}
 			stop = true;
@@ -496,15 +506,15 @@ namespace Geex
 			for (RPVD::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
 			{
 				RPVD::Halfedge_handle eh = fit->halfedge();
-				Point_3 v0 = eh->vertex()->sim_p;
+				Point_3 v0 = eh->vertex()->mp;
 				int i0 = eh->vertex()->group_id;
 
 				eh = eh->next();
-				Point_3 v1 = eh->vertex()->sim_p;
+				Point_3 v1 = eh->vertex()->mp;
 				int i1 = eh->vertex()->group_id;
 
 				eh = eh->next();
-				Point_3 v2 = eh->vertex()->sim_p;
+				Point_3 v2 = eh->vertex()->mp;
 				int i2 = eh->vertex()->group_id;
 // 
 // 				if (i0 < 0 || i1 < 0 || i2 < 0)
@@ -625,7 +635,7 @@ namespace Geex
 	void Packer::replace()
 	{
 		//std::ofstream res("parameters.txt");
-		rpvd.save_triangulation("pre_replace.obj");
+		//rpvd.save_triangulation("pre_replace.obj");
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -643,7 +653,15 @@ namespace Geex
 				for (unsigned int k = 0; k < bisec_pnts.size(); k++)
 					vd_vertices.push_back(bisec_pnts[k]);
 			}
-			lf.o = CGAL::centroid(vd_vertices.begin(), vd_vertices.end(), CGAL::Dimension_tag<0>());
+			double cx = 0.0, cy = 0.0, cz = 0.0;
+			for (unsigned int j = 0; j < vd_vertices.size(); j++)
+			{
+				cx += vd_vertices[j].x();
+				cy += vd_vertices[j].y(); 
+				cz += vd_vertices[j].z();
+			}
+			//lf.o = CGAL::centroid(vd_vertices.begin(), vd_vertices.end(), CGAL::Dimension_tag<0>());
+			lf.o = Point_3(cx/vd_vertices.size(), cy/vd_vertices.size(), cz/vd_vertices.size());
 			//Vector_3 u(lf.o, pack_objects[i].vertex(0));
 			Vector_3 u(lf.o, vd_vertices[0]);
 			lf.u = u / CGAL::sqrt(u.squared_length());
@@ -683,8 +701,14 @@ namespace Geex
 			// choose the result with the smallest match error now
 			Match_info_item<unsigned int> matcher = match_res.top();
 
-			Point_2 cent = CGAL::centroid(pgn_lib[matcher.val].vertices_begin(), pgn_lib[matcher.val].vertices_end(), CGAL::Dimension_tag<0>());
+			//Point_2 cent = CGAL::centroid(pgn_lib[matcher.val].vertices_begin(), pgn_lib[matcher.val].vertices_end(), CGAL::Dimension_tag<0>());
 			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
+
+			if (!transformed_pgn2d.is_convex())
+			{
+				std::cout<<"Non-convex polygon!\n";
+				system("pause");
+			}
 
 			pack_objects[i].clear();
 			
@@ -707,12 +731,13 @@ namespace Geex
 			////std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), move);
 
 			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
-										( Transformation_3(CGAL::SCALING, 0.2) *
+										( Transformation_3(CGAL::SCALING, 0.4) *
 										Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
 
 			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
 			//
 			pack_objects[i].lib_idx = matcher.val;
+			pack_objects[i].factor = matcher.scale*0.4;
 		}
 
 		// rebuild the restricted delaunay triangulation and voronoi cell
@@ -720,6 +745,21 @@ namespace Geex
 		compute_clipped_VD();
 		stop_update_DT = false;
 		rpvd.save_triangulation("rdt.obj");
+	}
+
+	void Packer::enlarge_one_polygon(unsigned int id, double f)
+	{
+		// choose a local frame
+		Local_frame lf;
+		lf.o = pack_objects[id].centroid();
+		lf.w = pack_objects[id].norm(); // assume this vector has already been normalized
+		Vector_3 u(lf.o, pack_objects[id].vertex(0));
+		lf.u = u/CGAL::sqrt(u.squared_length());
+		lf.v = CGAL::cross_product(lf.w, lf.u);
+
+		Parameter p(f, 0.0, 0.0, 0.0);
+
+		transform_one_polygon(id, lf, p);
 	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{

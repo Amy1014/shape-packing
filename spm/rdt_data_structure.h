@@ -26,7 +26,7 @@ namespace Geex
 
 		int group_id;
 		Point_3 mp;
-		Point_3 sim_p;
+		//Point_3 sim_p;
 		std::vector<Point_3> vd_vertices;
 		int idx;
 	};
@@ -46,6 +46,7 @@ namespace Geex
 	public:
 		Vector_3 n;
 		bool vacant;
+		bool is_delaunay;
 	};
 
 	class MyItems : public CGAL::Polyhedron_items_3

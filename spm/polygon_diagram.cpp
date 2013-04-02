@@ -56,8 +56,9 @@ namespace Geex
 				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
 				//all_points.push_back(p);
 				//p->group_id = group_id;
-				vec3 n;
-				vec3 pp = trimesh->project_to_mesh(to_geex_pnt(p), n);
+				p = e.supporting_line().projection(p);
+				vec3 dv;
+				vec3 pp = trimesh->project_to_mesh(to_geex_pnt(p), dv);
 				all_points.push_back(MyPoint(p, to_cgal_pnt(pp), group_id));
 				//all_points.back().mp = to_cgal_pnt(pp);
 				nb_pnts++;
@@ -148,8 +149,12 @@ namespace Geex
 					Vertex_handle v_pre = current_edge->prev()->vertex();
 					Vertex_handle v_nxt = current_edge->next()->vertex();
 					if ( v_pre->group_id != vg[j]->group_id || v_nxt->group_id != vg[j]->group_id)
-					{					
-						Point_3 c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
+					{	
+						Point_3 c;
+						if (current_edge->facet()->is_delaunay)
+							c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
+						else
+							c = CGAL::centroid(v_pre->mp, v_nxt->mp, vg[j]->mp);
 						vg[j]->vd_vertices.push_back(c);
 					}
 					++current_edge;
@@ -203,9 +208,12 @@ namespace Geex
 	}
 	void RestrictedPolygonVoronoiDiagram::iDT_update()
 	{
+		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 		std::set<Halfedge_handle> visited_edges;
 		std::stack<Halfedge_handle> q;
 		std::set<Halfedge_handle> added_set;
+		typedef std::pair<Vertex_handle, Vertex_handle> Edge;
+		std::set<Edge> vpedges;
 		for (Halfedge_iterator eit = rdt_ds.halfedges_begin(); eit != rdt_ds.halfedges_end(); ++eit)
 		{
 			if (!eit->is_border() && !eit->opposite()->is_border())
@@ -216,42 +224,83 @@ namespace Geex
 				{
 					q.push(eit);
 					q.push(eit->opposite());
+					vpedges.insert(Edge(eit->vertex(), eit->opposite()->vertex()));
+					vpedges.insert(Edge(eit->opposite()->vertex(), eit->vertex()));
 					added_set.insert(eit);
 					added_set.insert(eit->opposite());
 				}
 			}
-		}	
+		}
+		for (Facet_iterator fit = rdt_ds.facets_begin(); fit != rdt_ds.facets_end(); ++fit)
+		{
+			fit->is_delaunay = true;
+		}
 		while (!q.empty())
 		{
-			//Halfedge_handle e = q.front();
 			Halfedge_handle e = q.top();
 			visited_edges.insert(e);
 			q.pop();
-			//Halfedge_handle oe = q.front();
 			Halfedge_handle oe = q.top();
-			q.pop();
 			visited_edges.insert(oe);
-			//Halfedge_handle pre_e0 = e->prev(), pre_e1 = e->next();
-			//Halfedge_handle pre_e2 = oe->prev(), pre_e3 = oe->next();
+			q.pop();
 			if (!is_delaunay_edge(e))
 			{
-				//Halfedge_handle fe = rdt_ds.flip_edge(e);
+				// check whether flippable
+				Vertex_handle v = e->next()->vertex();
+				Vertex_handle u = e->opposite()->next()->vertex();
+				//Edge_circulator surround_edge = v->vertex_begin();
+				//Edge_circulator end_edge = surround_edge;
+				//do 
+				//{
+				//	if (surround_edge->is_border() || surround_edge->opposite()->is_border())
+				//		system("pause");
+				//	if (surround_edge->opposite()->vertex() == u && surround_edge->vertex() == v
+				//		|| surround_edge->vertex() == u && surround_edge->opposite()->vertex() == v)
+				//	{
+				//		std::cout<<"Unflippable edge!\n";
+				//		e->facet()->is_delaunay = oe->facet()->is_delaunay = false;
+				//	}
+				//	++surround_edge;
+				//}while (surround_edge != end_edge);
+				if (vpedges.find(Edge(u, v)) != vpedges.end())
+				{
+					std::cout<<"Unflippable edge!\n";
+					e->facet()->is_delaunay = oe->facet()->is_delaunay = false;
+				}
+
+				if (!e->facet()->is_delaunay && !oe->facet()->is_delaunay)
+					continue;
+
+				/** test validity of pointers after split and joint **/
+				Halfedge_handle pre_e2 = oe->prev(), pre_e3 = e->next();
+				Halfedge_handle pre_e0 = e->prev(), pre_e1 = oe->next();
+				//std::cout<<&(*pre_e0)<<", "<<&(*pre_e1)<<", "<<&(*pre_e2)<<", "<<&(*pre_e3)<<std::endl;
+				vpedges.erase(Edge(e->vertex(), e->opposite()->vertex()));
+				vpedges.erase(Edge(e->opposite()->vertex(), e->vertex()));
 				Halfedge_handle fe = rdt_ds.join_facet(e);
 				fe = rdt_ds.split_facet(fe->next(), fe->prev());
 				visited_edges.erase(e);
 				visited_edges.erase(oe);
+
 				visited_edges.insert(fe);
 				visited_edges.insert(fe->opposite());
-				assert(!fe->is_border() && !fe->opposite()->is_border());
+
+				vpedges.insert(Edge(fe->vertex(), fe->opposite()->vertex()));
+				vpedges.insert(Edge(fe->opposite()->vertex(), fe->vertex()));
+				//assert(!fe->is_border() && !fe->opposite()->is_border());
 				Halfedge_handle e0 = fe->next(), e1 = fe->prev();
 				Halfedge_handle e2 = fe->opposite()->next(), e3 = fe->opposite()->prev();
-				//if (!(e0 == pre_e0 && e3 == pre_e1 && e2 == pre_e2 && e1 == pre_e3))
-				//	std::cout<<"HalfEdge incosistency!\n";
+				//std::cout<<&(*e0)<<", "<<&(*e1)<<", "<<&(*e2)<<", "<<&(*e3)<<std::endl;
 				add_quadrilateral_edge(e0, q, visited_edges);
 				add_quadrilateral_edge(e1, q, visited_edges);
 				add_quadrilateral_edge(e2, q, visited_edges);
 				add_quadrilateral_edge(e3, q, visited_edges);
+				if (e0 != pre_e0 || e1 != pre_e1 || e2 != pre_e2 || e3 != pre_e3)
+					system("pause");
+				fe->facet()->is_delaunay = fe->opposite()->facet()->is_delaunay = true;
 			}
+			e->facet()->is_delaunay = true;
+			oe->facet()->is_delaunay = true;
 		}
 	}
 
@@ -260,7 +309,7 @@ namespace Geex
 		std::ofstream os(fn.c_str());
 		std::vector<Point_3> pnts(rdt_ds.size_of_vertices());
 		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != vertices_end(); ++vit)
-			pnts[vit->idx] = vit->point();
+			pnts[vit->idx] = vit->mp;
 		for (unsigned int i = 0; i < pnts.size() ; i++)
 			os<<"v "<<pnts[i].x()<<' '<<pnts[i].y()<<' '<<pnts[i].z()<<'\n';
 		for (Facet_iterator fit = rdt_ds.facets_begin(); fit != rdt_ds.facets_end(); ++fit)

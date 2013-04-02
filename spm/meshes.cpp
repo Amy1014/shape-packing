@@ -52,9 +52,9 @@ namespace Geex {
 
     TriMesh::TriMesh() {
         nb_vertices_ = 0 ;
-		samplerate_  = 12 ; 
+		samplerate_  = 36 ; 
 		kdtree_      = nil ;
-		featureAngleCriterion = 140.0;
+		featureAngleCriterion = 0.0;
 		highCurvatureCriterion = 0.2;
 		maxFacetWeight = minFacetWeight = 0.0;
     }
@@ -556,7 +556,8 @@ namespace Geex {
 			double a0 = dot(cross(v0-tempfp, v1-tempfp), n); 
 			double a1 = dot(cross(v1-tempfp, v2-tempfp), n); 
 			double a2 = dot(cross(v2-tempfp, v0-tempfp), n);
-			if(a0<-1e-10 || a1<-1e-10 || a2<-1e-10) 
+			double threshold = -1.0e-14;
+			if(a0<threshold || a1<threshold || a2<threshold) 
 			{
 				Geex::vec3 fp0,fp1,fp2;
 				double dist0,dist1,dist2;
@@ -626,7 +627,8 @@ namespace Geex {
 		double a0 = dot(cross(v0-tempfp, v1-tempfp), n); 
 		double a1 = dot(cross(v1-tempfp, v2-tempfp), n); 
 		double a2 = dot(cross(v2-tempfp, v0-tempfp), n);
-		if(a0<-1e-10 || a1<-1e-10 || a2<-1e-10) 
+		double threshold = -1.0e-14;
+		if(a0<threshold || a1<threshold || a2<threshold) 
 		{
 			Geex::vec3 fp0,fp1,fp2;
 			double dist0,dist1,dist2;

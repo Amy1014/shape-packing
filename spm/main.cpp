@@ -21,6 +21,8 @@ namespace Geex {
 	void TW_CALL tw_front_len_get_callback(void*, void*);
 	void TW_CALL tw_front_len_set_callback(const void*, void*);
 	void TW_CALL tw_replace(void*);
+	void TW_CALL tw_enlarge(void*);
+	void TW_CALL tw_save_triangulation(void*);
 	//void TW_CALL tw_save(void*);
 	//void TW_CALL tw_fill(void*);
 	//void TW_CALL tw_merge(void*);
@@ -31,7 +33,6 @@ namespace Geex {
 	//void TW_CALL tw_dump(void*);
 	//void TW_CALL tw_restore(void*);
 	//void TW_CALL tw_cluster_detect_holes(void*);
-	//void TW_CALL tw_affine_fill(void*);
 	
     class SPMApp : public GeexApp 
 	{
@@ -42,6 +43,9 @@ namespace Geex {
 			if (argc < 2)
 				prompt_and_exit("Error: No project configuration file input!");
 			prj_config_file = argv[1];
+
+			enlarge_id = -1;
+			enlarge_factor = 1.0;
        }
 
         SPM* spm() { return static_cast<SPM*>(scene()) ; }
@@ -117,6 +121,16 @@ namespace Geex {
 			post_update();
 		}
 
+		void enlarge_polygon()
+		{
+			if (enlarge_id >= 0 && enlarge_factor >= 1.0)
+				spm()->enlarge_one_polygon(enlarge_id, enlarge_factor);
+			post_update();
+		}
+		void save_triangulation()
+		{
+			spm()->rpvd.save_triangulation("enforced_enlarge.obj");
+		}
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -142,6 +156,10 @@ namespace Geex {
 			TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,
 						tw_front_len_get_callback, NULL, "min=0.01 step=0.01");
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r");
+			TwAddVarRW(function_bar, "enlarge id", TW_TYPE_INT32, &enlarge_id, "");
+			TwAddVarRW(function_bar, "enlarge factor", TW_TYPE_DOUBLE, &enlarge_factor, "");
+			TwAddButton(function_bar, "enlarge", tw_enlarge, NULL, "key=e");
+			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t");
 			//TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->setMinScalor(), ""/*"min=0.01 max=0.99"*/);
 			//TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->setMaxScalor(), ""/*"min=1.0 max=1.99"*/);
 			//TwAddVarRW(function_bar, "Area Coverage", TW_TYPE_DOUBLE, &spm()->setAreaCoverage(), "min=0.01 max=1.0");
@@ -155,6 +173,10 @@ namespace Geex {
 
     private:
 		std::string prj_config_file;
+
+		//debug
+		int enlarge_id;
+		double enlarge_factor;
     } ;
 
 
@@ -183,6 +205,14 @@ void TW_CALL tw_front_len_set_callback(const void* size, void* clientData)
 void TW_CALL tw_front_len_get_callback(void *size, void *clientData)
 {
 	spm_app()->front_len_get_callback((double*)size);
+}
+void TW_CALL tw_enlarge(void* clientData)
+{
+	spm_app()->enlarge_polygon();
+}
+void TW_CALL tw_save_triangulation(void* clientData)
+{
+	spm_app()->save_triangulation();
 }
 //void TW_CALL tw_save( void *clientData ) { spm_app()->save(); }
 //void TW_CALL tw_fill( void *clientData ) { spm_app()->fill(); }

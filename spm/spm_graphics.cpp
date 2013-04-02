@@ -130,7 +130,7 @@ namespace Geex
 		for (Vertex_iterator vi = rdt.vertices_begin(); vi != rdt.vertices_end(); ++vi)
 		{
 			//Point_3 p = vi->point_3();
-			Point_3 p = vi->mp;
+			Point_3 p = vi->point();
 			glPoint_3(p);
 		}
 		glEnd();
