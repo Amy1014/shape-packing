@@ -140,14 +140,23 @@ namespace Geex {
 			
             TwBar* graphics_bar = TwNewBar("Graphics");
 			TwDefine("Graphics position='16 10' size='200 250' alpha=200"); 
-			TwAddVarRW(graphics_bar, "Domain Mesh", TW_TYPE_BOOL8, &spm()->show_mesh(), "");
-			TwAddVarRW(graphics_bar, "Polygons", TW_TYPE_BOOL8, &spm()->show_polygons(), "");
-			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "");
-			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "");
-			TwAddVarRW(graphics_bar, "Vertices", TW_TYPE_BOOL8, &spm()->show_vertices(), "");
-			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "");
-			TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "");
-			TwAddVarRW(graphics_bar, "Holes", TW_TYPE_BOOL8, &spm()->show_holes(), "");
+			TwAddVarRW(graphics_bar, "Domain Mesh", TW_TYPE_BOOL8, &spm()->show_mesh(), "group = 'Surface' ");
+
+			
+			
+			TwEnumVal draw_polygon_mode[] = {
+				{spm()->OUTLINE_DRAW, "Outline"}, {spm()->FILL_DRAW, "Fill"}, {spm()->TEXTURE_DRAW, "Texture"}
+			};
+			TwType tw_draw_polygon_mode = TwDefineEnum("DrawPolygonMode", draw_polygon_mode, 3);
+			TwAddVarRW(graphics_bar, "Draw Switch", TW_TYPE_BOOL8, &spm()->show_polygons(), "group = 'Polygon' ");
+			TwAddVarRW(graphics_bar, "Draw Mode", tw_draw_polygon_mode, &spm()->get_polygon_draw_type(), "group = 'Polygon' ");
+		
+			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "group = 'Geometry' ");
+			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "group = 'Geometry' ");
+			TwAddVarRW(graphics_bar, "Vertices", TW_TYPE_BOOL8, &spm()->show_vertices(), "group = 'Geometry' ");
+			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "group = 'Geometry' ");
+			TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "group = 'Geometry' ");
+			TwAddVarRW(graphics_bar, "Holes", TW_TYPE_BOOL8, &spm()->show_holes(), "group = 'Geometry' ");
 			TwBar* function_bar = TwNewBar("Functions");
 			TwDefine("Functions position='16 250' size='200 250' alpha=200");
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l");
@@ -155,9 +164,9 @@ namespace Geex {
 			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i");
 			TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d");
 			TwAddVarCB(function_bar, "Hole Size", TW_TYPE_DOUBLE, tw_hole_size_set_callback,
-						tw_hole_size_get_callback, NULL, "min=0.01 step=0.01");
+						tw_hole_size_get_callback, NULL, "min=0.0 step=0.001");
 			TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,
-						tw_front_len_get_callback, NULL, "min=0.01 step=0.01");
+						tw_front_len_get_callback, NULL, "min=0.0 step=0.001");
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r");
 			TwAddVarRW(function_bar, "enlarge id", TW_TYPE_INT32, &enlarge_id, "");
 			TwAddVarRW(function_bar, "enlarge factor", TW_TYPE_DOUBLE, &enlarge_factor, "");

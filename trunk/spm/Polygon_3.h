@@ -220,6 +220,9 @@ MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>:
 		FT len = CGAL::sqrt(ln.squared_length());
 		Vector_3 ex(FT(1), FT(0), FT(0));
 		FT cos_theta = ln*ex/len, sin_theta = CGAL::sqrt(CGAL::cross_product(ex, ln).squared_length())/len;
+		//FT cos_theta = v*normal, sin_theta = CGAL::sqrt(CGAL::cross_product(v, normal).squared_length());
+		//if (Geex::Numeric::is_nan(cos_theta) || Geex::Numeric::is_nan(sin_theta))
+		//	system("pause");
 		//FT cos_theta = normal*lx, sin_theta = CGAL::sqrt(FT(1) - cos_theta*cos_theta);
 		//Transformation_3 rot(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
 		Transformation_3 rot;
