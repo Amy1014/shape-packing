@@ -59,6 +59,7 @@ namespace Geex
 		// 1. random 
 		unsigned int nb_init_polygons = mesh_area / mean_pgn_area;
 		random_init_tiles(nb_init_polygons);
+		std::cout<<pack_objects.size()<<" polygons are loaded initially.\n";
 	}
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
@@ -118,7 +119,7 @@ namespace Geex
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
 			double s = std::min(fa/pa, pa/fa);
-			s = 0.4*std::sqrt(s);
+			s = 0.2*std::sqrt(s);
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
 			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
@@ -394,7 +395,7 @@ namespace Geex
 				// compensate for the constrained transformation in the last step
 				std::cout<<"Compensate for lost transformation...\n";
 				std::vector<double> min_factors(solutions.size());
-				for (unsigned int comp_times = 0; comp_times < 2; comp_times++)
+				for (unsigned int comp_times = 0; comp_times < 0; comp_times++)
 				{
 					constraint_transformation(solutions, local_frames, min_factors);
 					for (unsigned int j = 0; j < pack_objects.size(); j++)
@@ -550,11 +551,12 @@ namespace Geex
 		std::for_each(holes.begin(), holes.end(), std::mem_fun_ref(&Hole::clear));
 		holes.clear();
 
-		double min_pgn_area = std::numeric_limits<double>::max();
+		double avg_area = 0.0;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
-			min_pgn_area = std::min(min_pgn_area, pack_objects[i].area());
-		double front_edge_len2_threshold = frontier_edge_size*min_pgn_area;
-		double hole_facet_area_threshold = hole_face_size*min_pgn_area;
+			avg_area += pack_objects[i].area();
+		avg_area /= pack_objects.size();
+		double front_edge_len2_threshold = frontier_edge_size*avg_area;
+		double hole_facet_area_threshold = hole_face_size*avg_area;
 		std::queue<Facet_iterator> seed_faces;
 		// detect faces in holes
 		for (Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
@@ -637,6 +639,7 @@ namespace Geex
 		replace_timer.start();
 		//std::ofstream res("parameters.txt");
 		//rpvd.save_triangulation("pre_replace.obj");
+		double shrink_factor = 0.6;
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -646,7 +649,6 @@ namespace Geex
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
 
 			Local_frame lf;
-			//lf.o = pack_objects[i].centroid();
 			std::vector<Point_3> vd_vertices;
 			for (unsigned int j = 0; j < samp_pnts.size(); j++)
 			{
@@ -654,30 +656,21 @@ namespace Geex
 				for (unsigned int k = 0; k < bisec_pnts.size(); k++)
 					vd_vertices.push_back(bisec_pnts[k]);
 			}
-			double cx = 0.0, cy = 0.0, cz = 0.0;
-			for (unsigned int j = 0; j < vd_vertices.size(); j++)
-			{
-				cx += vd_vertices[j].x();
-				cy += vd_vertices[j].y(); 
-				cz += vd_vertices[j].z();
-			}
-			//lf.o = CGAL::centroid(vd_vertices.begin(), vd_vertices.end(), CGAL::Dimension_tag<0>());
-			lf.o = Point_3(cx/vd_vertices.size(), cy/vd_vertices.size(), cz/vd_vertices.size());
+			//double cx = 0.0, cy = 0.0, cz = 0.0;
+			//for (unsigned int j = 0; j < vd_vertices.size(); j++)
+			//{
+			//	cx += vd_vertices[j].x();
+			//	cy += vd_vertices[j].y(); 
+			//	cz += vd_vertices[j].z();
+			//}
+			lf.o = CGAL::centroid(vd_vertices.begin(), vd_vertices.end(), CGAL::Dimension_tag<0>());
+			//lf.o = Point_3(cx/vd_vertices.size(), cy/vd_vertices.size(), cz/vd_vertices.size());
 			//Vector_3 u(lf.o, pack_objects[i].vertex(0));
 			Vector_3 u(lf.o, vd_vertices[0]);
 			lf.u = u / CGAL::sqrt(u.squared_length());
 			lf.w = pack_objects[i].norm();
 			lf.w = lf.w / CGAL::sqrt(lf.w.squared_length());
 			lf.v = CGAL::cross_product(lf.w, lf.u);
-			//local_frames.push_back(lf);
-			//if (std::fabs(lf.w*lf.u) >= 0.01 )
-			//{
-			//	std::cout<<"u*u = "<<lf.u*lf.u<<std::endl;
-			//	std::cout<<"v*v = "<<lf.v*lf.v<<std::endl;
-			//	std::cout<<"w*w = "<<lf.w*lf.w<<std::endl;
-			//	system("pause");
-			//}
-
 
 			std::vector<Segment_2> region2d;
 			
@@ -695,50 +688,57 @@ namespace Geex
 				}
 			}
 			Polygon_matcher pm(region2d, 200);
-			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
-			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
-				match_res.push(pm.affine_match(pgn_lib[idx], idx));
-			
-			// choose the result with the smallest match error now
-			Match_info_item<unsigned int> matcher = match_res.top();
-
-			//Point_2 cent = CGAL::centroid(pgn_lib[matcher.val].vertices_begin(), pgn_lib[matcher.val].vertices_end(), CGAL::Dimension_tag<0>());
-			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
-
-			if (!transformed_pgn2d.is_convex())
+			double region_area = pm.get_model_area();
+			double tile_area = pack_objects[i].area();
+			if (tile_area/region_area < 0.84)
 			{
-				std::cout<<"Non-convex polygon!\n";
-				system("pause");
-			}
+				std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
+				for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+					match_res.push(pm.affine_match(pgn_lib[idx], idx));
+				
+				// choose the result with the smallest match error now
+				Match_info_item<unsigned int> matcher = match_res.top();
 
-			pack_objects[i].clear();
-			
-			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+				//Point_2 cent = CGAL::centroid(pgn_lib[matcher.val].vertices_begin(), pgn_lib[matcher.val].vertices_end(), CGAL::Dimension_tag<0>());
+				Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
+
+				pack_objects[i].clear();
+				
+				for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+				{
+					Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+					pack_objects[i].push_back(p);
+				}
+
+				Point_3 c = pack_objects[i].centroid();
+				vec3 v;
+				int fid;
+				vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
+
+				v = approx_normal(fid);
+				pack_objects[i].norm(lf.w);
+				pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
+				
+
+				Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
+											( Transformation_3(CGAL::SCALING, shrink_factor) *
+											Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
+
+				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
+				//
+				pack_objects[i].lib_idx = matcher.val;
+				pack_objects[i].factor = matcher.scale*shrink_factor;
+			}
+			else
 			{
-				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
-				pack_objects[i].push_back(p);
+				Point_3 c = pack_objects[i].centroid();
+				Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, c)) *
+											( Transformation_3(CGAL::SCALING, shrink_factor) *
+												Transformation_3(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN)) );	
+
+				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
+				pack_objects[i].factor *= shrink_factor;
 			}
-
-			Point_3 c = pack_objects[i].centroid();
-			vec3 v;
-			int fid;
-			vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
-
-			v = approx_normal(fid);
-			pack_objects[i].norm(lf.w);
-			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
-			////Transformation_3 move(CGAL::TRANSLATION, Vector_3(c, to_cgal_pnt(prjp)));
-
-			////std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), move);
-
-			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
-										( Transformation_3(CGAL::SCALING, 0.4) *
-										Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
-
-			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
-			//
-			pack_objects[i].lib_idx = matcher.val;
-			pack_objects[i].factor = matcher.scale*0.4;
 		}
 		replace_timer.stop();
 		// rebuild the restricted delaunay triangulation and voronoi cell

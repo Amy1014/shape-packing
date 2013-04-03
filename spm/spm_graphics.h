@@ -26,6 +26,8 @@ namespace Geex
 
 	public:
 
+		typedef enum {OUTLINE_DRAW, FILL_DRAW, TEXTURE_DRAW} Polygon_draw_type;
+
 		SPM_Graphics(Packer *_packer);
 
 		~SPM_Graphics();
@@ -49,13 +51,16 @@ namespace Geex
 		GLboolean& show_hole_triangles() { return show_hole_triangles_; }
 		GLboolean& show_holes() { return show_holes_; }
 
+		Polygon_draw_type& get_polygon_draw_type() { return how_to_draw_polygons; }
+
 		int& highlighted_group_id() { return highlighted_group; }
 
-		typedef enum {OUTLINE_DRAW, FILL_DRAW, TEXTURE_DRAW} Polygon_draw_type;
+		
 
 	private:
 		inline void gl_table_color(int index);
 		void outline_draw_polygons();
+		void fill_draw_polygons();
 		void draw_mesh();
 		void draw_polygons();
 		void draw_triangulation();

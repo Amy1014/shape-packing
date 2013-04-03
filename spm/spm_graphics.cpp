@@ -92,9 +92,14 @@ namespace Geex
 		switch (how_to_draw_polygons)
 		{
 		case OUTLINE_DRAW:
+			outline_draw_polygons();
+			break;
 		case FILL_DRAW:
+			fill_draw_polygons();
+			break;
 		case TEXTURE_DRAW:
 			outline_draw_polygons();
+			break;
 		}
 	}
 
@@ -119,6 +124,39 @@ namespace Geex
 		glEnable(GL_LIGHTING);
 	}
 
+	void SPM_Graphics::fill_draw_polygons()
+	{
+		static GLfloat amb_mat[] = {0.19225f, 0.19225f, 0.19225f, 1.0f};
+		static GLfloat diff_mat[] = {0.50754f, 0.50754f, 0.50754f, 1.0f};
+		static GLfloat spec_mat[] = {0.808273f, 0.808273f, 0.808273f, 1.0f};
+		static GLfloat pgn_shininess = 0.4;
+
+		const vector<Packing_object>& tiles = packer->get_tiles();
+
+		glCullFace(GL_FRONT);
+		glEnable(GL_LIGHTING);
+		glPushMatrix();
+		//glMaterialfv(GL_FRONT, GL_AMBIENT, amb_mat);
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, diff_mat);
+		glMaterialfv(GL_FRONT, GL_SPECULAR, spec_mat);
+		glMaterialf(GL_FRONT, GL_SHININESS, 50.0f);
+		for (unsigned int i = 0; i < tiles.size(); i++)
+		{
+			glBegin(GL_TRIANGLES);
+			Point_3 c = tiles[i].centroid();
+			Vector_3 n = tiles[i].norm();
+			glNormal3d(n.x(), n.y(), n.z());
+			for (unsigned int j = 0; j < tiles[i].size(); j++)
+			{
+				glPoint_3(c);
+				glPoint_3(tiles[i].vertex(j));
+				glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()));
+			}
+			glEnd();
+		}
+		glPopMatrix();
+		glDisable(GL_LIGHTING);
+	}
 	void SPM_Graphics::draw_all_vertices()
 	{
 		RDT_data_structure& rdt = packer->rpvd.get_rdt();

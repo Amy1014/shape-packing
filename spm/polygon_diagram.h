@@ -94,6 +94,7 @@ namespace Geex
 				avgp = avgp / 3.0;
 				m.project_to_mesh(to_geex_pnt(CGAL::ORIGIN + avgp), dv);
 				Vector_3 n = to_cgal_vec(dv);
+				n = n / CGAL::sqrt(n.squared_length());
 				Vector_3 nij(points[i].prj_pnt, points[j].prj_pnt);
 				Vector_3 njk(points[j].prj_pnt, points[k].prj_pnt);
 				Vector_3 det = CGAL::cross_product(nij, njk);
@@ -101,9 +102,7 @@ namespace Geex
 				if ( n*det < 0.0 )
 				{
 					unsigned int indices[] = {k, j, i};
-					if(!b.test_facet(indices, indices+3))
-						nb_invalid_edges++;
-					else
+					if (b.test_facet(indices, indices+3))
 					{
 						HDS::Face_handle f = b.begin_facet();
 						b.add_vertex_to_facet(k);
@@ -112,14 +111,14 @@ namespace Geex
 						b.end_facet();
 						f->is_delaunay = true;
 					}
+					else
+						nb_invalid_edges++;
 
 				}
 				else
 				{	
 					unsigned int indices[] = {i, j, k};
-					if(!b.test_facet(indices, indices+3))
-						nb_invalid_edges++;
-					else
+					if (b.test_facet(indices, indices+3))
 					{
 						HDS::Face_handle f = b.begin_facet();
 						b.add_vertex_to_facet(i);
@@ -128,7 +127,8 @@ namespace Geex
 						b.end_facet();
 						f->is_delaunay = true;
 					}
-
+					else
+						nb_invalid_edges++;
 				}
 				//of<<"f "<<i+1<<' '<<j+1<<' '<<k+1<<std::endl;
 			}

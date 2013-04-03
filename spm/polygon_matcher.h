@@ -49,6 +49,8 @@ public:
 	template <class UserDataType>
 	Match_info_item<UserDataType> affine_match(const Polygon_2& instance, const UserDataType& data);
 
+	double get_model_area() const { return model_area; }
+
 private:
 	unsigned int nb_sampling;
 	PointSet modelPtsSet;

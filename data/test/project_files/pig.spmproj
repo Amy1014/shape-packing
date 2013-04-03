@@ -1,0 +1,7 @@
+< SpMProject >  Pig Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\pig.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi418_pig.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\pig.cur </ DensityFile >
