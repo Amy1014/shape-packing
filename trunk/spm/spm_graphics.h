@@ -55,7 +55,7 @@ namespace Geex
 
 		int& highlighted_group_id() { return highlighted_group; }
 
-		
+		GLboolean& show_local_frame() { return show_local_frame_; }
 
 	private:
 		inline void gl_table_color(int index);
@@ -84,6 +84,8 @@ namespace Geex
 		GLboolean show_vertices_;
 		GLboolean show_hole_triangles_;
 		GLboolean show_holes_;
+
+		GLboolean show_local_frame_;
 
 		/** display list **/
 		GLuint triangulation_displist;

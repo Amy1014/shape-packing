@@ -8,6 +8,8 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <cmath>
+#include <numeric>
 #include <CGAL/Vector_3.h>
 #include <CGAL/Plane_3.h>
 #include <CGAL/Polygon_2.h>
@@ -73,7 +75,7 @@ public:
 	Point_3 centroid() const { return CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>()); }
 
 	Vector_3 norm() const { return normal; }
-	void norm(const Vector_3& n) { normal = n/CGAL::sqrt(n.squared_length()); }
+	//void norm(const Vector_3& n) { normal = n/CGAL::sqrt(n.squared_length()); }
 
 	size_type size() const { return verts.size(); }
 
@@ -174,7 +176,7 @@ template <class Kernel, class Container> void MyPolygon_3<Kernel, Container>::pu
 template <class Kernel, class Container> void MyPolygon_3<Kernel, Container>::clear()
 {
 	verts.clear();
-	normal = CGAL::NULL_VECTOR;
+	//normal = CGAL::NULL_VECTOR;
 	//cent = Point_3(FT(0.0), FT(0.0), FT(0.0));
 }
 
@@ -210,10 +212,11 @@ MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>:
 	Transformation_3 t(CGAL::IDENTITY);
 	Vector_3 v = v_ / CGAL::sqrt(v_.squared_length());
 	Vector_3 lz = CGAL::cross_product(normal, v);
-	FT lz_len2 = lz.squared_length();
-	if (lz_len2 != FT(0))
+	FT lz_len = CGAL::sqrt(lz.squared_length());
+	if (lz_len != FT(0))
 	{
-		lz = lz / CGAL::sqrt(lz_len2);
+		//lz = lz / CGAL::sqrt(lz_len2);
+		lz = lz / lz_len;
 		const Vector_3& lx = normal;
 		Vector_3 ly = CGAL::cross_product(lz, lx);
 		Vector_3 ln(v*lx, v*ly, FT(0));
@@ -237,7 +240,29 @@ MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>:
 	else
 		t = to_pos*to_org;
 	std::transform(verts.begin(), verts.end(), verts.begin(), t);
-	normal = v;
+	//normal = v;
+	c = centroid(); 
+	Vector_3 u(c, vertex(0));
+	u = u / CGAL::sqrt(u.squared_length());
+	FT min_cp(std::numeric_limits<double>::max());
+	unsigned int min_idx;
+	for (unsigned int i = 1; i < size(); i++)
+	{
+		Vector_3 w(c, vertex(i));
+		w = w / CGAL::sqrt(w.squared_length());
+		FT cp = std::fabs(u*w);
+		if (cp < min_cp)
+		{
+			min_cp = cp;
+			min_idx = i;
+		}
+	}
+	Vector_3 w(c, vertex(min_idx));
+	w = w / CGAL::sqrt(w.squared_length());
+	normal = CGAL::cross_product(u, w);
+	normal = normal / CGAL::sqrt(normal.squared_length());
+	if (normal*v<FT(0))
+		normal = -normal;
 	return t;
 }
 

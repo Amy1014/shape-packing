@@ -14,11 +14,11 @@ namespace Geex
 		{c1, c3, c1}, {c1, c1, c3},	{c1, c2, c3}, {c1, c3, c2}, 
 		{c2, c1, c3}, {c2, c3, c1}, {c3, c1, c2}, {c3, c2, c1}
 	};
-	GLfloat SPM_Graphics::surf_diff[4] = {0.95f, 0.95f, 0.0f, 1.0f};
-	GLfloat SPM_Graphics::surf_spec[4] = {0.8f, 0.8f, 0.8f, 1.0f} ;
+	GLfloat SPM_Graphics::surf_diff[4] = {0.543f, 0.822f, 1.0f, 1.0f};
+	GLfloat SPM_Graphics::surf_spec[4] = {0.9f, 0.9f, 0.9f, 1.0f} ;
 	GLfloat SPM_Graphics::surf_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};
 	//GLfloat SPM_Graphics::pgn_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};
-	GLfloat SPM_Graphics::shininess[] = {75.0f};
+	GLfloat SPM_Graphics::shininess[] = {150.0f};
 
 	SPM_Graphics::SPM_Graphics(Packer *_packer): packer(_packer)
 	{
@@ -29,6 +29,7 @@ namespace Geex
 		show_triangulation_ = false;
 		show_vertices_ = false;
 		show_hole_triangles_ = false;
+		show_local_frame_ = false;
 		highlighted_group = -1;
 	}
 
@@ -61,7 +62,8 @@ namespace Geex
 			draw_hole_triangles();
 		if (show_holes_)
 			draw_holes();
-		//draw_local_frames();
+		if (show_local_frame_)
+			draw_local_frames();
 	}
 
 	void SPM_Graphics::draw_mesh()
@@ -128,7 +130,7 @@ namespace Geex
 	{
 		static GLfloat amb_mat[] = {0.19225f, 0.19225f, 0.19225f, 1.0f};
 		static GLfloat diff_mat[] = {0.50754f, 0.50754f, 0.50754f, 1.0f};
-		static GLfloat spec_mat[] = {0.808273f, 0.808273f, 0.808273f, 1.0f};
+		static GLfloat spec_mat[] = {0.608273f, 0.608273f, 0.608273f, 1.0f};
 		static GLfloat pgn_shininess = 0.4;
 
 		const vector<Packing_object>& tiles = packer->get_tiles();
@@ -167,8 +169,7 @@ namespace Geex
 		glBegin(GL_POINTS);
 		for (Vertex_iterator vi = rdt.vertices_begin(); vi != rdt.vertices_end(); ++vi)
 		{
-			//Point_3 p = vi->point_3();
-			Point_3 p = vi->point();
+			Point_3 p = vi->mp;
 			glPoint_3(p);
 		}
 		glEnd();
@@ -294,18 +295,24 @@ namespace Geex
 
 	void SPM_Graphics::draw_local_frames()
 	{
-		std::vector<Packer::Local_frame> lfs = packer->local_frames;
+		const std::vector<Packing_object>& tiles = packer->get_tiles();
 		glDisable(GL_LIGHTING);
 		glColor3f(0.0f, 0.0f, 1.0f);
-		for (unsigned int i = 0; i < lfs.size(); i++)
+		for (unsigned int i = 0; i < tiles.size(); i++)
 		{
+			Point_3 o = tiles[i].centroid();
+			Vector_3 u(o, tiles[i].vertex(0));
+			u = u / CGAL::sqrt(u.squared_length());
+			Vector_3 w = tiles[i].norm();
+			w = w / CGAL::sqrt(w.squared_length());
+			Vector_3 v = CGAL::cross_product(w, u);
 			glBegin(GL_LINES);
-			glPoint_3(lfs[i].o);
-			glPoint_3(lfs[i].o + 3 * lfs[i].u);
-			glPoint_3(lfs[i].o);
-			glPoint_3(lfs[i].o + 3 * lfs[i].v);
-			glPoint_3(lfs[i].o);
-			glPoint_3(lfs[i].o + 3 * lfs[i].w);
+			glPoint_3(o);
+			glPoint_3(o + 0.1 * u);
+			glPoint_3(o);
+			glPoint_3(o + 0.1 * v);
+			glPoint_3(o);
+			glPoint_3(o + 0.1 * w);
 			glEnd();
 		}
 		glEnable(GL_LIGHTING);

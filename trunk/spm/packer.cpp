@@ -393,24 +393,24 @@ namespace Geex
 					post_action();
 
 				// compensate for the constrained transformation in the last step
-				std::cout<<"Compensate for lost transformation...\n";
-				std::vector<double> min_factors(solutions.size());
-				for (unsigned int comp_times = 0; comp_times < 0; comp_times++)
-				{
-					constraint_transformation(solutions, local_frames, min_factors);
-					for (unsigned int j = 0; j < pack_objects.size(); j++)
-					{
-						Parameter constrained_param = solutions[j]*min_factors[j];
-						transform_one_polygon(j, local_frames[j], constrained_param);
-						solutions[j] -= constrained_param;
-					}
-					//rpvd.save_triangulation("pre_idt.obj");
-					rpvd.iDT_update();
-					//rpvd.save_triangulation("idt.obj");
-					glut_viewer_redraw();
-				}
+				//std::cout<<"Compensate for lost transformation...\n";
+				//std::vector<double> min_factors(solutions.size());
+				//for (unsigned int comp_times = 0; comp_times < 0; comp_times++)
+				//{
+				//	constraint_transformation(solutions, local_frames, min_factors);
+				//	for (unsigned int j = 0; j < pack_objects.size(); j++)
+				//	{
+				//		Parameter constrained_param = solutions[j]*min_factors[j];
+				//		transform_one_polygon(j, local_frames[j], constrained_param);
+				//		solutions[j] -= constrained_param;
+				//	}
+				//	//rpvd.save_triangulation("pre_idt.obj");
+				//	rpvd.iDT_update();
+				//	//rpvd.save_triangulation("idt.obj");
+				//	glut_viewer_redraw();
+				//}
 				compute_clipped_VD();
-				std::cout<<"End compensating.\n";
+				//std::cout<<"End compensating.\n";
 
 				//std::ostringstream fn(std::ostringstream::ate);
 				//fn.str("../imme_data/");
@@ -693,42 +693,42 @@ namespace Geex
 			//double tile_area = pack_objects[i].area();
 			//if (tile_area/region_area < 0.84)
 			//{
-				std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
-				for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
-					match_res.push(pm.affine_match(pgn_lib[idx], idx));
-				
-				// choose the result with the smallest match error now
-				Match_info_item<unsigned int> matcher = match_res.top();
+			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
+			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+				match_res.push(pm.affine_match(pgn_lib[idx], idx));
+			
+			// choose the result with the smallest match error now
+			Match_info_item<unsigned int> matcher = match_res.top();
 
-				//Point_2 cent = CGAL::centroid(pgn_lib[matcher.val].vertices_begin(), pgn_lib[matcher.val].vertices_end(), CGAL::Dimension_tag<0>());
-				Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
+			//Point_2 cent = CGAL::centroid(pgn_lib[matcher.val].vertices_begin(), pgn_lib[matcher.val].vertices_end(), CGAL::Dimension_tag<0>());
+			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
 
-				pack_objects[i].clear();
-				
-				for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
-				{
-					Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
-					pack_objects[i].push_back(p);
-				}
+			pack_objects[i].clear();
+			
+			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+			{
+				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+				pack_objects[i].push_back(p);
+			}
 
-				Point_3 c = pack_objects[i].centroid();
-				vec3 v;
-				int fid;
-				vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
+			Point_3 c = pack_objects[i].centroid();
+			vec3 v;
+			int fid;
+			vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
 
-				v = approx_normal(fid);
-				pack_objects[i].norm(lf.w);
-				pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
-				
+			v = approx_normal(fid);
+			//pack_objects[i].norm(lf.w);
+			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
+			
 
-				Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
-											( Transformation_3(CGAL::SCALING, shrink_factor) *
-											Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
+			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
+										( Transformation_3(CGAL::SCALING, shrink_factor) *
+										Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
 
-				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
-				//
-				pack_objects[i].lib_idx = matcher.val;
-				pack_objects[i].factor = matcher.scale*shrink_factor;
+			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
+			//
+			pack_objects[i].lib_idx = matcher.val;
+			pack_objects[i].factor = matcher.scale*shrink_factor;
 // 			}
 // 			else
 // 			{
@@ -740,13 +740,21 @@ namespace Geex
 // 				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
 // 				pack_objects[i].factor *= shrink_factor;
 // 			}
+			//u = Vector_3(pack_objects[i].centroid(), pack_objects[i].vertex(0));
+			//u = u / CGAL::sqrt(u.squared_length());
+			//if (std::fabs(pack_objects[i].norm()*u) >= 0.1)
+			//{
+			//	std::cout<<"non orhogonal vectors!\n";
+			//	system("pause");
+			//}
+
 		}
 		replace_timer.stop();
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
 		compute_clipped_VD();
 		stop_update_DT = false;
-		rpvd.save_triangulation("rdt.obj");
+		//rpvd.save_triangulation("rdt.obj");
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
 
