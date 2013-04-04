@@ -154,10 +154,11 @@ namespace Geex
 					if ( v_pre->group_id != vg[j]->group_id || v_nxt->group_id != vg[j]->group_id)
 					{	
 						Point_3 c;
-/*						if (current_edge->facet() == Facet_handle())
+						if (current_edge->facet() == Facet_handle())
 						{
+							std::cout<<"Caution: invalid surface mesh. poor sampling!.\n";
 						}
-						else*/ if (current_edge->facet()->is_delaunay)
+						else if (current_edge->facet()->is_delaunay)
 						{
 							c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
 							vg[j]->vd_vertices.push_back(c);
