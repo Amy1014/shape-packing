@@ -649,24 +649,25 @@ namespace Geex
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
 
 			Local_frame lf;
-			std::vector<Point_3> vd_vertices;
-			for (unsigned int j = 0; j < samp_pnts.size(); j++)
-			{
-				const std::vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
-				for (unsigned int k = 0; k < bisec_pnts.size(); k++)
-					vd_vertices.push_back(bisec_pnts[k]);
-			}
-			//double cx = 0.0, cy = 0.0, cz = 0.0;
-			//for (unsigned int j = 0; j < vd_vertices.size(); j++)
-			//{
-			//	cx += vd_vertices[j].x();
-			//	cy += vd_vertices[j].y(); 
-			//	cz += vd_vertices[j].z();
-			//}
-			lf.o = CGAL::centroid(vd_vertices.begin(), vd_vertices.end(), CGAL::Dimension_tag<0>());
+// 			std::vector<Point_3> vd_vertices;
+// 			for (unsigned int j = 0; j < samp_pnts.size(); j++)
+// 			{
+// 				const std::vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
+// 				for (unsigned int k = 0; k < bisec_pnts.size(); k++)
+// 					vd_vertices.push_back(bisec_pnts[k]);
+// 			}
+// 			double cx = 0.0, cy = 0.0, cz = 0.0;
+// 			for (unsigned int j = 0; j < vd_vertices.size(); j++)
+// 			{
+// 				cx += vd_vertices[j].x();
+// 				cy += vd_vertices[j].y(); 
+// 				cz += vd_vertices[j].z();
+// 			}
+			//lf.o = CGAL::centroid(vd_vertices.begin(), vd_vertices.end(), CGAL::Dimension_tag<0>());
 			//lf.o = Point_3(cx/vd_vertices.size(), cy/vd_vertices.size(), cz/vd_vertices.size());
-			//Vector_3 u(lf.o, pack_objects[i].vertex(0));
-			Vector_3 u(lf.o, vd_vertices[0]);
+			lf.o = pack_objects[i].centroid();
+			Vector_3 u(lf.o, pack_objects[i].vertex(0));
+			//Vector_3 u(lf.o, vd_vertices[0]);
 			lf.u = u / CGAL::sqrt(u.squared_length());
 			lf.w = pack_objects[i].norm();
 			lf.w = lf.w / CGAL::sqrt(lf.w.squared_length());
@@ -688,10 +689,10 @@ namespace Geex
 				}
 			}
 			Polygon_matcher pm(region2d, 200);
-			double region_area = pm.get_model_area();
-			double tile_area = pack_objects[i].area();
-			if (tile_area/region_area < 0.84)
-			{
+			//double region_area = pm.get_model_area();
+			//double tile_area = pack_objects[i].area();
+			//if (tile_area/region_area < 0.84)
+			//{
 				std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
 				for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
 					match_res.push(pm.affine_match(pgn_lib[idx], idx));
@@ -728,17 +729,17 @@ namespace Geex
 				//
 				pack_objects[i].lib_idx = matcher.val;
 				pack_objects[i].factor = matcher.scale*shrink_factor;
-			}
-			else
-			{
-				Point_3 c = pack_objects[i].centroid();
-				Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, c)) *
-											( Transformation_3(CGAL::SCALING, shrink_factor) *
-												Transformation_3(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN)) );	
-
-				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
-				pack_objects[i].factor *= shrink_factor;
-			}
+// 			}
+// 			else
+// 			{
+// 				Point_3 c = pack_objects[i].centroid();
+// 				Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, c)) *
+// 											( Transformation_3(CGAL::SCALING, shrink_factor) *
+// 												Transformation_3(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN)) );	
+// 
+// 				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
+// 				pack_objects[i].factor *= shrink_factor;
+// 			}
 		}
 		replace_timer.stop();
 		// rebuild the restricted delaunay triangulation and voronoi cell
