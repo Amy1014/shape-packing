@@ -19,6 +19,8 @@ namespace Geex
 		hole_face_size = 1.0;
 
 		stop_update_DT = false;
+
+		epsilon = 0.1;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -60,6 +62,7 @@ namespace Geex
 		unsigned int nb_init_polygons = mesh_area / mean_pgn_area;
 		random_init_tiles(nb_init_polygons);
 		std::cout<<pack_objects.size()<<" polygons are loaded initially.\n";
+		// 2. multi-class or more (TODO)
 	}
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
@@ -123,6 +126,7 @@ namespace Geex
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
 			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
+			pack_objects.back().facet_idx = *it;
 			pgn_lib_idx++;
 		}
 	}
@@ -196,19 +200,18 @@ namespace Geex
 
 		// voronoi region
 		std::vector<Segment_2> vr_region;
-
-		// formulate optimization 
 #ifdef _CILK_
-		containments[id].clear();
+		Containment& ctm = containments[id];
 #else
-		containment.clear();
+		Containment& ctm = containment;
 #endif
+		// formulate optimization 
+		ctm.clear();
 		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
 		if (!stop_update_DT)
 			for (unsigned int i = 0; i < samp_pnts.size(); i++)
 			{
 				const vector<Point_3>& bisec_pnts = samp_pnts[i]->vd_vertices;
-				//Point_2 ref_point = lf.to_uv(samp_pnts[i]->point_3());
 				Point_2 ref_point = lf.to_uv(samp_pnts[i]->point());
 				if (bisec_pnts.size() == 0)
 					continue;
@@ -217,22 +220,16 @@ namespace Geex
 				{
 					const Point_3& s = bisec_pnts[j];
 					const Point_3& t = bisec_pnts[j+1];
-#ifdef _CILK_
 					Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
-					containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), Segment_2(s2, t2), ref_point));
-					vr_region.push_back(Segment_2(s2, t2));
-					//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s, t))));
-#else
-					containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
-					//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
-#endif
+					ctm.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), Segment_2(s2, t2), ref_point));
+					//vr_region.push_back(Segment_2(s2, t2));
 				}
-				const std::vector<double>& ws = samp_pnts[i]->weights;
-				for (unsigned int j = 0; j < bisec_pnts.size(); j++)
-				{
-					containments[id].vd_vertices.push_back(lf.to_uv(bisec_pnts[j]));
-					containments[id].weights.push_back(ws[j]);
-				}
+				//const std::vector<double>& ws = samp_pnts[i]->weights;
+				//for (unsigned int j = 0; j < bisec_pnts.size(); j++)
+				//{
+				//	containments[id].vd_vertices.push_back(lf.to_uv(bisec_pnts[j]));
+				//	containments[id].weights.push_back(ws[j]);
+				//}
 			}
 		else
 			for (unsigned int i = 0; i < pack_objects[id].size(); i++)
@@ -247,29 +244,23 @@ namespace Geex
 					{
 						const Point_3& s = bisec_pnts[k];
 						const Point_3& t = bisec_pnts[k+1];
-#ifdef _CILK_
-						//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
 						Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
-						containments[id].const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), Segment_2(s2, t2)));
-						vr_region.push_back(Segment_2(s2, t2));
-#else
-						//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
-						containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s, t))));
-#endif
+						ctm.const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), Segment_2(s2, t2)));
+						//vr_region.push_back(Segment_2(s2, t2));
 					}
-					const std::vector<double>& ws = samp_pnts[j]->weights;
-					for (unsigned int k = 0; k < bisec_pnts.size(); k++)
-					{
-						containments[id].vd_vertices.push_back(lf.to_uv(bisec_pnts[k]));
-						containments[id].weights.push_back(ws[k]);
-					}
+					//const std::vector<double>& ws = samp_pnts[j]->weights;
+					//for (unsigned int k = 0; k < bisec_pnts.size(); k++)
+					//{
+					//	containments[id].vd_vertices.push_back(lf.to_uv(bisec_pnts[k]));
+					//	containments[id].weights.push_back(ws[k]);
+					//}
 				}
 			}
 		// construct extended objective function
-		containments[id].region_area = 0.0;
-		for (unsigned int i = 0; i < vr_region.size(); i++)
-			containments[id].region_area += std::fabs(CGAL::area(vr_region[0].source(), vr_region[i].source(), vr_region[i].target()));
-		containments[id].pgn_cent = lf.to_uv(lf.o);
+		//containments[id].region_area = 0.0;
+		//for (unsigned int i = 0; i < vr_region.size(); i++)
+		//	containments[id].region_area += std::fabs(CGAL::area(vr_region[0].source(), vr_region[i].source(), vr_region[i].target()));
+		//containments[id].pgn_cent = lf.to_uv(lf.o);
 
 		const unsigned int try_time_limit = 10;
 		unsigned int try_times = 1;
@@ -329,21 +320,14 @@ namespace Geex
 			constraint_transformation(solutions, lfs, min_factors);
 		}
 		//std::ofstream of("parameters.txt");
-//#ifdef _CILK_
-//		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
-//#else
+#ifdef _CILK_
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
-//#endif
+#endif
 		{
-			//if (min_factors[i] == 0.0)
-			//{
-			//	std::cout<<"Polygon "<<i<<" cannot be enlarged\n";
-			//	std::cout<<solutions[i].k<<", "<<solutions[i].theta<<", ";
-			//	std::cout<<solutions[i].tx<<", "<<solutions[i].ty<<std::endl;			
-			//}
 			Parameter constrained_parameter = solutions[i]*min_factors[i];
-			//of<<constrained_parameter.k<<", "<<constrained_parameter.theta<<", ";
-			//of<<constrained_parameter.tx<<", "<<constrained_parameter.ty<<std::endl;
+			curv_constrained_transform(constrained_parameter, pack_objects[i].facet_idx, i);
 			transform_one_polygon(i, lfs[i], constrained_parameter);
 			solutions[i] -= constrained_parameter;// residual transformation
 		}
@@ -374,6 +358,7 @@ namespace Geex
 			Point_3 temp = samp_pnts[j]->point();
 			samp_pnts[j]->mp = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(temp), dummyv));
 		}
+		pack_objects[id].facet_idx = fid;
 	}
 	void Packer::lloyd(void (*post_action)(), bool enlarge)
 	{
@@ -537,7 +522,7 @@ namespace Geex
 // 					continue;
 				Vector_3 n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
 				double nlen2 = n.squared_length();
-				if (nlen2 == 0.0)
+				if (nlen2 == 0.0) //degenerate case
 				{
 					//std::cout<<"degenerate at <"<<i0<<", "<<i1<<", "<<i2<<">\n";
 					continue;
@@ -662,7 +647,7 @@ namespace Geex
 		replace_timer.start();
 		//std::ofstream res("parameters.txt");
 		//rpvd.save_triangulation("pre_replace.obj");
-		double shrink_factor = 0.6;
+		
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -697,6 +682,8 @@ namespace Geex
 			lf.v = CGAL::cross_product(lf.w, lf.u);
 
 			std::vector<Segment_2> region2d;
+
+			bool contain_non_delaunay_facet = false;
 			
 			for (unsigned int j = 0; j < samp_pnts.size(); j++)
 			{
@@ -710,6 +697,7 @@ namespace Geex
 						region2d.push_back(Segment_2(lf.to_uv(s), lf.to_uv(t)));
 					}
 				}
+				contain_non_delaunay_facet |= samp_pnts[j]->contain_non_delaunay_facet;
 			}
 			Polygon_matcher pm(region2d, 200);
 			//double region_area = pm.get_model_area();
@@ -742,7 +730,12 @@ namespace Geex
 			v = approx_normal(fid);
 			//pack_objects[i].norm(lf.w);
 			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
-			
+
+			double shrink_factor;
+			if (contain_non_delaunay_facet)
+				shrink_factor = 0.3;
+			else
+				shrink_factor = 0.6;
 
 			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
 										( Transformation_3(CGAL::SCALING, shrink_factor) *
@@ -752,6 +745,7 @@ namespace Geex
 			//
 			pack_objects[i].lib_idx = matcher.val;
 			pack_objects[i].factor = matcher.scale*shrink_factor;
+			pack_objects[i].facet_idx = fid;
 // 			}
 // 			else
 // 			{
@@ -794,6 +788,109 @@ namespace Geex
 		Parameter p(f, theta, tx, ty);
 
 		transform_one_polygon(id, lf, p);
+	}
+
+	void Packer::curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id)
+	{
+		// approximate curvature at the facet
+		const Facet& f = mesh[fid];
+		double v0_cur = mesh.curvature_at_vertex(f.vertex_index[0]),
+				v1_cur = mesh.curvature_at_vertex(f.vertex_index[1]),
+				v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
+		//std::cout<<v0_cur<<", "<<v1_cur<<", "<<v2_cur<<std::endl;
+		//system("pause");
+		double avg_cur = (v0_cur + v1_cur + v2_cur) / 3.0;
+		if (avg_cur == 0.0)
+		{
+			//system("pause");
+			return;
+		}
+		double r = 1.0 / avg_cur;
+		double squared_translation = para.tx * para.tx + para.ty * para.ty;
+		double threshold = (2.0 - epsilon) * epsilon;
+		if (squared_translation > threshold * r * r)
+		{
+			double temp = std::sqrt(threshold)*r/std::sqrt(squared_translation);
+			//std::cout<<"scaler = "<<temp<<std::endl;
+			para.tx *= temp;
+			para.ty *= temp;
+		}
+		double original_area = pack_objects[pgn_id].area();
+		if ( para.k * para.k * original_area * original_area > threshold * r * r)
+		{
+			double temp = std::sqrt(threshold)*r/(para.k*std::sqrt(original_area));
+			para.k = std::max(1.0, para.k*temp);
+		}
+	}
+
+	void Packer::fill_holes()
+	{
+		std::cout<<"Start filling holes...\n";
+		for (unsigned int i = 0; i < holes.size(); i++)
+		{
+			Hole& hl = holes[i];
+			std::vector<Segment_2> hole_bd_2d;
+			std::vector<Point_3> hole_verts;
+			hole_verts.reserve(hl.size()*2);
+			for (unsigned int j = 0; j < hl.size(); j++)
+			{
+				Halfedge_handle he = hl[j];
+				hole_verts.push_back(he->vertex()->point());
+				hole_verts.push_back(he->opposite()->vertex()->point());
+			}
+			Point_3 hole_cent = CGAL::centroid(hole_verts.begin(), hole_verts.end(), CGAL::Dimension_tag<0>());
+			vec3 v, prj_cent;
+			int fid;
+			prj_cent = mesh.project_to_mesh(to_geex_pnt(hole_cent), v, fid);
+			Local_frame lf;
+			lf.o = to_cgal_pnt(prj_cent);
+			lf.w = to_cgal_vec(v);
+			cgal_vec_normalize(lf.w);
+			Plane_3 prj_plane(lf.o, lf.w);
+			lf.u = prj_plane.base1();
+			cgal_vec_normalize(lf.u);
+			lf.v = CGAL::cross_product(lf.w, lf.u);
+			for (unsigned int j = 0; j < hl.size(); j++)
+			{
+				Halfedge_handle he = hl[j];
+				Point_2 s = lf.to_uv( prj_plane.projection(he->vertex()->point()) );
+				Point_2 t = lf.to_uv( prj_plane.projection(he->opposite()->vertex()->point()) );
+				hole_bd_2d.push_back( Segment_2(s, t) );
+			}
+			Polygon_matcher pm(hole_bd_2d, 200);
+			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
+			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+				match_res.push(pm.affine_match(pgn_lib[idx], idx));
+			// choose the result with the smallest match error now
+			Match_info_item<unsigned int> matcher = match_res.top();
+
+			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
+
+			Packing_object filler;
+
+			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+			{
+				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+				filler.push_back(p);
+			}
+
+			filler.align(lf.w, lf.o);
+			double shrink_factor = 0.8;
+
+			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
+														( Transformation_3(CGAL::SCALING, shrink_factor) *
+															Transformation_3(CGAL::TRANSLATION, Vector_3(lf.o, CGAL::ORIGIN)) );	
+
+			std::transform(filler.vertices_begin(), filler.vertices_end(), filler.vertices_begin(), rescalor);
+			filler.factor = matcher.scale * shrink_factor;
+			filler.facet_idx = fid;
+			filler.lib_idx = matcher.val;
+			pack_objects.push_back(filler);
+		}
+		generate_RDT();
+		stop_update_DT = false;
+		compute_clipped_VD();
+		std::cout<<"End filling holes.\n";
 	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{
@@ -915,9 +1012,9 @@ namespace Geex
 			/* objective function */
 			// x[0]- x[4]: k cos sin t1 t2
 			/*************************** No weighted objective ****************************/
-			//*obj    = x[0];
+			*obj    = x[0];
 			/**************************** Weighted objective ***********************/
-			*obj = p->containments[*(unsigned int*)userParams].compute_extended_object(x[0], x[2], x[3]);
+			//*obj = p->containments[*(unsigned int*)userParams].compute_extended_object(x[0], x[2], x[3]);
 #ifdef _CILK_
 			p->containments[*(unsigned int*)userParams].compute_constraints(x, c, m);
 #else
@@ -928,13 +1025,13 @@ namespace Geex
 		else if (evalRequestCode == KTR_RC_EVALGA)
 		{
 			/*************************** No weighted objective ****************************/
-			//objGrad[0] = 1.0;
-			//objGrad[1] = 0.0;
-			//objGrad[2] = 0.0;
-			//objGrad[3] = 0.0;
-			/**************************** Weighted objective ***********************/
-			p->containments[*(unsigned int*)userParams].compute_extended_object_grad(x[0], x[2], x[3], &objGrad[0], &objGrad[2], &objGrad[3]);
+			objGrad[0] = 1.0;
 			objGrad[1] = 0.0;
+			objGrad[2] = 0.0;
+			objGrad[3] = 0.0;
+			/**************************** Weighted objective ***********************/
+			//p->containments[*(unsigned int*)userParams].compute_extended_object_grad(x[0], x[2], x[3], &objGrad[0], &objGrad[2], &objGrad[3]);
+			//objGrad[1] = 0.0;
 
 #ifdef _CILK_
 			p->containments[*(unsigned int*)userParams].compute_constraint_grads(x, jac);

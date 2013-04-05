@@ -21,6 +21,7 @@ namespace Geex
 	public:
 		double factor; //scaling factor
 		unsigned int lib_idx;
+		int facet_idx; // index of triangle on which this object lies on
 		//int group_id;
 	};
 

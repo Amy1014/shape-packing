@@ -432,7 +432,10 @@ namespace Geex {
 			nbNeighbors[v1]++;
 		}
 		for (unsigned int i = 0; i < avgcurs.size(); i++)
+		{
 			avgcurs[i] /= nbNeighbors[i];
+			vertices_[i].curvature = avgcurs[i]; // load curvature at this vertex
+		}
 //		for(int i=0; i<nv; ++i) {
 //		    double w ; 
 //		    in >> w ;

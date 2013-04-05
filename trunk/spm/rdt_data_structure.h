@@ -27,15 +27,16 @@ namespace Geex
 		int group_id;
 		Point_3 mp; // projection point on mesh
 		std::vector<Point_3> vd_vertices;
-		std::vector<double> weights; // weights for optimization
+		bool contain_non_delaunay_facet;
+		//std::vector<double> weights; // weights for optimization
 		int idx;
 	};
 
 	template <class Refs>
 	struct MyHalfEdge : public CGAL::HalfedgeDS_halfedge_base<Refs, CGAL::Tag_true, CGAL::Tag_true, CGAL::Tag_true> 
 	{
-	public:
-		bool visited;
+	//public:
+	//	bool visited;
 	};
 
 	template <class Refs>

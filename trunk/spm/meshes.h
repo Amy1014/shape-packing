@@ -99,6 +99,7 @@ namespace Geex {
 		double           weight_ ;
 		std::vector<int> faces_;
 		real             tex_coord_ ;
+		double			curvature;
 		//	int              gidx_;  // index of nearest delaunay vertex
 	};
 
@@ -487,6 +488,8 @@ namespace Geex {
 		const vector<pair<int, int>>& getFeatureEdges() const { return featureEdges; }
 		inline double getMaxFacetWeight() const { return maxFacetWeight; }
 		inline double getMinFacetWeight() const { return minFacetWeight; }
+
+		double curvature_at_vertex(int idx) const { return vertices_[idx].curvature; }
  
 	protected:
 		int                       nb_vertices_ ;
