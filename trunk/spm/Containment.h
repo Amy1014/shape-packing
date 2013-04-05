@@ -39,6 +39,7 @@ namespace Geex {
 		Segment_2 seg_;
 		double dist_;
 		Vector_2 n_; // unit vector perpendicular to the segment
+
 		double transformed_signed_area(const Transformation_2& aff)
 		{
 			Point_2 pp = aff(p_);
@@ -76,6 +77,10 @@ namespace Geex {
 		void compute_translation_constraint_grads(const double *const x, double *jac);
 		int get_constaint_list_size(){return const_list_.size();}
 
+		// for motion direction control
+		double compute_extended_object(double k, double tx, double ty);
+		void compute_extended_object_grad(double k, double tx, double ty, double *grad_k, double *grad_tx, double *grad_ty);
+
 		//void afftrans2inner_pgn(const Transformation_2& aff){inner_pgn_ = CGAL::transform(aff, inner_pgn_);}
 		void afftrans2inner_pgn(const Transformation_2& aff){inner_pgn_ = CGAL::transform(aff, origin_inner_pgn_);}
 
@@ -93,6 +98,13 @@ namespace Geex {
 
 	public:
 		std::vector<Constraint> const_list_;
+
+		// extension
+		static double lambda;
+		double region_area;
+		std::vector<double> weights; // angle between triangle normal and tangent plane normal
+		std::vector<Point_2> vd_vertices;
+		Point_2 pgn_cent;
 
 	private:
 		Polygon_2 inner_pgn_;  // the inner polygon

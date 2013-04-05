@@ -194,6 +194,9 @@ namespace Geex
 		lf.u = u/CGAL::sqrt(u.squared_length());
 		lf.v = CGAL::cross_product(lf.w, lf.u);
 
+		// voronoi region
+		std::vector<Segment_2> vr_region;
+
 		// formulate optimization 
 #ifdef _CILK_
 		containments[id].clear();
@@ -215,16 +218,23 @@ namespace Geex
 					const Point_3& s = bisec_pnts[j];
 					const Point_3& t = bisec_pnts[j+1];
 #ifdef _CILK_
-					containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
+					Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
+					containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), Segment_2(s2, t2), ref_point));
+					vr_region.push_back(Segment_2(s2, t2));
 					//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s, t))));
 #else
 					containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
 					//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point_3()), lf.to_uv(Segment_3(s, t))));
 #endif
 				}
+				const std::vector<double>& ws = samp_pnts[i]->weights;
+				for (unsigned int j = 0; j < bisec_pnts.size(); j++)
+				{
+					containments[id].vd_vertices.push_back(lf.to_uv(bisec_pnts[j]));
+					containments[id].weights.push_back(ws[j]);
+				}
 			}
 		else
-		{
 			for (unsigned int i = 0; i < pack_objects[id].size(); i++)
 			{
 				for (unsigned int j = 0; j < samp_pnts.size(); j++)
@@ -239,15 +249,28 @@ namespace Geex
 						const Point_3& t = bisec_pnts[k+1];
 #ifdef _CILK_
 						//containments[id].const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
-						containments[id].const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), lf.to_uv(Segment_3(s, t))));
+						Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
+						containments[id].const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), Segment_2(s2, t2)));
+						vr_region.push_back(Segment_2(s2, t2));
 #else
 						//containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s,t)), ref_point));
 						containment.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), lf.to_uv(Segment_3(s, t))));
 #endif
 					}
+					const std::vector<double>& ws = samp_pnts[j]->weights;
+					for (unsigned int k = 0; k < bisec_pnts.size(); k++)
+					{
+						containments[id].vd_vertices.push_back(lf.to_uv(bisec_pnts[k]));
+						containments[id].weights.push_back(ws[k]);
+					}
 				}
 			}
-		}
+		// construct extended objective function
+		containments[id].region_area = 0.0;
+		for (unsigned int i = 0; i < vr_region.size(); i++)
+			containments[id].region_area += std::fabs(CGAL::area(vr_region[0].source(), vr_region[i].source(), vr_region[i].target()));
+		containments[id].pgn_cent = lf.to_uv(lf.o);
+
 		const unsigned int try_time_limit = 10;
 		unsigned int try_times = 1;
 		int knitro_res;
@@ -891,7 +914,10 @@ namespace Geex
 		{
 			/* objective function */
 			// x[0]- x[4]: k cos sin t1 t2
-			*obj    = x[0];
+			/*************************** No weighted objective ****************************/
+			//*obj    = x[0];
+			/**************************** Weighted objective ***********************/
+			*obj = p->containments[*(unsigned int*)userParams].compute_extended_object(x[0], x[2], x[3]);
 #ifdef _CILK_
 			p->containments[*(unsigned int*)userParams].compute_constraints(x, c, m);
 #else
@@ -901,10 +927,15 @@ namespace Geex
 		}
 		else if (evalRequestCode == KTR_RC_EVALGA)
 		{
-			objGrad[0] = 1.0;
+			/*************************** No weighted objective ****************************/
+			//objGrad[0] = 1.0;
+			//objGrad[1] = 0.0;
+			//objGrad[2] = 0.0;
+			//objGrad[3] = 0.0;
+			/**************************** Weighted objective ***********************/
+			p->containments[*(unsigned int*)userParams].compute_extended_object_grad(x[0], x[2], x[3], &objGrad[0], &objGrad[2], &objGrad[3]);
 			objGrad[1] = 0.0;
-			objGrad[2] = 0.0;
-			objGrad[3] = 0.0;
+
 #ifdef _CILK_
 			p->containments[*(unsigned int*)userParams].compute_constraint_grads(x, jac);
 #else
