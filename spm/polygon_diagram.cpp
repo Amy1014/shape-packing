@@ -127,12 +127,19 @@ namespace Geex
 			return;
 		assert(clipping_planes.size() == nb_groups);
 		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != rdt_ds.vertices_end(); ++vit)
+		{
 			vit->vd_vertices.clear();
+			vit->weights.clear();
+		}
 		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 		for (unsigned int i = 0; i < nb_groups; i++)
 		{
 			const VertGroup& vg = samp_pnts[i];
 			const Plane_3& pln = clipping_planes[i];
+
+			// for curvature correction optimization
+			Vector_3 pln_nm = pln.orthogonal_vector();
+			cgal_vec_normalize(pln_nm);
 			for (unsigned int j = 0; j < vg.size(); j++)
 			{
 				int gid = vg[j]->group_id;
@@ -163,13 +170,23 @@ namespace Geex
 							c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
 							vg[j]->vd_vertices.push_back(c);
 
+							// for curvature corretion optimization
+							Vector_3 tri_nm = CGAL::orthogonal_vector(v_pre->mp, v_nxt->mp, vg[j]->mp);
+							cgal_vec_normalize(tri_nm);
+							double w = std::fabs(pln_nm * tri_nm);
+							vg[j]->weights.push_back(w);
 						}
 						else
 						{
 							c = CGAL::centroid(v_pre->mp, v_nxt->mp, vg[j]->mp);
 							vg[j]->vd_vertices.push_back(c);
-						}
-						
+
+							// for curvature corretion optimization
+							Vector_3 tri_nm = CGAL::orthogonal_vector(v_pre->mp, v_nxt->mp, vg[j]->mp);
+							cgal_vec_normalize(tri_nm);
+							double w = std::fabs(pln_nm * tri_nm);
+							vg[j]->weights.push_back(w);
+						}				
 					}
 					++current_edge;
 				} while (current_edge != end);

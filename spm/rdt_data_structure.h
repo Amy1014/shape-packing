@@ -25,9 +25,9 @@ namespace Geex
 			: CGAL::HalfedgeDS_vertex_base<Refs, CGAL::Tag_true, Point>(p), group_id(id) {}
 
 		int group_id;
-		Point_3 mp;
-		//Point_3 sim_p;
+		Point_3 mp; // projection point on mesh
 		std::vector<Point_3> vd_vertices;
+		std::vector<double> weights; // weights for optimization
 		int idx;
 	};
 

@@ -3,6 +3,8 @@
 
 namespace Geex {
 
+	double Containment::lambda = 1.0;
+
 void Containment::load_polygons(const std::string& inner_pgn_filename,const std::string& outer_pgn_filename)
 {
 	inner_pgn_.clear();
@@ -73,6 +75,10 @@ void Containment::clear()
 	inner_pgn_.clear();
 	outer_pgn_.clear();
 	const_list_.clear();
+
+	weights.clear();
+	vd_vertices.clear();
+
 }
 
 void Containment::insert_constraint(const Point_2& p,const Segment_2& seg, double dist)
@@ -190,6 +196,37 @@ void Containment::compute_translation_constraint_grads(const double *const x, do
 		jac[idx+2] = const_list_[i].n_.y();
 		idx += 3;
 	}
+}
+
+double Containment::compute_extended_object(double k, double tx, double ty)
+{
+
+	double weighted_dist = 0.0;
+
+	Point_2 translated_cent = pgn_cent + Vector_2(tx, ty);
+
+	for (unsigned int i = 0; i < vd_vertices.size(); i++)
+	{
+		double squared_dist = CGAL::squared_distance(vd_vertices[i], translated_cent);
+		weighted_dist += weights[i]*squared_dist;
+	}
+
+	return (lambda*weighted_dist)/region_area + k;
+}
+
+void Containment::compute_extended_object_grad(double k, double tx, double ty, double *grad_k, double *grad_tx, double *grad_ty)
+{
+	*grad_k = 1.0;
+	double grad_x_sum = 0.0, grad_y_sum = 0.0;
+	for (unsigned int i = 0; i < vd_vertices.size(); i++)
+	{
+		grad_x_sum += weights[i]*(pgn_cent.x() + tx - vd_vertices[i].x());
+		grad_y_sum += weights[i]*(pgn_cent.y() + ty - vd_vertices[i].y());
+	}
+
+	*grad_tx = 2*lambda*grad_x_sum/region_area;
+	*grad_ty = 2*lambda*grad_y_sum/region_area;
+
 }
 } // End of namespace
 
