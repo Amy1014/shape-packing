@@ -14,7 +14,7 @@ namespace Geex
 		{c1, c3, c1}, {c1, c1, c3},	{c1, c2, c3}, {c1, c3, c2}, 
 		{c2, c1, c3}, {c2, c3, c1}, {c3, c1, c2}, {c3, c2, c1}
 	};
-	GLfloat SPM_Graphics::surf_diff[4] = {0.543f, 0.822f, 1.0f, 1.0f};
+	GLfloat SPM_Graphics::surf_diff[4] = {0.543f, 0.543f, 1.0f, 1.0f};
 	GLfloat SPM_Graphics::surf_spec[4] = {0.9f, 0.9f, 0.9f, 1.0f} ;
 	GLfloat SPM_Graphics::surf_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};
 	//GLfloat SPM_Graphics::pgn_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};

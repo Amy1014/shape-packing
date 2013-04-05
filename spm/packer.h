@@ -63,6 +63,7 @@ namespace Geex
 		double front_edge_len() const { return frontier_edge_size; }
 		void front_edge_len(double len) { frontier_edge_size = len; }
 		std::vector<Hole>& get_holes() const { return holes; }
+		double& get_epsilon() { return epsilon; }
 
 		static Packer* instance() { return instance_; }
 
@@ -74,6 +75,8 @@ namespace Geex
 
 		// hole detection
 		void detect_holes();
+		// hole filling
+		void fill_holes();
 
 		// replace
 		void replace();
@@ -117,6 +120,9 @@ namespace Geex
 		// constraint transformation to avoid triangle flip
 		void constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, vector<double>& min_factors);
 
+		// mapping from curvature to transformation
+		void curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id);
+
 	private:
 
 		static Packer *instance_;
@@ -139,12 +145,13 @@ namespace Geex
 		static double PI;
 		double rot_lower_bd;
 		double rot_upper_bd;
+		double epsilon;
 
 		/** control variable **/
 		bool stop_update_DT;
 
 		/** helper classes **/
-public:
+	private:
 		struct Local_frame // represent a local frame for which a transformation is effective
 		{
 			Vector_3 u;

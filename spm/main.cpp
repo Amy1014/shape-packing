@@ -24,7 +24,7 @@ namespace Geex {
 	void TW_CALL tw_enlarge(void*);
 	void TW_CALL tw_save_triangulation(void*);
 	//void TW_CALL tw_save(void*);
-	//void TW_CALL tw_fill(void*);
+	void TW_CALL tw_fill(void*);
 	//void TW_CALL tw_merge(void*);
 	//void TW_CALL tw_feature_set_callback(const void*, void *);
 	//void TW_CALL tw_feature_get_callback(void*, void*);
@@ -99,6 +99,11 @@ namespace Geex {
 		{
 			spm()->detect_holes();
 		}
+		void fill_holes()
+		{
+			spm()->fill_holes();
+			post_update();
+		}
 		void hole_size_set_callback(double holesize)
 		{
 			spm()->hole_size(holesize);
@@ -171,19 +176,15 @@ namespace Geex {
 			TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,
 						tw_front_len_get_callback, NULL, "min=0.0 step=0.001");
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r");
-			TwAddVarRW(function_bar, "enlarge id", TW_TYPE_INT32, &enlarge_id, "");
-			TwAddVarRW(function_bar, "enlarge factor", TW_TYPE_DOUBLE, &enlarge_factor, "");
-			TwAddVarRW(function_bar, "rot angle", TW_TYPE_DOUBLE, &enlarge_theta, "");
-			TwAddVarRW(function_bar, "trans_x", TW_TYPE_DOUBLE, &enlarge_tx, "");
-			TwAddVarRW(function_bar, "trans_y", TW_TYPE_DOUBLE, &enlarge_ty, "");
-			TwAddButton(function_bar, "enlarge", tw_enlarge, NULL, "key=e");
+			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999");
+			//TwAddVarRW(function_bar, "enlarge id", TW_TYPE_INT32, &enlarge_id, "");
+			//TwAddVarRW(function_bar, "enlarge factor", TW_TYPE_DOUBLE, &enlarge_factor, "");
+			//TwAddVarRW(function_bar, "rot angle", TW_TYPE_DOUBLE, &enlarge_theta, "");
+			//TwAddVarRW(function_bar, "trans_x", TW_TYPE_DOUBLE, &enlarge_tx, "");
+			//TwAddVarRW(function_bar, "trans_y", TW_TYPE_DOUBLE, &enlarge_ty, "");
+			//TwAddButton(function_bar, "enlarge", tw_enlarge, NULL, "key=e");
 			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t");
-			//TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->setMinScalor(), ""/*"min=0.01 max=0.99"*/);
-			//TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->setMaxScalor(), ""/*"min=1.0 max=1.99"*/);
-			//TwAddVarRW(function_bar, "Area Coverage", TW_TYPE_DOUBLE, &spm()->setAreaCoverage(), "min=0.01 max=1.0");
-			
-			//TwAddVarRW(function_bar, "Scale Factor", TW_TYPE_DOUBLE, &scalingFactor, "min=0.0 step=0.01");
-			//TwAddButton(function_bar, "Scale", tw_adjust, NULL, "key=a");
+
 			toggle_skybox_CB() ;
             glut_viewer_add_toggle('b', glut_viewer_is_enabled_ptr(GLUT_VIEWER_BACKGROUND), "switch Color/BW") ;
             glut_viewer_add_toggle('T', &viewer_properties_->visible(), "viewer properties") ;
@@ -236,7 +237,7 @@ void TW_CALL tw_save_triangulation(void* clientData)
 	spm_app()->save_triangulation();
 }
 //void TW_CALL tw_save( void *clientData ) { spm_app()->save(); }
-//void TW_CALL tw_fill( void *clientData ) { spm_app()->fill(); }
+void TW_CALL tw_fill( void *clientData ) { spm_app()->fill_holes(); }
 //void TW_CALL tw_merge(void *clientData) { spm_app()->merge(); /*spm_app()->fitPlanes();*/ }
 //void TW_CALL tw_rpack(void *clientData) { spm_app()->rpack(); }
 //void TW_CALL tw_feature_set_callback(const void* fc, void *clientData) 

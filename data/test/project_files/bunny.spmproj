@@ -1,7 +1,7 @@
 < SpMProject >  Elephant Test </ SPMProject >
 
-< MeshFile >          ..\..\surfaces\bunny_smoothed.obj        </ MeshFile >    
+< MeshFile >          ..\..\surfaces\bunny.obj        </ MeshFile >    
             
 < polygonfile >      ..\..\polygons\voronoi418_bunny.poly      </ PolygonFile >
 
-< DensityFile >      ..\..\surfaces\bunny_smoothed.cur </ DensityFile >
+< DensityFile >      ..\..\surfaces\bunny.cur </ DensityFile >

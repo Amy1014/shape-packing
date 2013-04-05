@@ -129,7 +129,8 @@ namespace Geex
 		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != rdt_ds.vertices_end(); ++vit)
 		{
 			vit->vd_vertices.clear();
-			vit->weights.clear();
+			vit->contain_non_delaunay_facet = false;
+			//vit->weights.clear();
 		}
 		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 		for (unsigned int i = 0; i < nb_groups; i++)
@@ -171,21 +172,21 @@ namespace Geex
 							vg[j]->vd_vertices.push_back(c);
 
 							// for curvature corretion optimization
-							Vector_3 tri_nm = CGAL::orthogonal_vector(v_pre->mp, v_nxt->mp, vg[j]->mp);
-							cgal_vec_normalize(tri_nm);
-							double w = std::fabs(pln_nm * tri_nm);
-							vg[j]->weights.push_back(w);
+							//Vector_3 tri_nm = CGAL::orthogonal_vector(v_pre->mp, v_nxt->mp, vg[j]->mp);
+							//cgal_vec_normalize(tri_nm);
+							//double w = std::fabs(pln_nm * tri_nm);
+							//vg[j]->weights.push_back(w);
 						}
 						else
 						{
 							c = CGAL::centroid(v_pre->mp, v_nxt->mp, vg[j]->mp);
 							vg[j]->vd_vertices.push_back(c);
-
+							vg[j]->contain_non_delaunay_facet = true;
 							// for curvature corretion optimization
-							Vector_3 tri_nm = CGAL::orthogonal_vector(v_pre->mp, v_nxt->mp, vg[j]->mp);
-							cgal_vec_normalize(tri_nm);
-							double w = std::fabs(pln_nm * tri_nm);
-							vg[j]->weights.push_back(w);
+							//Vector_3 tri_nm = CGAL::orthogonal_vector(v_pre->mp, v_nxt->mp, vg[j]->mp);
+							//cgal_vec_normalize(tri_nm);
+							//double w = std::fabs(pln_nm * tri_nm);
+							//vg[j]->weights.push_back(w);
 						}				
 					}
 					++current_edge;
@@ -218,60 +219,6 @@ namespace Geex
 		else
 			return false;
 	}
-// 	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(Halfedge_handle e)
-// 	{
-// 		Vertex_handle vi = e->next()->vertex(), vi_cw = e->vertex(), vi_ccw = e->prev()->vertex();
-// 		Halfedge_handle oe = e->opposite();
-// 		Vertex_handle vj = oe->next()->vertex(), vj_cw = oe->vertex(), vj_ccw = oe->prev()->vertex();
-// 		double a2 = CGAL::squared_distance(vi->mp, vi_cw->mp),
-// 			b2 = CGAL::squared_distance(vi->mp, vi_ccw->mp),
-// 			c2 = CGAL::squared_distance(vi_cw->mp, vi_ccw->mp);
-// 		double cos_ang_i = (a2 + b2 - c2) / (2*std::sqrt(a2*b2));
-// 		
-// 		if (std::sqrt(a2*b2) == 0.0)
-// 		{
-// 			std::cout<<"zero denominator!\n";
-// 			system("pause");
-// 		}
-// 
-// 		double sin_ang_i = std::sqrt(1-cos_ang_i*cos_ang_i);
-// 		a2 = CGAL::squared_distance(vj->mp, vj_cw->mp);
-// 		b2 = CGAL::squared_distance(vj->mp, vj_ccw->mp);
-// 		c2 = CGAL::squared_distance(vj_cw->mp, vj_ccw->mp);
-// 		double cos_ang_j = (a2 + b2 - c2)/(2*std::sqrt(a2*b2));
-// 		if (std::sqrt(a2*b2) == 0.0)
-// 		{
-// 			std::cout<<"zero denominator!\n";
-// 			system("pause");
-// 		}
-// 		double sin_ang_j = std::sqrt(1 - cos_ang_j*cos_ang_j);
-// 		if (Geex::Numeric::is_nan(sin_ang_i) || Geex::Numeric::is_nan(sin_ang_j))
-// 		{
-// 			std::cout.precision(15);
-// 			std::cout<<"Non meaningful sine: sin_ang_i = "<<sin_ang_i<<", sin_ang_j = "<<sin_ang_j<<std::endl;
-// 			std::cout<<"cos_ang_i = "<<cos_ang_i<<", cos_ang_j = "<<cos_ang_j<<std::endl;
-// 			std::cout<<"1 - cos_ang_i^2 = "<<1-cos_ang_i*cos_ang_i<<", 1 - cos_ang_j^2 = "<<1 - cos_ang_j*cos_ang_j<<std::endl;
-// 			system("pause");
-// 		}
-// 		double sin_ij = sin_ang_i*cos_ang_j + sin_ang_j*cos_ang_i;
-// 
-// 		if (Geex::Numeric::is_nan(sin_ij) )
-// 		{
-// 			std::cout<<"sin_ij = "<<sin_ij<<std::endl;
-// 			std::ofstream of("four_points.txt");
-// 			of.precision(10);
-// 			of<<"triangle 1: <"<<vi->mp<<", "<<vi_cw->mp<<", "<<vi_ccw->mp<<">"<<std::endl;
-// 			of<<"triangle 2: <"<<vj->mp<<", "<<vj_cw->mp<<", "<<vj_ccw->mp<<">"<<std::endl;
-// 			system("pause");
-// 		}
-// 
-// 		if (sin_ij >= 0.0/*-1.0e-14*/) // sum of two opposite angles not larger than pi
-// 			return true;
-// 		else
-// 			return false;
-// 	}
-
-	//inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Halfedge_handle e, std::queue<Halfedge_handle>& q, std::set<Halfedge_handle>& s)
 	inline void RestrictedPolygonVoronoiDiagram::add_quadrilateral_edge(Halfedge_handle e, std::stack<Halfedge_handle>& q, std::set<Halfedge_handle>& s)
 	{
 		if (!e->is_border() && !e->opposite()->is_border())
