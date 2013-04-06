@@ -43,6 +43,7 @@
 
 #include <set>
 #include <map>
+#include <cctype>
 #include <CGAL/MP_Float.h> // by Wenchao Hu, for more accurate computation of cross product
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Vector_3.h>
@@ -489,7 +490,9 @@ namespace Geex {
 		inline double getMaxFacetWeight() const { return maxFacetWeight; }
 		inline double getMinFacetWeight() const { return minFacetWeight; }
 
-		double curvature_at_vertex(int idx) const { return vertices_[idx].curvature; }
+		inline double curvature_at_vertex(int idx) const { return vertices_[idx].curvature; }
+		//inline double get_max_curvature() const { return max_vert_curvature; }
+		//inline double get_min_curvature() const { return min_vert_curvature; }
  
 	protected:
 		int                       nb_vertices_ ;
@@ -543,6 +546,8 @@ namespace Geex {
 		set<int> facetHighCurvature;
 		double maxFacetWeight;
 		double minFacetWeight;
+		//double max_vert_curvature;
+		//double min_vert_curvature;
 		vector<pair<double, int>> facetWeight;
 		static double PI;
 

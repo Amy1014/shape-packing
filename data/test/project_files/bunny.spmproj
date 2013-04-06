@@ -4,4 +4,4 @@
             
 < polygonfile >      ..\..\polygons\voronoi418_bunny.poly      </ PolygonFile >
 
-< DensityFile >      ..\..\surfaces\bunny.cur </ DensityFile >
+< DensityFile >      ..\..\surfaces\bunny.txt </ DensityFile >

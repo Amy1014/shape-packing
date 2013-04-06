@@ -51,6 +51,8 @@ namespace Geex
 		GLboolean& show_hole_triangles() { return show_hole_triangles_; }
 		GLboolean& show_holes() { return show_holes_; }
 
+		GLboolean& show_curvatures() { return show_curvatures_; }
+
 		Polygon_draw_type& get_polygon_draw_type() { return how_to_draw_polygons; }
 
 		int& highlighted_group_id() { return highlighted_group; }
@@ -67,6 +69,9 @@ namespace Geex
 		void draw_voronoi_cell();
 		void draw_hole_triangles();
 		void draw_holes();
+		void draw_curvature();
+		void build_curv_color_list(); 
+		void cur_color_map(double cur, double min_cur, double max_cur, GLfloat& r, GLfloat& g, GLfloat& b);
 		// debug
 		void draw_all_vertices();
 
@@ -84,12 +89,14 @@ namespace Geex
 		GLboolean show_vertices_;
 		GLboolean show_hole_triangles_;
 		GLboolean show_holes_;
+		GLboolean show_curvatures_;
 
 		GLboolean show_local_frame_;
 
 		/** display list **/
 		GLuint triangulation_displist;
 		GLuint vc_displist;//voronoi cell display list
+		GLuint cur_color_displist;
 
 		int highlighted_group;
 		// colors

@@ -14,7 +14,7 @@ namespace Geex
 		{c1, c3, c1}, {c1, c1, c3},	{c1, c2, c3}, {c1, c3, c2}, 
 		{c2, c1, c3}, {c2, c3, c1}, {c3, c1, c2}, {c3, c2, c1}
 	};
-	GLfloat SPM_Graphics::surf_diff[4] = {0.543f, 0.543f, 1.0f, 1.0f};
+	GLfloat SPM_Graphics::surf_diff[4] = {0.3922f, 0.5843f, 0.9294f, 1.0f};
 	GLfloat SPM_Graphics::surf_spec[4] = {0.9f, 0.9f, 0.9f, 1.0f} ;
 	GLfloat SPM_Graphics::surf_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};
 	//GLfloat SPM_Graphics::pgn_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};
@@ -315,6 +315,54 @@ namespace Geex
 			glPoint_3(o + 0.1 * w);
 			glEnd();
 		}
+		glEnable(GL_LIGHTING);
+	}
+
+	void SPM_Graphics::cur_color_map(double cur, double min_cur, double max_cur, GLfloat& r, GLfloat& g, GLfloat& b)
+	{
+		if ( std::fabs(max_cur - min_cur) <= 1e-2 || min_cur > max_cur)
+		{
+			r = 0.0f;
+			g = 0.0f;
+			b = 1.0f;
+		}
+		else
+		{
+			double diff = max_cur - min_cur;
+			double mean = (min_cur + max_cur)/2.0;
+			r = ( cur - min_cur ) / diff ;
+			b = ( max_cur - cur ) / diff ;
+			if (cur <= mean)
+				g = ( cur - min_cur ) / (mean - min_cur);
+			else
+				g = ( max_cur - cur ) / (max_cur - mean);
+		}
+	}
+	void SPM_Graphics::build_curv_color_list()
+	{
+		const TriMesh& mesh = packer->mesh_domain();
+		double max_curvature = std::numeric_limits<double>::min();
+		double min_curvature = std::numeric_limits<double>::max();
+		for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
+		{
+			const MeshVertex& v = mesh.vertex(i);
+			max_curvature = std::max(v.curvature, max_curvature);
+			min_curvature = std::min(v.curvature, min_curvature);
+		}
+		glDisable(GL_LIGHTING);
+		cur_color_displist = glGenLists(1);
+		glNewList(cur_color_displist, GL_COMPILE);
+		glBegin(GL_TRIANGLES);
+		for (unsigned int i = 0; i < mesh.size(); i++)	
+		{
+			const Facet& f = mesh[i];
+			double v0_cur = mesh.curvature_at_vertex(f.vertex_index[0]);
+			double v1_cur = mesh.curvature_at_vertex(f.vertex_index[1]);
+			double v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
+			GLfloat r, g, b;
+			
+		}
+		glEndList();
 		glEnable(GL_LIGHTING);
 	}
 }
