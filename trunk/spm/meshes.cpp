@@ -57,6 +57,8 @@ namespace Geex {
 		featureAngleCriterion = 0.0;
 		highCurvatureCriterion = 0.2;
 		maxFacetWeight = minFacetWeight = 0.0;
+
+		//min_vert_curvature = max_vert_curvature = 0.0;
     }
 	TriMesh::~TriMesh() {
 		if(kdtree_) delete kdtree_ ;
@@ -386,6 +388,114 @@ namespace Geex {
 			(*this)[i].vertex_weight[j] = 1.f ;
 	}
 
+	bool TriMesh::load_density(const std::string& filename, double gamma)
+	{
+		std::ifstream in(filename.c_str()) ;
+		if(!in.is_open()) {
+			std::cerr << "could not open " << filename << std::endl ;
+			return false ;
+		}
+
+		char c;
+		in >> c;
+		while (!std::isdigit(c) && in)
+			in >> c;
+
+		if (!in)
+		{
+			std::cerr<<"Invalid curvature file: no data input.\n";
+			return false;
+		}
+		
+		// begin read curvature
+		std::vector<double> min_cur, max_cur;
+		min_cur.reserve(nb_vertices());
+		max_cur.reserve(nb_vertices());
+
+		while (in)
+		{
+			double val;
+			// min curvature
+			in >> val;
+			min_cur.push_back(val);
+			// ignore direction
+			in >> val; in >> val; in >> val;
+			// max curvature
+			in >> val;
+			max_cur.push_back(val);
+			// ignore direction
+			in >> val; in >> val; in >> val;
+			// go to the next vertex
+			int nxt_vert_idx;
+			in >> nxt_vert_idx;
+		}
+		if (min_cur.size() != nb_vertices() || max_cur.size() != nb_vertices())
+		{
+			std::cerr<<"Caution: number of vertices in curvature and mesh file does not match. Curvature will not be used!\n";
+			return false;
+		}
+
+		// take the larger curvature value in terms of absolute value
+		std::vector<double> curs(nb_vertices());
+		for (unsigned int i = 0; i < nb_vertices(); i++)
+			curs[i] = std::max(std::fabs(min_cur[i]), std::fabs(max_cur[i]));
+		std::vector<double> avgcurs(nb_vertices(), 0.0);
+		std::vector<int> nb_neighbors(nb_vertices(), 0);
+		for (unsigned int i = 0; i < size(); i++)
+		{
+			const Facet& f = operator[](i);
+			int vi0 = f.vertex_index[0], vi1 = f.vertex_index[1], vi2 = f.vertex_index[2];
+			avgcurs[vi0] += (curs[vi1]+curs[vi2]);
+			nb_neighbors[vi0] += 2;
+			avgcurs[vi1] += (curs[vi0]+curs[vi2]);
+			nb_neighbors[vi1] += 2;
+			avgcurs[vi2] += (curs[vi0]+curs[vi1]);
+			nb_neighbors[vi2] += 2;
+		}
+		// for the boundary, sum once more
+		for (BoundaryEdgeSet::const_iterator it = boundaryEdges.begin(); it != boundaryEdges.end(); it++)
+		{
+			int vi0 = it->first, vi1 = it->second;
+			avgcurs[vi0] += curs[vi1];
+			nb_neighbors[vi0]++;
+			avgcurs[vi1] += curs[vi0];
+			nb_neighbors[vi1]++;
+		}
+		//std::ofstream test_file("test.txt");
+		for (unsigned int i = 0; i < nb_vertices(); i++)
+		{
+			avgcurs[i] /= nb_neighbors[i];
+			vertices_[i].curvature = avgcurs[i]; // load curvature at this vertex
+			//if (min_vert_curvature > avgcurs[i])
+			//	min_vert_curvature = avgcurs[i];
+			//if (max_vert_curvature < avgcurs[i])
+			//	max_vert_curvature = avgcurs[i];
+			//test_file<<vertices_[i].curvature<<std::endl;
+		}
+		for (unsigned int i = 0; i < nb_vertices(); i++)
+			vertices_[i].weight() = pow(avgcurs[i]*2, gamma);
+
+		// compute face's weight by averaging weight of vertices
+		for(unsigned int i=0; i < size(); ++i)
+		{
+			Facet& F = (*this)[i] ;
+			for(int j=0; j<3; ++j) 
+				F.vertex_weight[j] = vertices_[F.vertex_index[j]].weight() ;
+		}
+		// compute facet weight and sort
+		facetWeight.resize(size());
+		for (int i = 0; i < size(); i++)
+		{
+			const Facet& f = operator[](i);
+			facetWeight[i].first = (f.vertex_weight[0] + f.vertex_weight[1] + f.vertex_weight[2])/3.0;
+			facetWeight[i].second = i;
+		}
+		std::sort(facetWeight.begin(), facetWeight.end(), PairDoubleIntCmp());
+		setHighCurvaturePercent(highCurvatureCriterion);
+		return true ;
+	}
+
+#if 0
     bool TriMesh::load_density(const std::string& filename, double gamma) {
 		std::ifstream in(filename.c_str()) ;
 		if(!in.is_open()) {
@@ -471,6 +581,7 @@ namespace Geex {
 		setHighCurvaturePercent(highCurvatureCriterion);
 		return true ;
 	}
+#endif
 
     void TriMesh::save(const std::string& filename) {
         std::ofstream out(filename.c_str()) ;

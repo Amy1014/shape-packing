@@ -799,7 +799,8 @@ namespace Geex
 				v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
 		//std::cout<<v0_cur<<", "<<v1_cur<<", "<<v2_cur<<std::endl;
 		//system("pause");
-		double avg_cur = (v0_cur + v1_cur + v2_cur) / 3.0;
+		double avg_cur = (v0_cur + v1_cur + v2_cur) / 3.0 /*std::max(v0_cur, v1_cur)*/;
+		//avg_cur = std::max(avg_cur, v2_cur);
 		if (avg_cur == 0.0)
 		{
 			//system("pause");
@@ -815,11 +816,18 @@ namespace Geex
 			para.tx *= temp;
 			para.ty *= temp;
 		}
-		double original_area = pack_objects[pgn_id].area();
-		if ( para.k * para.k * original_area * original_area > threshold * r * r)
+		//double original_area = pack_objects[pgn_id].area();
+		double pgn_radius2 = std::numeric_limits<double>::min();
+		Point_3 c = pack_objects[pgn_id].centroid();
+		for (unsigned int i = 0; i < pack_objects[pgn_id].size(); i++)
 		{
-			double temp = std::sqrt(threshold)*r/(para.k*std::sqrt(original_area));
+			pgn_radius2 = std::max(pgn_radius2, CGAL::squared_distance(c, pack_objects[pgn_id].vertex(i)));
+		}
+		if ( para.k * para.k * pgn_radius2 > threshold * r * r)
+		{
+			double temp = std::sqrt(threshold)*r/(para.k*std::sqrt(pgn_radius2));
 			para.k = std::max(1.0, para.k*temp);
+			//std::cout<<"Curvature constrains scale factor.\n";
 		}
 	}
 

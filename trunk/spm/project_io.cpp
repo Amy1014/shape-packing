@@ -125,7 +125,7 @@ namespace Geex
 		// possibly load density(curvature) file
 		it = attr_val.find("DensityFile");
 		if ( it != attr_val.end() )
-			has_density_input_ = mesh.load_density(it->second, 0.5);
+			has_density_input_ = mesh.load_density(it->second, 1.2);
 
 		return *this;
 	}
