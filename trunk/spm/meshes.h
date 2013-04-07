@@ -457,12 +457,12 @@ namespace Geex {
 			minb = bbox_[0] ;
 			maxb = bbox_[1] ;
 		}
-		real xmin() { return bbox_[0][0] ; } 
-		real xmax() { return bbox_[1][0] ; } 
-		real ymin() { return bbox_[0][1] ; } 
-		real ymax() { return bbox_[1][1] ; } 
-		real zmin() { return bbox_[0][2] ; } 
-		real zmax() { return bbox_[1][2] ; } 
+		real xmin() const { return bbox_[0][0] ; } 
+		real xmax() const { return bbox_[1][0] ; } 
+		real ymin() const { return bbox_[0][1] ; } 
+		real ymax() const { return bbox_[1][1] ; } 
+		real zmin() const { return bbox_[0][2] ; } 
+		real zmax() const { return bbox_[1][2] ; } 
 
 		void build_kdtree() ;
 		vec3 project_to_mesh(const vec3& pt, vec3& norm) ;

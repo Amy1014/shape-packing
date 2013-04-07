@@ -37,6 +37,7 @@ namespace Geex
 	{
 		glDeleteLists(triangulation_displist, 1);
 		glDeleteLists(vc_displist, 1);
+		glDeleteLists(cur_color_displist, 1);
 	}
 
 	inline void SPM_Graphics::gl_table_color(int index)
@@ -64,6 +65,8 @@ namespace Geex
 			draw_holes();
 		if (show_local_frame_)
 			draw_local_frames();
+		if (show_curvatures_)
+			glCallList(cur_color_displist);
 	}
 
 	void SPM_Graphics::draw_mesh()
@@ -87,6 +90,7 @@ namespace Geex
 		}
 		glPopMatrix();
 		glDisable(GL_LIGHTING);
+		build_curv_color_list();
 	}
 
 	void SPM_Graphics::draw_polygons()
@@ -320,7 +324,7 @@ namespace Geex
 
 	void SPM_Graphics::cur_color_map(double cur, double min_cur, double max_cur, GLfloat& r, GLfloat& g, GLfloat& b)
 	{
-		if ( std::fabs(max_cur - min_cur) <= 1e-2 || min_cur > max_cur)
+		if ( std::fabs(max_cur - min_cur) < 1.0 || min_cur > max_cur)
 		{
 			r = 0.0f;
 			g = 0.0f;
@@ -328,18 +332,24 @@ namespace Geex
 		}
 		else
 		{
-			double diff = max_cur - min_cur;
 			double mean = (min_cur + max_cur)/2.0;
-			r = ( cur - min_cur ) / diff ;
-			b = ( max_cur - cur ) / diff ;
 			if (cur <= mean)
-				g = ( cur - min_cur ) / (mean - min_cur);
+			{
+				r = 0.0f ;
+				b = ( mean - cur ) / ( mean - min_cur );
+				g = ( cur - min_cur ) / ( mean - min_cur );
+			}
 			else
-				g = ( max_cur - cur ) / (max_cur - mean);
+			{
+				b = 0.0f;
+				g = ( max_cur - cur ) / ( max_cur - mean );
+				r = ( cur - mean ) / ( max_cur - mean );
+			}
 		}
 	}
 	void SPM_Graphics::build_curv_color_list()
 	{
+	
 		const TriMesh& mesh = packer->mesh_domain();
 		double max_curvature = std::numeric_limits<double>::min();
 		double min_curvature = std::numeric_limits<double>::max();
@@ -349,19 +359,65 @@ namespace Geex
 			max_curvature = std::max(v.curvature, max_curvature);
 			min_curvature = std::min(v.curvature, min_curvature);
 		}
-		glDisable(GL_LIGHTING);
+
+		double xmin, xmax, ymin, ymax, zmin, zmax;
+		packer->get_bbox(xmin, ymin, zmin, xmax, ymax, zmax);
+
 		cur_color_displist = glGenLists(1);
 		glNewList(cur_color_displist, GL_COMPILE);
+		GLint old_shade_model;
+		glGetIntegerv(GL_SHADE_MODEL, &old_shade_model);
+		glDisable(GL_LIGHTING);
+		glShadeModel(GL_SMOOTH);
+		GLfloat r, g, b;
+
+		// draw color bar
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();	
+		glLoadIdentity();
+		int glut_viewer_W = 800;
+		int glut_viewer_H = 800;
+		glut_viewer_get_screen_size(&glut_viewer_W, &glut_viewer_H);
+		glOrtho(0, glut_viewer_W, glut_viewer_H, 0, 0, 1);
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+		glBegin(GL_QUADS);	
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex2i(glut_viewer_W - 50, 30); 
+		glVertex2i(glut_viewer_W - 30, 30);
+
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex2i(glut_viewer_W - 30, (glut_viewer_H)/2);
+		glVertex2i(glut_viewer_W - 50, (glut_viewer_H)/2); 
+
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex2i(glut_viewer_W - 50, (glut_viewer_H)/2); 
+		glVertex2i(glut_viewer_W - 30, (glut_viewer_H)/2);
+
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glVertex2i(glut_viewer_W - 30, glut_viewer_H - 30); 
+		glVertex2i(glut_viewer_W - 50, glut_viewer_H - 30); 
+		glEnd();
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+
 		glBegin(GL_TRIANGLES);
 		for (unsigned int i = 0; i < mesh.size(); i++)	
 		{
 			const Facet& f = mesh[i];
-			double v0_cur = mesh.curvature_at_vertex(f.vertex_index[0]);
-			double v1_cur = mesh.curvature_at_vertex(f.vertex_index[1]);
-			double v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
-			GLfloat r, g, b;
-			
+			for (int j = 0; j < 3; j++)
+			{
+				double v_cur = mesh.curvature_at_vertex(f.vertex_index[j]);
+				cur_color_map(v_cur, min_curvature, max_curvature, r, g, b);
+				glColor3f(r, g, b);
+				glVertex(f.vertex[j]);
+			}
 		}
+		glEnd();
+		glShadeModel(old_shade_model);
 		glEndList();
 		glEnable(GL_LIGHTING);
 	}
