@@ -8,6 +8,8 @@ namespace Geex
 	const string ProjectIO::error_prj_file_fail("Error: Failure to open project configuration file!");
 	const string ProjectIO::error_pgn_file_fail("Error: Failure to open polygon file!");
 	const string ProjectIO::error_mesh_file_fail("Error: Failure to open mesh file!");
+	const string ProjectIO::error_texture_input("Error: No texture image input!\n");
+
 	ProjectIO::ProjectIO(string prj_config_file)
 	{
 		has_density_input_ = false;
@@ -115,6 +117,28 @@ namespace Geex
 		return *this;
 	}
 
+	ProjectIO& ProjectIO::operator>>(std::vector<string>& texture_files)
+	{
+		texture_files.clear();
+		TagLookupTable::const_iterator it = attr_val.find("TextureImageDir");
+		if ( it == attr_val.end() )
+		{
+			std::cout<<error_texture_input<<std::endl;
+			return;
+		}
+		std::vector<std::string> all_files;
+		Geex::FileSystem::get_files(it->second, all_files);
+		if (all_files.empty())
+		{
+			std::cout << "Error: The input directory \""<<it->second<<"\" does not exist!\n";
+			return;
+		}
+		// filter out image file
+		for (unsigned int i = 0; i < all_files.size(); i++)
+			if (Geex::FileSystem::extension(all_files[i]) == "jpg")
+				texture_files.push_back(all_files[i]);
+		return *this;
+	}
 	ProjectIO& ProjectIO::operator>>(TriMesh& mesh)
 	{
 		TagLookupTable::const_iterator it = attr_val.find("MeshFile");

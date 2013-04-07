@@ -146,7 +146,7 @@ namespace Geex {
             TwBar* graphics_bar = TwNewBar("Graphics");
 			TwDefine("Graphics position='16 10' size='200 250' alpha=200"); 
 			TwAddVarRW(graphics_bar, "Domain Mesh", TW_TYPE_BOOL8, &spm()->show_mesh(), "group = 'Surface' ");
-
+			TwAddVarRW(graphics_bar, "Curvature", TW_TYPE_BOOL8, &spm()->show_curvatures(), "group = 'Surface' ");
 			
 			
 			TwEnumVal draw_polygon_mode[] = {

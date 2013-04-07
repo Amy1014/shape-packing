@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <functional>
 #include <cctype>
+#include <Geex/basics/file_system.h>
 #include "spm_cgal.h"
 #include "meshes.h"
 
@@ -42,6 +43,7 @@ public:
 	// read triangle mesh
 	ProjectIO& operator>>(TriMesh& mesh);
 	
+	ProjectIO& operator>>(std::vector<std::string>& texture_files); // <texture name, texture file path>
 	
 	/** output **/
 	void dump_results(const string& filename, const string& directory="");
@@ -84,6 +86,8 @@ private:
 	const static string error_prj_file_fail;
 	const static string error_pgn_file_fail;
 	const static string error_mesh_file_fail;
+	const static string error_texture_input;
+	const static string error_texture_directory;
 };
 
 }
