@@ -66,6 +66,52 @@ namespace Geex
 	}
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
+		if (pio.has_density_input()) // put according to density function
+		{
+			double total_weight = 0.0, res = 0.0;
+			for (unsigned int i = 0; i < mesh.size(); i++)
+				total_weight += mesh[i].weight();
+			for (unsigned int i = 0; i < mesh.size(); i++)
+			{
+				double nf = nb_init_polygons*mesh[i].weight()/total_weight;
+				int n(nf+res);
+				if ( n >= 1 )
+				{
+					res = nf + res - n; // fractional part
+
+					int nbput = std::min<int>(n, mesh.vertex(i).faces_.size());
+					for (int j = 0; j < nbput; j++)
+					{
+						int idx = mesh.vertex(i).faces_[j];
+						if ( init_facets.find(idx) != init_facets.end() )	continue;
+						init_facets.insert(idx);
+					}
+				}
+				else 
+					res += nf;
+			}
+			// pick up the lost ones
+			while ( init_facets.size() < nb_init_polygons )
+			{
+				int idx = ::rand()%mesh.size();
+				while ( init_facets.find(idx) != init_facets.end() )
+					idx = ::rand()%mesh.size();
+				init_facets.insert(idx);
+			}
+		}
+		else   // if no density specified, uniformly put	
+		{
+			for (unsigned int i = 0; i < nb_init_polygons; i++)
+			{
+				int idx = ::rand()%mesh.size();
+				while ( init_facets.find(idx) != init_facets.end() )
+					idx = ::rand()%mesh.size();
+				init_facets.insert(idx);
+			}
+		}
+	}
+	void Packer::random_init_tiles(unsigned int nb_init_polygons)
+	{
 		set<int> init_facets; // on which facets the location are
 		if (pio.has_density_input()) // put according to density function
 		{
