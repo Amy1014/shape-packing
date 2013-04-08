@@ -1,0 +1,11 @@
+< SpMProject >  Pig Fruit Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\pig.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\pig_fruit\    </ PolygonDir >
+
+< DensityFile >      ..\..\surfaces\pig.txt </ DensityFile >
+
+< TextureImageDir >  ..\..\polygons\pig_fruit\  </ TextureImageDir >

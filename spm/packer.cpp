@@ -38,7 +38,7 @@ namespace Geex
 	{
 		mesh.build_kdtree();
 		// compute mesh area
-		double mesh_area = 0.0;
+		mesh_area = 0.0;
 		for (unsigned int i = 0; i < mesh.size(); i++)
 			mesh_area += std::fabs(mesh[i].area());
 		std::cout<<"Surface area: "<<mesh_area<<std::endl;
@@ -118,7 +118,7 @@ namespace Geex
 			vec3 gx_cent = (f.vertex[0] + f.vertex[1] + f.vertex[2])/3.0;
 			//vec3 gx_normal = mesh[*it].normal();
 			vec3 gx_normal = approx_normal(*it);
-			const Polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
+			const Ex_polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
 			double s = std::min(fa/pa, pa/fa);
@@ -127,6 +127,8 @@ namespace Geex
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
 			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
 			pack_objects.back().facet_idx = *it;
+			pack_objects.back().texture_id = pgn_2.texture_id;
+			pack_objects.back().texture_coord.assign(pgn_2.texture_coords.begin(), pgn_2.texture_coords.end());
 			pgn_lib_idx++;
 		}
 	}
@@ -436,7 +438,20 @@ namespace Geex
 		
 		lloyd(post_action, true);
 
+		// compute area coverage
+#ifdef _CILK_
+		cilk::reducer_opadd<double> sum_pgn_area(0.0);
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+			sum_pgn_area += pack_objects[i].area();
+		std::cout<<"-- Area coverage ratio: "<<sum_pgn_area.get_value()/mesh_area<<std::endl;
+#else
+		double sum_pgn_area = 0.0;
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+			sum_pgn_area += pack_objects[i].area();
+		std::cout<<"-- Area coverage ratio: "<<sum_pgn_area/mesh_area<<std::endl;
+#endif
 
+		
 		if (post_action != NULL)
 			post_action();
 	}
@@ -711,8 +726,8 @@ namespace Geex
 			// choose the result with the smallest match error now
 			Match_info_item<unsigned int> matcher = match_res.top();
 
-			//Point_2 cent = CGAL::centroid(pgn_lib[matcher.val].vertices_begin(), pgn_lib[matcher.val].vertices_end(), CGAL::Dimension_tag<0>());
-			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
+			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
+			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
 
 			pack_objects[i].clear();
 			
@@ -746,6 +761,8 @@ namespace Geex
 			pack_objects[i].lib_idx = matcher.val;
 			pack_objects[i].factor = matcher.scale*shrink_factor;
 			pack_objects[i].facet_idx = fid;
+			pack_objects[i].texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
+			pack_objects[i].texture_id = match_pgn.texture_id;
 // 			}
 // 			else
 // 			{
@@ -872,7 +889,8 @@ namespace Geex
 			// choose the result with the smallest match error now
 			Match_info_item<unsigned int> matcher = match_res.top();
 
-			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
+			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
+			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
 
 			Packing_object filler;
 
@@ -893,6 +911,8 @@ namespace Geex
 			filler.factor = matcher.scale * shrink_factor;
 			filler.facet_idx = fid;
 			filler.lib_idx = matcher.val;
+			filler.texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
+			filler.texture_id = match_pgn.texture_id;
 			pack_objects.push_back(filler);
 		}
 		generate_RDT();

@@ -1,0 +1,11 @@
+< SpMProject >  Squirrel Marble Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\squirrel.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\squirrel_TMR\    </ PolygonDir >
+
+< DensityFile >      ..\..\surfaces\squirrel.txt </ DensityFile >
+
+< TextureImageDir >  ..\..\polygons\squirrel_TMR\  </ TextureImageDir >

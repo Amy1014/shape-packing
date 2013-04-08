@@ -53,6 +53,7 @@ namespace Geex
 			value.erase(rit.base(), value.end());
 			attr_val[name] = value;
 		}
+		//debug_print();
 	}
 	string ProjectIO::get_start_token(std::ifstream& fs)
 	{
@@ -134,6 +135,7 @@ namespace Geex
 			int texture_id = 0;
 			for (unsigned int i = 0; i < all_pgn_files.size(); i++)
 			{
+				//std::cout<<"loading "<<all_pgn_files[i]<<std::endl;
 				std::ifstream pgn_file(all_pgn_files[i].c_str());
 				unsigned int nb_vert;
 				pgn_file >> nb_vert;
@@ -153,10 +155,9 @@ namespace Geex
 					if (!(pgn_file >> ty))
 						prompt_and_exit(error_incomplete_file);
 					polygons.back().texture_coords.push_back(Point_2(tx, ty));
-
-					polygons.back().texture_id = texture_id;
-					texture_id++;
 				}
+				polygons.back().texture_id = texture_id;
+				texture_id++;
 			}
 		}
 
@@ -182,7 +183,10 @@ namespace Geex
 		// filter out image file
 		for (unsigned int i = 0; i < all_files.size(); i++)
 			if (Geex::FileSystem::extension(all_files[i]) == "jpg")
+			{
 				texture_files.push_back(all_files[i]);
+				//std::cout<<"loading "<<texture_files.back()<<std::endl;
+			}
 	}
 	ProjectIO& ProjectIO::operator>>(TriMesh& mesh)
 	{

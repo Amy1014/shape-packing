@@ -9,6 +9,8 @@
 #include <GL/glut.h>
 #include <glut_viewer/glut_viewer.h>
 #include <Geex/graphics/opengl.h>
+#include <cv.h>
+#include <highgui.h>
 #include "packer.h"
 #include "polygon_diagram.h"
 
@@ -59,10 +61,19 @@ namespace Geex
 
 		GLboolean& show_local_frame() { return show_local_frame_; }
 
+		void load_graphics() 
+		{
+			build_curv_color_list();
+			build_texture_lib();
+			//if (textured)
+			//	glEnable(GL_TEXTURE_2D);
+		}
+
 	private:
 		inline void gl_table_color(int index);
 		void outline_draw_polygons();
 		void fill_draw_polygons();
+		void texture_draw_polygons();
 		void draw_mesh();
 		void draw_polygons();
 		void draw_triangulation();
@@ -71,6 +82,7 @@ namespace Geex
 		void draw_holes();
 		void draw_curvature();
 		void build_curv_color_list(); 
+		void build_texture_lib();
 		void cur_color_map(double cur, double min_cur, double max_cur, GLfloat& r, GLfloat& g, GLfloat& b);
 		// debug
 		void draw_all_vertices();
@@ -92,14 +104,15 @@ namespace Geex
 		GLboolean show_curvatures_;
 
 		GLboolean textured;
-		// debug
-		GLboolean show_local_frame_;
+		std::vector<GLuint> texture_lib;
 
 		/** display list **/
 		GLuint triangulation_displist;
 		GLuint vc_displist;//voronoi cell display list
 		GLuint cur_color_displist;
 
+		// debug
+		GLboolean show_local_frame_;
 		int highlighted_group;
 		// colors
 		int random_color_index;

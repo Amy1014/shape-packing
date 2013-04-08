@@ -16,6 +16,7 @@
 
 #ifdef _CILK_
 #include <cilk/cilk.h>
+#include <cilk/reducer_opadd.h>
 #endif
 
 #include "project_io.h"
@@ -132,6 +133,7 @@ namespace Geex
 		std::vector<Packing_object> pack_objects;
 		std::vector<Ex_polygon_2> pgn_lib;
 		TriMesh mesh;
+		double mesh_area;
 
 		/** holes **/
 		std::vector<Hole> holes;

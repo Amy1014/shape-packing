@@ -16,7 +16,11 @@ namespace Geex
 			) ;
 
 		virtual void do_draw() ;
-
+		void load_project(const std::string& prj_file)
+		{
+			Packer::load_project(prj_file);
+			SPM_Graphics::load_graphics();
+		}
 	} ;
 
 }//namespace Geex

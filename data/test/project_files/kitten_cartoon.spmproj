@@ -1,0 +1,11 @@
+< SpMProject >  Kitten Cartoon Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\kitten_cartoon\    </ PolygonDir >
+
+< DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
+
+< TextureImageDir >  ..\..\polygons\kitten_cartoon\  </ TextureImageDir >
