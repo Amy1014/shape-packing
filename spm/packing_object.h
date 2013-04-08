@@ -25,7 +25,11 @@ namespace Geex
 		//int group_id;
 	};
 
-	
+	struct Ex_polygon_2 : public Polygon_2
+	{
+		std::vector<Point_2> texture_coords;
+		int texture_id;
+	};
 
 }
 

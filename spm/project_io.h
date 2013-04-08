@@ -16,6 +16,7 @@
 #include <Geex/basics/file_system.h>
 #include "spm_cgal.h"
 #include "meshes.h"
+#include "packing_object.h"
 
 namespace Geex
 {
@@ -34,11 +35,18 @@ public:
 	string attribute_value(const string& attribute_name) ;
 	bool has_density_input() const { return has_density_input_; }
 
+	inline bool texture_specified() const 
+	{
+		TagLookupTable::const_iterator it = attr_val.find("WithTexture");
+		CaseInsensitiveTagCmp cmp;
+		return ( it != attr_val.end() && cmp(it->second, "True") );
+	}
+
 	/** input **/
 	// load a whole project from a file, the same function as the constructor
 	void load_project(const string& prj_configure_file);
 	// read 2D polygons
-	ProjectIO& operator>>(vector<Polygon_2>& polygons);
+	void read_texture_files(vector<Ex_polygon_2>& polygons);
 
 	// read triangle mesh
 	ProjectIO& operator>>(TriMesh& mesh);
@@ -88,6 +96,7 @@ private:
 	const static string error_mesh_file_fail;
 	const static string error_texture_input;
 	const static string error_texture_directory;
+	const static string error_incomplete_file;
 };
 
 }

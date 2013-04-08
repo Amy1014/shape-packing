@@ -64,6 +64,7 @@ namespace Geex
 		void front_edge_len(double len) { frontier_edge_size = len; }
 		std::vector<Hole>& get_holes() const { return holes; }
 		double& get_epsilon() { return epsilon; }
+		ProjectIO& get_project_ioer() { return pio; }
 
 		static Packer* instance() { return instance_; }
 
@@ -129,7 +130,7 @@ namespace Geex
 		
 		ProjectIO pio;
 		std::vector<Packing_object> pack_objects;
-		std::vector<Polygon_2> pgn_lib;
+		std::vector<Ex_polygon_2> pgn_lib;
 		TriMesh mesh;
 
 		/** holes **/
@@ -243,7 +244,7 @@ namespace Geex
 	public: // for debug
 		RestrictedPolygonVoronoiDiagram rpvd;
 
-		std::vector<Local_frame> local_frames;
+		//std::vector<Local_frame> local_frames;
 
 
 	};

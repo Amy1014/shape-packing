@@ -171,6 +171,7 @@ namespace Geex {
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p");
 			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i");
 			TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d");
+			TwAddButton(function_bar, "Fill holes", tw_fill, NULL, "key=f");
 			TwAddVarCB(function_bar, "Hole Size", TW_TYPE_DOUBLE, tw_hole_size_set_callback,
 						tw_hole_size_get_callback, NULL, "min=0.0 step=0.001");
 			TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,

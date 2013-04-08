@@ -91,6 +91,8 @@ namespace Geex
 		GLboolean show_holes_;
 		GLboolean show_curvatures_;
 
+		GLboolean textured;
+		// debug
 		GLboolean show_local_frame_;
 
 		/** display list **/

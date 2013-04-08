@@ -9,6 +9,7 @@ namespace Geex
 	const string ProjectIO::error_pgn_file_fail("Error: Failure to open polygon file!");
 	const string ProjectIO::error_mesh_file_fail("Error: Failure to open mesh file!");
 	const string ProjectIO::error_texture_input("Error: No texture image input!\n");
+	const string ProjectIO::error_incomplete_file("Error: reading failed. incomplete or invalid file.");
 
 	ProjectIO::ProjectIO(string prj_config_file)
 	{
@@ -88,36 +89,81 @@ namespace Geex
 			std::cout<<it->first<<": |"<<it->second<<'|'<<std::endl;
 	}
 
-	ProjectIO& ProjectIO::operator>>(vector<Polygon_2>& polygons)
+	ProjectIO& ProjectIO::operator>>(vector<Ex_polygon_2>& polygons)
 	{
-		TagLookupTable::const_iterator it = attr_val.find("PolygonFile");
-		if ( it == attr_val.end() )
-			prompt_and_exit(error_pgn_file_fail + " Not specified.");
-		std::ifstream pgn_file(it->second.c_str());
-		if (pgn_file.fail())
-			prompt_and_exit(error_pgn_file_fail);
-		polygons.clear();
-		unsigned int nb_polygons = 0;
-		pgn_file >> nb_polygons;
-		polygons.reserve(nb_polygons);
-		for (unsigned int i = 0; i < nb_polygons; i++)
-		{	
-			unsigned int nb_edges = 0;
-			pgn_file >> nb_edges;
-			polygons.push_back(Polygon_2());
-			for (unsigned int j = 0; j < nb_edges; j++)
+
+		if (!texture_specified())
+		{
+			TagLookupTable::const_iterator it = attr_val.find("PolygonFile");
+			if ( it == attr_val.end() )
+				prompt_and_exit(error_pgn_file_fail + " Not specified.");
+			std::ifstream pgn_file(it->second.c_str());
+			if (pgn_file.fail())
+				prompt_and_exit(error_pgn_file_fail);
+			polygons.clear();
+			unsigned int nb_polygons = 0;
+			pgn_file >> nb_polygons;
+			polygons.reserve(nb_polygons);
+			for (unsigned int i = 0; i < nb_polygons; i++)
+			{	
+				unsigned int nb_edges = 0;
+				pgn_file >> nb_edges;
+				polygons.push_back(Ex_polygon_2());
+				for (unsigned int j = 0; j < nb_edges; j++)
+				{
+					double x, y; 
+					pgn_file >> x;
+					pgn_file >> y;
+					polygons.back().push_back(Point_2(x, y));
+				}
+			}
+		}
+		else // with texture
+		{
+			TagLookupTable::const_iterator it = attr_val.find("PolygonDir");
+			if ( it == attr_val.end() )
+				prompt_and_exit(error_pgn_file_fail + " Polygon directory not specified. ");
+			std::vector<std::string> all_files;
+			Geex::FileSystem::get_files(it->second, all_files);
+			if (all_files.empty())
+				prompt_and_exit(error_pgn_file_fail + " Directory " + it->second +" does not exist.");
+			std::vector<std::string> all_pgn_files;
+			for (unsigned int i = 0; i < all_files.size(); i++)
+				if (Geex::FileSystem::extension(all_files[i]) == "tply")
+					all_pgn_files.push_back(all_files[i]);
+			int texture_id = 0;
+			for (unsigned int i = 0; i < all_pgn_files.size(); i++)
 			{
-				double x, y; 
-				pgn_file >> x;
-				pgn_file >> y;
-				polygons.back().push_back(Point_2(x, y));
+				std::ifstream pgn_file(all_pgn_files[i].c_str());
+				unsigned int nb_vert;
+				pgn_file >> nb_vert;
+				polygons.push_back(Ex_polygon_2());
+				for (unsigned int j = 0; j < nb_vert; j++)
+				{
+					double x, y;
+					double tx, ty;
+					if (!(pgn_file >> x) )
+						prompt_and_exit(error_incomplete_file); 
+					if (!(pgn_file >> y) )
+						prompt_and_exit(error_incomplete_file);
+					polygons.back().push_back(Point_2(x, y));
+					
+					if (!(pgn_file >> tx))
+						prompt_and_exit(error_incomplete_file);
+					if (!(pgn_file >> ty))
+						prompt_and_exit(error_incomplete_file);
+					polygons.back().texture_coords.push_back(Point_2(tx, ty));
+
+					polygons.back().texture_id = texture_id;
+					texture_id++;
+				}
 			}
 		}
 
 		return *this;
 	}
 
-	ProjectIO& ProjectIO::operator>>(std::vector<string>& texture_files)
+	void ProjectIO::read_texture_files(std::vector<string>& texture_files)
 	{
 		texture_files.clear();
 		TagLookupTable::const_iterator it = attr_val.find("TextureImageDir");
@@ -137,7 +183,6 @@ namespace Geex
 		for (unsigned int i = 0; i < all_files.size(); i++)
 			if (Geex::FileSystem::extension(all_files[i]) == "jpg")
 				texture_files.push_back(all_files[i]);
-		return *this;
 	}
 	ProjectIO& ProjectIO::operator>>(TriMesh& mesh)
 	{
