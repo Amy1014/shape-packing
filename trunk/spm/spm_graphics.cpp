@@ -30,6 +30,8 @@ namespace Geex
 		show_vertices_ = false;
 		show_hole_triangles_ = false;
 		show_local_frame_ = false;
+		show_curvatures_ = false;
+		textured = false;
 		highlighted_group = -1;
 	}
 
@@ -38,6 +40,8 @@ namespace Geex
 		glDeleteLists(triangulation_displist, 1);
 		glDeleteLists(vc_displist, 1);
 		glDeleteLists(cur_color_displist, 1);
+		for (unsigned int i = 0; i < texture_lib.size(); i++)
+			glDeleteTextures(1, &texture_lib[i]);
 	}
 
 	inline void SPM_Graphics::gl_table_color(int index)
@@ -90,7 +94,7 @@ namespace Geex
 		}
 		glPopMatrix();
 		glDisable(GL_LIGHTING);
-		build_curv_color_list();
+		
 	}
 
 	void SPM_Graphics::draw_polygons()
@@ -104,7 +108,10 @@ namespace Geex
 			fill_draw_polygons();
 			break;
 		case TEXTURE_DRAW:
-			outline_draw_polygons();
+			if (textured)
+				texture_draw_polygons();
+			else
+				outline_draw_polygons();
 			break;
 		}
 	}
@@ -162,6 +169,43 @@ namespace Geex
 		}
 		glPopMatrix();
 		glDisable(GL_LIGHTING);
+	}
+
+	void SPM_Graphics::texture_draw_polygons()
+	{
+		const std::vector<Packing_object>& tiles = packer->get_tiles();
+		glEnable(GL_TEXTURE_2D);
+		GLboolean old_cull_face_config = glIsEnabled(GL_CULL_FACE);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glDisable(GL_LIGHTING);
+		for (unsigned int i = 0; i < tiles.size(); i++)
+		{
+			Point_3 c = tiles[i].centroid();
+			const std::vector<Point_2>& texture_coord = tiles[i].texture_coord;
+			Point_2 tex_c = CGAL::centroid(texture_coord.begin(), texture_coord.end(), CGAL::Dimension_tag<0>());
+			Vector_3 n = tiles[i].norm();
+			glBindTexture(GL_TEXTURE_2D, texture_lib[tiles[i].texture_id]);
+			glBegin(GL_TRIANGLES);
+			unsigned int sz = tiles[i].size();
+			for (unsigned int j = 0; j < sz; j++)
+			{
+				//glNormal3d(-n.x(), -n.y(), -n.z());
+				glTexCoord2d(texture_coord[j].x(), texture_coord[j].y());
+				glPoint_3(tiles[i].vertex(j));
+				//glNormal3d(-n.x(), -n.y(), -n.z());
+				glTexCoord2d(texture_coord[(j+1)%sz].x(), texture_coord[(j+1)%sz].y());
+				glPoint_3(tiles[i].vertex((j+1)%sz));
+				//glNormal3d(-n.x(), -n.y(), -n.z());
+				glTexCoord2d(tex_c.x(), tex_c.y());
+				glPoint_3(c);
+			}
+			glEnd();
+		}
+		glEnable(GL_LIGHTING);
+		if (!old_cull_face_config)
+			glDisable(GL_CULL_FACE);
+		glDisable(GL_TEXTURE_2D);
 	}
 	void SPM_Graphics::draw_all_vertices()
 	{
@@ -420,5 +464,61 @@ namespace Geex
 		glShadeModel(old_shade_model);
 		glEndList();
 		glEnable(GL_LIGHTING);
+	}
+
+	void SPM_Graphics::build_texture_lib()
+	{
+		if (!packer->get_project_ioer().texture_specified())
+			return;
+		std::vector<std::string> texture_files;
+		packer->get_project_ioer().read_texture_files(texture_files);
+		if (texture_files.empty())
+			return;
+		texture_lib.resize(texture_files.size());
+		for (unsigned int i = 0; i < texture_files.size(); i++)
+		{
+			cv::Mat m = cv::imread(texture_files[i]);
+			if (!m.data)
+			{
+				std::cout<<"Error: cannot read texture file \""<<texture_files[i]<<"\"\n";
+				return;
+			}
+			glGenTextures(1, &texture_lib[i]);
+			glBindTexture(GL_TEXTURE_2D, texture_lib[i]);
+			int r, c;
+			int e = 0;
+			while ((1<<e) < m.rows)
+				e++;
+			r = (1<<e);
+			e = 0;
+			while ((1<<e) < m.cols)
+				e++;
+			c = (1<<e);
+			GLubyte *scaleTexels = (GLubyte*)malloc(r*c*3*sizeof(GLubyte));
+			GLubyte *pixels = (GLubyte*)malloc(m.rows*m.cols*3*sizeof(GLubyte));
+			GLubyte *ptr = pixels;
+			// load content in m to 1D array pixels
+			for (int y = 0; y < m.rows; y++)
+				for (int x = 0; x < m.cols; x++)
+				{
+					cv::Vec3b pixel = m.at<Vec3b>(y, x);
+					// to rgb model
+					*ptr++ = pixel.val[2];
+					*ptr++ = pixel.val[1];
+					*ptr++ = pixel.val[0];
+				}
+			if (gluScaleImage(GL_RGB, m.cols, m.rows, GL_UNSIGNED_BYTE, pixels, c, r, GL_UNSIGNED_BYTE, scaleTexels))
+			{
+				std::cout<<"Error: Scale image failed.\n";
+				return;
+			}
+			glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, c, r, 0, GL_RGB, GL_UNSIGNED_BYTE, scaleTexels);
+			free(scaleTexels);
+			free(pixels);
+		}
+		textured = true;
 	}
 }

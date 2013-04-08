@@ -132,6 +132,7 @@ namespace Geex
 			vit->contain_non_delaunay_facet = false;
 			//vit->weights.clear();
 		}
+		int nb_lost_facets = 0;
 		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 		for (unsigned int i = 0; i < nb_groups; i++)
 		{
@@ -164,7 +165,8 @@ namespace Geex
 						Point_3 c;
 						if (current_edge->facet() == Facet_handle())
 						{
-							std::cout<<"Caution: invalid surface mesh. poor sampling!.\n";
+							//std::cout<<"Caution: invalid surface mesh. poor sampling!.\n";
+							nb_lost_facets++;
 						}
 						else if (current_edge->facet()->is_delaunay)
 						{
@@ -198,6 +200,7 @@ namespace Geex
 				}
 			}
 		}
+		std::cout<<"Number of lost facets (due to wrong RDT): "<<nb_lost_facets<<std::endl;
 	}
 	
 	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(Halfedge_handle e)
@@ -237,6 +240,7 @@ namespace Geex
 	void RestrictedPolygonVoronoiDiagram::iDT_update()
 	{
 		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
+		int nb_unflippable_edges = 0;
 		std::set<Halfedge_handle> visited_edges;
 		std::stack<Halfedge_handle> q;
 		std::set<Halfedge_handle> added_set;
@@ -292,7 +296,8 @@ namespace Geex
 				//}while (surround_edge != end_edge);
 				if (vpedges.find(Edge(u, v)) != vpedges.end())
 				{
-					std::cout<<"Unflippable edge!\n";
+					//std::cout<<"Unflippable edge!\n";
+					nb_unflippable_edges++;
 					e->facet()->is_delaunay = oe->facet()->is_delaunay = false;
 				}
 
@@ -330,6 +335,7 @@ namespace Geex
 			e->facet()->is_delaunay = true;
 			oe->facet()->is_delaunay = true;
 		}
+		std::cout<<"Number of unflippable edges: "<<nb_unflippable_edges<<std::endl;
 	}
 
 	void RestrictedPolygonVoronoiDiagram::save_triangulation(const std::string fn)

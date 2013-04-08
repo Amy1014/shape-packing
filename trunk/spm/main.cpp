@@ -144,7 +144,7 @@ namespace Geex {
             GeexApp::init_gui() ;
 			
             TwBar* graphics_bar = TwNewBar("Graphics");
-			TwDefine("Graphics position='16 10' size='200 250' alpha=200"); 
+			TwDefine("Graphics position='16 10' size='200 300' alpha=200"); 
 			TwAddVarRW(graphics_bar, "Domain Mesh", TW_TYPE_BOOL8, &spm()->show_mesh(), "group = 'Surface' ");
 			TwAddVarRW(graphics_bar, "Curvature", TW_TYPE_BOOL8, &spm()->show_curvatures(), "group = 'Surface' ");
 			
@@ -166,7 +166,7 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Holes", TW_TYPE_BOOL8, &spm()->show_holes(), "group = 'Geometry' ");
 			TwBar* function_bar = TwNewBar("Functions");
-			TwDefine("Functions position='16 250' size='200 250' alpha=200");
+			TwDefine("Functions position='16 320' size='200 200' alpha=200");
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p");
 			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i");

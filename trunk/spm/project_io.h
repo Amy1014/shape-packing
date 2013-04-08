@@ -39,19 +39,19 @@ public:
 	{
 		TagLookupTable::const_iterator it = attr_val.find("WithTexture");
 		CaseInsensitiveTagCmp cmp;
-		return ( it != attr_val.end() && cmp(it->second, "True") );
+		return ( it != attr_val.end() && !cmp(it->second, "True") && !cmp("True", it->second) );
 	}
 
 	/** input **/
 	// load a whole project from a file, the same function as the constructor
 	void load_project(const string& prj_configure_file);
 	// read 2D polygons
-	void read_texture_files(vector<Ex_polygon_2>& polygons);
+	void read_texture_files(std::vector<std::string>& texture_files);
 
 	// read triangle mesh
 	ProjectIO& operator>>(TriMesh& mesh);
 	
-	ProjectIO& operator>>(std::vector<std::string>& texture_files); // <texture name, texture file path>
+	ProjectIO& operator>>(vector<Ex_polygon_2>& polygons); 
 	
 	/** output **/
 	void dump_results(const string& filename, const string& directory="");

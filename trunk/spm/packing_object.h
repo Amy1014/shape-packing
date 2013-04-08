@@ -22,13 +22,15 @@ namespace Geex
 		double factor; //scaling factor
 		unsigned int lib_idx;
 		int facet_idx; // index of triangle on which this object lies on
+		std::vector<Point_2> texture_coord;
+		unsigned int texture_id;
 		//int group_id;
 	};
 
 	struct Ex_polygon_2 : public Polygon_2
 	{
 		std::vector<Point_2> texture_coords;
-		int texture_id;
+		unsigned int texture_id;
 	};
 
 }
