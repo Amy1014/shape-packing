@@ -20,7 +20,7 @@ namespace Geex
 
 		stop_update_DT = false;
 
-		epsilon = 0.1;
+		epsilon = 0.08;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -64,52 +64,78 @@ namespace Geex
 		std::cout<<pack_objects.size()<<" polygons are loaded initially.\n";
 		// 2. multi-class or more (TODO)
 	}
-	void Packer::random_init_tiles(unsigned int nb_init_polygons)
-	{
-		if (pio.has_density_input()) // put according to density function
-		{
-			double total_weight = 0.0, res = 0.0;
-			for (unsigned int i = 0; i < mesh.size(); i++)
-				total_weight += mesh[i].weight();
-			for (unsigned int i = 0; i < mesh.size(); i++)
-			{
-				double nf = nb_init_polygons*mesh[i].weight()/total_weight;
-				int n(nf+res);
-				if ( n >= 1 )
-				{
-					res = nf + res - n; // fractional part
-
-					int nbput = std::min<int>(n, mesh.vertex(i).faces_.size());
-					for (int j = 0; j < nbput; j++)
-					{
-						int idx = mesh.vertex(i).faces_[j];
-						if ( init_facets.find(idx) != init_facets.end() )	continue;
-						init_facets.insert(idx);
-					}
-				}
-				else 
-					res += nf;
-			}
-			// pick up the lost ones
-			while ( init_facets.size() < nb_init_polygons )
-			{
-				int idx = ::rand()%mesh.size();
-				while ( init_facets.find(idx) != init_facets.end() )
-					idx = ::rand()%mesh.size();
-				init_facets.insert(idx);
-			}
-		}
-		else   // if no density specified, uniformly put	
-		{
-			for (unsigned int i = 0; i < nb_init_polygons; i++)
-			{
-				int idx = ::rand()%mesh.size();
-				while ( init_facets.find(idx) != init_facets.end() )
-					idx = ::rand()%mesh.size();
-				init_facets.insert(idx);
-			}
-		}
-	}
+	//void Packer::put_polygons_on_facet(unsigned int facet_id, int n, unsigned int& pgn_lib_idx)
+	//{
+	//	vec3 align_normal = approx_normal(facet_id);
+	//	double fa = std::fabs(mesh[facet_id].area());
+	//	
+	//	for (int j = 0; j < n; j++)
+	//	{
+	//		double rndm = Numeric::random_float64();
+	//		double l = j*1.0/n, u = (j+1)*1.0/n;
+	//		double alpha = ( u - l ) * rndm + l;
+	//		rndm = Numeric::random_float64();
+	//		double beta = ( u - l ) * rndm + l;
+	//		vec3 pos = alpha*mesh[facet_id].vertex[0] + beta*mesh[facet_id].vertex[1] + 
+	//								(1.0-alpha-beta)*mesh[facet_id].vertex[2];
+	//		const Ex_polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
+	//		double pa = std::fabs(pgn_2.area());
+	//		double s = std::min(fa/pa, pa/fa);
+	//		s = (1.0/n)*0.1*std::sqrt(s);
+	//		Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
+	//		pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(align_normal), to_cgal_pnt(pos), s));
+	//		pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
+	//		pack_objects.back().facet_idx = facet_id;
+	//		pack_objects.back().texture_id = pgn_2.texture_id;
+	//		pack_objects.back().texture_coord.assign(pgn_2.texture_coords.begin(), pgn_2.texture_coords.end());
+	//		pgn_lib_idx++;
+	//	}
+	//}
+	//void Packer::random_init_tiles(unsigned int nb_init_polygons)
+	//{
+	//	pack_objects.reserve(nb_init_polygons);
+	//	unsigned int pgn_lib_idx = 0;
+	//	std::set<unsigned int> init_facets;
+	//	if (pio.has_density_input()) // put according to density function
+	//	{
+	//		double total_weight = 0.0, res = 0.0;
+	//		for (unsigned int i = 0; i < mesh.size(); i++)
+	//			total_weight += mesh[i].weight();
+	//		for (unsigned int i = 0; i < mesh.size(); i++)
+	//		{
+	//			double nf = nb_init_polygons*mesh[i].weight()/total_weight;
+	//			int n(nf+res);
+	//			if ( n >= 1 )
+	//			{
+	//				res = nf + res - n; // fractional part
+	//				put_polygons_on_facet(i, n, pgn_lib_idx);
+	//				init_facets.insert(i);
+	//			}
+	//			else 
+	//				res += nf;
+	//		}
+	//		// pick up the lost ones
+	//		while ( init_facets.size() < nb_init_polygons )
+	//		{
+	//			int idx = ::rand()%mesh.size();
+	//			while ( init_facets.find(idx) != init_facets.end() )
+	//				idx = ::rand()%mesh.size();
+	//			put_polygons_on_facet(idx, 1, pgn_lib_idx);
+	//			init_facets.insert(idx);
+	//		}
+	//	}
+	//	else   // if no density specified, uniformly put	
+	//	{
+	//		for (unsigned int i = 0; i < nb_init_polygons; i++)
+	//		{
+	//			int idx = ::rand()%mesh.size();
+	//			while ( init_facets.find(idx) != init_facets.end() )
+	//				idx = ::rand()%mesh.size();
+	//			put_polygons_on_facet(idx, 1, pgn_lib_idx);
+	//			init_facets.insert(idx);
+	//		}
+	//	}
+	//}
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
 		set<int> init_facets; // on which facets the location are
@@ -120,7 +146,7 @@ namespace Geex
 				total_weight += mesh.vertex(i).weight();
 			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 			{
-				double nf = nb_init_polygons*mesh.vertex(i).weight()/total_weight;
+				double nf = (2-epsilon*0.08)*epsilon*0.08*nb_init_polygons*mesh.vertex(i).weight()/total_weight;
 				int n(nf+res);
 				if ( n >= 1 )
 				{
@@ -965,6 +991,20 @@ namespace Geex
 		stop_update_DT = false;
 		compute_clipped_VD();
 		std::cout<<"End filling holes.\n";
+	}
+
+	void Packer::save_curvature_and_area()
+	{
+		std::ofstream cur_area_file("cur_area.txt");
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			double pgn_area = pack_objects[i].area();
+			int fid = pack_objects[i].facet_idx;
+			double cur = (mesh.curvature_at_vertex(mesh[fid].vertex_index[0])
+						+ mesh.curvature_at_vertex(mesh[fid].vertex_index[1])
+						+ mesh.curvature_at_vertex(mesh[fid].vertex_index[2]) ) / 3.0;
+			cur_area_file << pgn_area << "\t" << cur<<std::endl;
+		}
 	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{

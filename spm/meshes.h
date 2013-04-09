@@ -306,7 +306,9 @@ namespace Geex {
 		}
 
 		real weight() {
-			return (vertex_weight[0]+vertex_weight[1]+vertex_weight[2])/3.0 ;
+			//return (vertex_weight[0]+vertex_weight[1]+vertex_weight[2])/3.0 ;
+			double avg_cur = (vertex_weight[0]+vertex_weight[1]+vertex_weight[2])/3.0;
+			return avg_cur*avg_cur;
 		}
 
 		real weight(int v0, int v1, vec3& p) {
