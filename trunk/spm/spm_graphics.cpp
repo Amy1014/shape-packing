@@ -173,12 +173,15 @@ namespace Geex
 
 	void SPM_Graphics::texture_draw_polygons()
 	{
+		static GLfloat mat[] = {0.9f, 0.9f, 0.9f, 1.0f};
 		const std::vector<Packing_object>& tiles = packer->get_tiles();
 		glEnable(GL_TEXTURE_2D);
 		GLboolean old_cull_face_config = glIsEnabled(GL_CULL_FACE);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
-		glDisable(GL_LIGHTING);
+		glEnable(GL_LIGHTING);
+		glPushMatrix();
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, mat);
 		for (unsigned int i = 0; i < tiles.size(); i++)
 		{
 			Point_3 c = tiles[i].centroid();
@@ -190,7 +193,7 @@ namespace Geex
 			unsigned int sz = tiles[i].size();
 			for (unsigned int j = 0; j < sz; j++)
 			{
-				//glNormal3d(-n.x(), -n.y(), -n.z());
+				glNormal3d(n.x(), n.y(), n.z());
 				glTexCoord2d(texture_coord[j].x(), texture_coord[j].y());
 				glPoint_3(tiles[i].vertex(j));
 				//glNormal3d(-n.x(), -n.y(), -n.z());
@@ -202,7 +205,8 @@ namespace Geex
 			}
 			glEnd();
 		}
-		glEnable(GL_LIGHTING);
+		glPopMatrix();
+		glDisable(GL_LIGHTING);
 		if (!old_cull_face_config)
 			glDisable(GL_CULL_FACE);
 		glDisable(GL_TEXTURE_2D);
