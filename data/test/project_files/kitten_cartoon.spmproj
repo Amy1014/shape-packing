@@ -4,8 +4,8 @@
 
 < WithTexture >True</ WithTexture>   
             
-< PolygonDir >      ..\..\polygons\kitten_cartoon\    </ PolygonDir >
+< PolygonDir >      ..\..\polygons\kitten_cartoon_\    </ PolygonDir >
 
 < DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
 
-< TextureImageDir >  ..\..\polygons\kitten_cartoon\  </ TextureImageDir >
+< TextureImageDir >  ..\..\polygons\kitten_cartoon_\  </ TextureImageDir >

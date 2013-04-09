@@ -55,7 +55,7 @@ namespace Geex {
 		samplerate_  = 36 ; 
 		kdtree_      = nil ;
 		featureAngleCriterion = 0.0;
-		highCurvatureCriterion = 0.2;
+		highCurvatureCriterion = 0.05;
 		maxFacetWeight = minFacetWeight = 0.0;
 
 		//min_vert_curvature = max_vert_curvature = 0.0;
@@ -278,6 +278,15 @@ namespace Geex {
 		for (unsigned int i = 0; i < size(); i++)
 			operator[](i).norm = -operator[](i).norm;
 	}
+
+	double TriMesh::surrounding_region_area(int idx) const
+	{
+		std::vector<int>& nf = vertices_[idx].faces_;
+		double sum_area = 0.0;
+		for (unsigned int i = 0; i < nf.size(); i++)
+			sum_area += std::fabs(operator[](nf[i]).area());
+		return sum_area;
+	}
 	void TriMesh::setHighCurvaturePercent(double percent /* = 0.2 */)
 	{
 		facetHighCurvature.clear();
@@ -438,8 +447,8 @@ namespace Geex {
 		// take the larger curvature value in terms of absolute value
 		std::vector<double> curs(nb_vertices());
 		for (unsigned int i = 0; i < nb_vertices(); i++)
-			// curs[i] = std::max(std::fabs(min_cur[i]), std::fabs(max_cur[i]));
-			curs[i] = (min_cur[i] + max_cur[i])/2.0;
+			 curs[i] = std::max(std::fabs(min_cur[i]), std::fabs(max_cur[i]));
+			// curs[i] = (min_cur[i] + max_cur[i])/2.0;
 		std::vector<double> avgcurs(nb_vertices(), 0.0);
 		std::vector<int> nb_neighbors(nb_vertices(), 0);
 		for (unsigned int i = 0; i < size(); i++)
@@ -469,10 +478,17 @@ namespace Geex {
 			vertices_[i].curvature = avgcurs[i]; // load curvature at this vertex
 			//test_file<<vertices_[i].curvature<<std::endl;
 		}
-		
+		unsigned int cutoff_n = nb_vertices()*0.9;
+		std::nth_element(avgcurs.begin(), avgcurs.begin()+cutoff_n, avgcurs.end());
+		double median = *(avgcurs.begin()+cutoff_n) ;
 		for (unsigned int i = 0; i < nb_vertices(); i++)
 			//vertices_[i].weight() = pow(avgcurs[i], gamma)/*avgcurs[i]*/;
-			vertices_[i].weight() = /*pow(avgcurs[i], gamma)*/avgcurs[i]*avgcurs[i];
+			//vertices_[i].weight() = /*pow(avgcurs[i], gamma)*/avgcurs[i]*avgcurs[i];
+		{
+			if (vertices_[i].curvature > median)
+				vertices_[i].curvature = median;
+			vertices_[i].weight()  = vertices_[i].curvature * vertices_[i].curvature;
+		}
 
 		// compute face's weight by averaging weight of vertices
 		for(unsigned int i=0; i < size(); ++i)
