@@ -10,6 +10,7 @@
 #include <numeric>
 #include <sstream>
 
+
 #include <CGAL/Timer.h>
 
 #include <glut_viewer/glut_viewer.h>
@@ -88,14 +89,14 @@ namespace Geex
 		// debug
 		void rpack(void (*post_action)() = NULL);
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
-
+		void save_curvature_and_area(); 
 		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty);
 
 	private:
 
 		/** initialization **/
 		void random_init_tiles(unsigned int nb_init_polygons);	// put polygons according to curvature (if any) and in a uniform way
-
+		void put_polygons_on_facet(unsigned int facet_id, int n, unsigned int& pgn_lib_index);
 		/** geometry **/
 		void generate_RDT();
 

@@ -438,7 +438,8 @@ namespace Geex {
 		// take the larger curvature value in terms of absolute value
 		std::vector<double> curs(nb_vertices());
 		for (unsigned int i = 0; i < nb_vertices(); i++)
-			curs[i] = std::max(std::fabs(min_cur[i]), std::fabs(max_cur[i]));
+			// curs[i] = std::max(std::fabs(min_cur[i]), std::fabs(max_cur[i]));
+			curs[i] = (min_cur[i] + max_cur[i])/2.0;
 		std::vector<double> avgcurs(nb_vertices(), 0.0);
 		std::vector<int> nb_neighbors(nb_vertices(), 0);
 		for (unsigned int i = 0; i < size(); i++)
@@ -466,14 +467,12 @@ namespace Geex {
 		{
 			avgcurs[i] /= nb_neighbors[i];
 			vertices_[i].curvature = avgcurs[i]; // load curvature at this vertex
-			//if (min_vert_curvature > avgcurs[i])
-			//	min_vert_curvature = avgcurs[i];
-			//if (max_vert_curvature < avgcurs[i])
-			//	max_vert_curvature = avgcurs[i];
 			//test_file<<vertices_[i].curvature<<std::endl;
 		}
+		
 		for (unsigned int i = 0; i < nb_vertices(); i++)
-			vertices_[i].weight() = pow(avgcurs[i]*2, gamma);
+			//vertices_[i].weight() = pow(avgcurs[i], gamma)/*avgcurs[i]*/;
+			vertices_[i].weight() = /*pow(avgcurs[i], gamma)*/avgcurs[i]*avgcurs[i];
 
 		// compute face's weight by averaging weight of vertices
 		for(unsigned int i=0; i < size(); ++i)

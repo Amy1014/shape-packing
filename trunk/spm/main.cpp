@@ -23,7 +23,7 @@ namespace Geex {
 	void TW_CALL tw_replace(void*);
 	void TW_CALL tw_enlarge(void*);
 	void TW_CALL tw_save_triangulation(void*);
-	//void TW_CALL tw_save(void*);
+	void TW_CALL tw_save_cur_area(void*);
 	void TW_CALL tw_fill(void*);
 	//void TW_CALL tw_merge(void*);
 	//void TW_CALL tw_feature_set_callback(const void*, void *);
@@ -139,6 +139,10 @@ namespace Geex {
 		{
 			spm()->rpvd.save_triangulation("enforced_enlarge.obj");
 		}
+		void save_cur_area()
+		{
+			spm()->save_curvature_and_area();
+		}
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -185,7 +189,7 @@ namespace Geex {
 			//TwAddVarRW(function_bar, "trans_y", TW_TYPE_DOUBLE, &enlarge_ty, "");
 			//TwAddButton(function_bar, "enlarge", tw_enlarge, NULL, "key=e");
 			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t");
-
+			TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S");
 			toggle_skybox_CB() ;
             glut_viewer_add_toggle('b', glut_viewer_is_enabled_ptr(GLUT_VIEWER_BACKGROUND), "switch Color/BW") ;
             glut_viewer_add_toggle('T', &viewer_properties_->visible(), "viewer properties") ;
@@ -237,7 +241,7 @@ void TW_CALL tw_save_triangulation(void* clientData)
 {
 	spm_app()->save_triangulation();
 }
-//void TW_CALL tw_save( void *clientData ) { spm_app()->save(); }
+void TW_CALL tw_save_cur_area( void *clientData ) { spm_app()->save_cur_area(); }
 void TW_CALL tw_fill( void *clientData ) { spm_app()->fill_holes(); }
 //void TW_CALL tw_merge(void *clientData) { spm_app()->merge(); /*spm_app()->fitPlanes();*/ }
 //void TW_CALL tw_rpack(void *clientData) { spm_app()->rpack(); }
