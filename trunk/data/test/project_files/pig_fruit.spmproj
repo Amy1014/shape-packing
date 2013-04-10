@@ -8,4 +8,6 @@
 
 < DensityFile >      ..\..\surfaces\pig_remesh_1.txt </ DensityFile >
 
+< gamma > 2.0 < /gamma >
+
 < TextureImageDir >  ..\..\polygons\pig_fruit_\  </ TextureImageDir >

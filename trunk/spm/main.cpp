@@ -180,6 +180,7 @@ namespace Geex {
 						tw_hole_size_get_callback, NULL, "min=0.0 step=0.001");
 			TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,
 						tw_front_len_get_callback, NULL, "min=0.0 step=0.001");
+			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0");
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r");
 			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999");
 			//TwAddVarRW(function_bar, "enlarge id", TW_TYPE_INT32, &enlarge_id, "");

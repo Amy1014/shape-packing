@@ -70,7 +70,8 @@ namespace Geex {
 		return vec3(v.x(), v.y(), v.z());
 	}
 
-	inline void cgal_vec_normalize(Vector_3& v)
+	template <class VectorType>
+	inline void cgal_vec_normalize(VectorType& v)
 	{
 		v = v / CGAL::sqrt(v.squared_length());
 	}

@@ -8,4 +8,6 @@
 
 < DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
 
+< gamma > 1.0 </ gamma>
+
 < TextureImageDir >  ..\..\polygons\kitten_cartoon_\  </ TextureImageDir >

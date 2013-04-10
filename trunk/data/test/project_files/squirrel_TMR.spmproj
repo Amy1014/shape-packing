@@ -6,6 +6,7 @@
             
 < PolygonDir >      ..\..\polygons\squirrel_TMR\    </ PolygonDir >
 
+< gamma > 1.0 </ gamma >
 < DensityFile >      ..\..\surfaces\squirrel.txt </ DensityFile >
 
 < TextureImageDir >  ..\..\polygons\squirrel_TMR\  </ TextureImageDir >

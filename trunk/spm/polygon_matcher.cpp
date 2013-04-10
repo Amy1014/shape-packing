@@ -21,14 +21,20 @@ namespace Geex
 			perimeter += edge_lens[i];
 		}
 		modelPtsSet.reserve(nb_sampling);
+		model_tangent_vec.reserve(nb_sampling);
 		for (unsigned int i = 0; i < model.size(); i++)
 		{
 			int n = (edge_lens[i]/perimeter)*nb_sampling;
 			Point_2 src = model[i].source(), tgt = model[i].target();
+
+			Vector_2 tv(src, tgt);
+			cgal_vec_normalize(tv);
+
 			for (unsigned int j = 0; j < n+1; j++)
 			{				
 				Point_2 sp = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) ) / (n+1);
 				modelPtsSet.push_back(cv::Point2d(sp.x(), sp.y()));
+				model_tangent_vec.push_back(tv);
 			}
 		}
 		modelMat = CmAffine::CreatePointSetMat(modelPtsSet);
@@ -37,6 +43,7 @@ namespace Geex
 	Polygon_matcher::~Polygon_matcher()
 	{
 		modelPtsSet.clear();
+		model_tangent_vec.clear();
 		cvReleaseMat(&modelMat);
 	}
 }
