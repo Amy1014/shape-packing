@@ -179,7 +179,8 @@ namespace Geex
 		GLboolean old_cull_face_config = glIsEnabled(GL_CULL_FACE);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
-		glEnable(GL_LIGHTING);
+		//glEnable(GL_LIGHTING);
+		glDisable(GL_LIGHTING);
 		glPushMatrix();
 		glMaterialfv(GL_FRONT, GL_DIFFUSE, mat);
 		for (unsigned int i = 0; i < tiles.size(); i++)
@@ -206,7 +207,7 @@ namespace Geex
 			glEnd();
 		}
 		glPopMatrix();
-		glDisable(GL_LIGHTING);
+		//glDisable(GL_LIGHTING);
 		if (!old_cull_face_config)
 			glDisable(GL_CULL_FACE);
 		glDisable(GL_TEXTURE_2D);
