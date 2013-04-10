@@ -787,22 +787,6 @@ namespace Geex
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
 
 			Local_frame lf;
-// 			std::vector<Point_3> vd_vertices;
-// 			for (unsigned int j = 0; j < samp_pnts.size(); j++)
-// 			{
-// 				const std::vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
-// 				for (unsigned int k = 0; k < bisec_pnts.size(); k++)
-// 					vd_vertices.push_back(bisec_pnts[k]);
-// 			}
-// 			double cx = 0.0, cy = 0.0, cz = 0.0;
-// 			for (unsigned int j = 0; j < vd_vertices.size(); j++)
-// 			{
-// 				cx += vd_vertices[j].x();
-// 				cy += vd_vertices[j].y(); 
-// 				cz += vd_vertices[j].z();
-// 			}
-			//lf.o = CGAL::centroid(vd_vertices.begin(), vd_vertices.end(), CGAL::Dimension_tag<0>());
-			//lf.o = Point_3(cx/vd_vertices.size(), cy/vd_vertices.size(), cz/vd_vertices.size());
 			lf.o = pack_objects[i].centroid();
 			Vector_3 u(lf.o, pack_objects[i].vertex(0));
 			//Vector_3 u(lf.o, vd_vertices[0]);
@@ -839,7 +823,6 @@ namespace Geex
 			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
 			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
 				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
-			//system("pause");
 			
 			// choose the result with the smallest match error now
 			Match_info_item<unsigned int> matcher = match_res.top();
@@ -861,7 +844,6 @@ namespace Geex
 			vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
 
 			v = approx_normal(fid);
-			//pack_objects[i].norm(lf.w);
 			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
 
 			double shrink_factor;
@@ -886,31 +868,6 @@ namespace Geex
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
 		compute_clipped_VD();
-		// penetration check
-		//bool rebuild = false;
-		//for (unsigned int i = 0; i < pack_objects.size(); i++)
-		//{
-		//	const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
-		//	bool penetration = false;
-		//	for (unsigned int j = 0; j < samp_pnts.size(); j++)
-		//		penetration |= samp_pnts[j]->penetration;
-		//	rebuild |= penetration;
-		//	if (penetration)
-		//	{
-		//		Point_3 c = pack_objects[i].centroid();
-		//		Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, c)) *
-		//			( Transformation_3(CGAL::SCALING, 0.5) *
-		//			Transformation_3(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN)) );	
-		//		std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
-		//		pack_objects[i].factor *= 0.5;
-		//	}
-		//}
-		//if (rebuild)
-		//{
-		//	std::cout<<"penetration happened.\n";
-		//	generate_RDT();
-		//	compute_clipped_VD();
-		//}
 		stop_update_DT = false;
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
@@ -1046,6 +1003,46 @@ namespace Geex
 		stop_update_DT = false;
 		compute_clipped_VD();
 		std::cout<<"End filling holes.\n";
+	}
+
+	void Packer::remove_one_polygon(unsigned int id, Hole& hole)
+	{
+		// build the hole after removing the polygon
+		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
+		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
+		hole.clear();
+		for (unsigned int i = 0; i < samp_pnts.size(); i++)
+		{
+			Edge_circulator start_edge = samp_pnts[i]->vertex_begin();
+			Edge_circulator current_edge = start_edge;
+			do 
+			{
+				Vertex_handle v_adj = current_edge->opposite()->vertex();
+				if (v_adj->group_id == samp_pnts[i]->group_id)
+					break;
+				++current_edge;
+			} while (current_edge != start_edge);
+			start_edge = current_edge;
+			do 
+			{
+				if (current_edge->facet() != Facet_handle() )
+				{
+					Halfedge_handle opposite_edge = current_edge->prev();
+					Vertex_handle v0 = opposite_edge->vertex(), v1 = opposite_edge->opposite()->vertex();
+					if (v0->group_id != samp_pnts[i]->group_id && v1->group_id != samp_pnts[i]->group_id)
+						hole.push_back(opposite_edge);
+				}
+				++current_edge;
+			} while (current_edge != start_edge);
+		}
+	}
+
+	void Packer::remove_polygons()
+	{
+		static unsigned int id = 0;
+		holes.push_back(Hole());
+		remove_one_polygon(id, holes.back());
+		id++;
 	}
 
 	void Packer::save_curvature_and_area()

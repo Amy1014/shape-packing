@@ -84,6 +84,7 @@ namespace Geex
 
 		// replace
 		void replace();
+		void remove_polygons();
 
 		// driver
 		void pack(void (*post_action)() = NULL); 
@@ -126,6 +127,10 @@ namespace Geex
 
 		// mapping from curvature to transformation
 		void curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id);
+
+		/** replace **/
+		// remove one polygon and leave a hole
+		void remove_one_polygon(unsigned int id, Hole& hole);
 
 	private:
 
