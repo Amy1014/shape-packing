@@ -25,6 +25,7 @@ namespace Geex {
 	void TW_CALL tw_save_triangulation(void*);
 	void TW_CALL tw_save_cur_area(void*);
 	void TW_CALL tw_fill(void*);
+	void TW_CALL tw_remove(void*);
 	//void TW_CALL tw_merge(void*);
 	//void TW_CALL tw_feature_set_callback(const void*, void *);
 	//void TW_CALL tw_feature_get_callback(void*, void*);
@@ -128,7 +129,10 @@ namespace Geex {
 			spm()->replace();
 			post_update();
 		}
-
+		void remove()
+		{
+			spm()->remove_polygons();
+		}
 		void enlarge_polygon()
 		{
 			if (enlarge_id >= 0 && enlarge_factor >= 1.0)
@@ -170,27 +174,23 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Holes", TW_TYPE_BOOL8, &spm()->show_holes(), "group = 'Geometry' ");
 			TwBar* function_bar = TwNewBar("Functions");
-			TwDefine("Functions position='16 320' size='200 200' alpha=200");
-			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l");
-			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p");
-			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i");
-			TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d");
-			TwAddButton(function_bar, "Fill holes", tw_fill, NULL, "key=f");
+			TwDefine("Functions position='16 320' size='200 300' alpha=200");
+			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l group = 'Optimization' ");
+			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
+			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
+			TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
+			TwAddButton(function_bar, "Fill holes", tw_fill, NULL, "key=f group = 'Hole' ");
 			TwAddVarCB(function_bar, "Hole Size", TW_TYPE_DOUBLE, tw_hole_size_set_callback,
-						tw_hole_size_get_callback, NULL, "min=0.0 step=0.001");
+						tw_hole_size_get_callback, NULL, "min=0.0 step=0.001 group = 'Hole' ");
 			TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,
-						tw_front_len_get_callback, NULL, "min=0.0 step=0.001");
-			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0");
-			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r");
-			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999");
-			//TwAddVarRW(function_bar, "enlarge id", TW_TYPE_INT32, &enlarge_id, "");
-			//TwAddVarRW(function_bar, "enlarge factor", TW_TYPE_DOUBLE, &enlarge_factor, "");
-			//TwAddVarRW(function_bar, "rot angle", TW_TYPE_DOUBLE, &enlarge_theta, "");
-			//TwAddVarRW(function_bar, "trans_x", TW_TYPE_DOUBLE, &enlarge_tx, "");
-			//TwAddVarRW(function_bar, "trans_y", TW_TYPE_DOUBLE, &enlarge_ty, "");
-			//TwAddButton(function_bar, "enlarge", tw_enlarge, NULL, "key=e");
-			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t");
-			TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S");
+						tw_front_len_get_callback, NULL, "min=0.0 step=0.001 group = 'Hole' ");
+
+			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
+			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
+			TwAddButton(function_bar, "remove", tw_remove, NULL, "key=R group = 'Replace' ");
+			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999 group = 'Optimization' ");
+			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
+			TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
 			toggle_skybox_CB() ;
             glut_viewer_add_toggle('b', glut_viewer_is_enabled_ptr(GLUT_VIEWER_BACKGROUND), "switch Color/BW") ;
             glut_viewer_add_toggle('T', &viewer_properties_->visible(), "viewer properties") ;
@@ -244,24 +244,7 @@ void TW_CALL tw_save_triangulation(void* clientData)
 }
 void TW_CALL tw_save_cur_area( void *clientData ) { spm_app()->save_cur_area(); }
 void TW_CALL tw_fill( void *clientData ) { spm_app()->fill_holes(); }
-//void TW_CALL tw_merge(void *clientData) { spm_app()->merge(); /*spm_app()->fitPlanes();*/ }
-//void TW_CALL tw_rpack(void *clientData) { spm_app()->rpack(); }
-//void TW_CALL tw_feature_set_callback(const void* fc, void *clientData) 
-//{ 
-//	spm_app()->feature_set_callback(*(double*)fc); 
-//}
-//void TW_CALL tw_feature_get_callback(void *value, void *clientData) 
-//{ 
-//	spm_app()->feature_get_callback((double*)value); 
-//}
-//void TW_CALL tw_curvature_get_callback(void *value, void *clientData)
-//{
-//	spm_app()->curvature_get_callback((double*)value);
-//}
-//void TW_CALL tw_curvature_set_callback(const void *value, void *clientData)
-//{
-//	spm_app()->curvature_set_callback(*(double*)value);
-//}
+void TW_CALL tw_remove(void* clientData) { spm_app()->remove(); }
 ////void TW_CALL tw_correct_normals(void* clientData) { spm_app()->correct_normals(); }
 ////void TW_CALL tw_smooth_normals(void* clientData) { spm_app()->smooth_normals(); }
 //void TW_CALL tw_flip_normals(void* clientData) { spm_app()->flip_normals(); }
