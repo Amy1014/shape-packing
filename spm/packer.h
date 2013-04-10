@@ -66,6 +66,7 @@ namespace Geex
 		void front_edge_len(double len) { frontier_edge_size = len; }
 		std::vector<Hole>& get_holes() const { return holes; }
 		double& get_epsilon() { return epsilon; }
+		double& get_match_weight() { return match_weight; }
 		ProjectIO& get_project_ioer() { return pio; }
 
 		static Packer* instance() { return instance_; }
@@ -153,6 +154,7 @@ namespace Geex
 
 		/** control variable **/
 		bool stop_update_DT;
+		double match_weight;
 
 		/** helper classes **/
 	private:

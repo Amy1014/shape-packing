@@ -21,6 +21,7 @@ namespace Geex
 		stop_update_DT = false;
 
 		epsilon = 0.15;
+		match_weight = 0.0;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -82,7 +83,7 @@ namespace Geex
 			{
 				if (mesh.is_on_boundary(i) || mesh.is_on_feature(i))
 					continue;
-				double nf = /*(2-epsilon)*epsilon**/nb_init_polygons*mesh.vertex(i).weight()*region_area[i]/total_weight;
+				double nf = nb_init_polygons*mesh.vertex(i).weight()*region_area[i]/total_weight;
 				int n(nf+res);
 				//int n(nf);
 				//if ( n < 1)
@@ -813,6 +814,7 @@ namespace Geex
 			std::vector<Segment_2> region2d;
 
 			bool contain_non_delaunay_facet = false;
+			bool penetration = false;
 			
 			for (unsigned int j = 0; j < samp_pnts.size(); j++)
 			{
@@ -827,6 +829,7 @@ namespace Geex
 					}
 				}
 				contain_non_delaunay_facet |= samp_pnts[j]->contain_non_delaunay_facet;
+				penetration |= samp_pnts[j]->penetration;
 			}
 			Polygon_matcher pm(region2d, 200);
 			//double region_area = pm.get_model_area();
@@ -835,7 +838,8 @@ namespace Geex
 			//{
 			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
 			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
-				match_res.push(pm.affine_match(pgn_lib[idx], idx));
+				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
+			//system("pause");
 			
 			// choose the result with the smallest match error now
 			Match_info_item<unsigned int> matcher = match_res.top();
@@ -861,7 +865,7 @@ namespace Geex
 			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
 
 			double shrink_factor;
-			if (contain_non_delaunay_facet)
+			if (contain_non_delaunay_facet || penetration)
 				shrink_factor = 0.3;
 			else
 				shrink_factor = 0.6;
@@ -877,32 +881,37 @@ namespace Geex
 			pack_objects[i].facet_idx = fid;
 			pack_objects[i].texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
 			pack_objects[i].texture_id = match_pgn.texture_id;
-// 			}
-// 			else
-// 			{
-// 				Point_3 c = pack_objects[i].centroid();
-// 				Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, c)) *
-// 											( Transformation_3(CGAL::SCALING, shrink_factor) *
-// 												Transformation_3(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN)) );	
-// 
-// 				std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
-// 				pack_objects[i].factor *= shrink_factor;
-// 			}
-			//u = Vector_3(pack_objects[i].centroid(), pack_objects[i].vertex(0));
-			//u = u / CGAL::sqrt(u.squared_length());
-			//if (std::fabs(pack_objects[i].norm()*u) >= 0.1)
-			//{
-			//	std::cout<<"non orhogonal vectors!\n";
-			//	system("pause");
-			//}
-
 		}
 		replace_timer.stop();
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
 		compute_clipped_VD();
+		// penetration check
+		//bool rebuild = false;
+		//for (unsigned int i = 0; i < pack_objects.size(); i++)
+		//{
+		//	const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+		//	bool penetration = false;
+		//	for (unsigned int j = 0; j < samp_pnts.size(); j++)
+		//		penetration |= samp_pnts[j]->penetration;
+		//	rebuild |= penetration;
+		//	if (penetration)
+		//	{
+		//		Point_3 c = pack_objects[i].centroid();
+		//		Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, c)) *
+		//			( Transformation_3(CGAL::SCALING, 0.5) *
+		//			Transformation_3(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN)) );	
+		//		std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
+		//		pack_objects[i].factor *= 0.5;
+		//	}
+		//}
+		//if (rebuild)
+		//{
+		//	std::cout<<"penetration happened.\n";
+		//	generate_RDT();
+		//	compute_clipped_VD();
+		//}
 		stop_update_DT = false;
-		//rpvd.save_triangulation("rdt.obj");
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
 

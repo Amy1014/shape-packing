@@ -190,7 +190,7 @@ namespace Geex
 	}
 	ProjectIO& ProjectIO::operator>>(TriMesh& mesh)
 	{
-		TagLookupTable::const_iterator it = attr_val.find("MeshFile");
+		TagLookupTable::const_iterator it = attr_val.find("MeshFile"), gamma_it;
 		if ( it == attr_val.end() )
 			prompt_and_exit(error_mesh_file_fail+" Not specified.");
 		mesh.load(it->second);
@@ -198,8 +198,18 @@ namespace Geex
 		// possibly load density(curvature) file
 		it = attr_val.find("DensityFile");
 		if ( it != attr_val.end() )
-			has_density_input_ = mesh.load_density(it->second, 2.0);
-
+		{
+			gamma_it = attr_val.find("gamma");
+			std::istringstream str_gamma;
+			if (gamma_it != attr_val.end())
+				str_gamma.str(gamma_it->second);
+			else
+				str_gamma.str("1.0");
+			double gamma;
+			str_gamma >> gamma;
+			std::cout<<"using gamma = "<<str_gamma.str()<<std::endl;
+			has_density_input_ = mesh.load_density(it->second, gamma);
+		}
 		return *this;
 	}
 

@@ -28,6 +28,7 @@ namespace Geex
 		Point_3 mp; // projection point on mesh
 		std::vector<Point_3> vd_vertices;
 		bool contain_non_delaunay_facet;
+		bool penetration;
 		//std::vector<double> weights; // weights for optimization
 		int idx;
 	};

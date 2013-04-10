@@ -118,6 +118,7 @@ namespace Geex
 		delete rvd;
 		delete del;
 		delete pnt_coord;
+		all_points.clear();
 		open = false;
 	}
 
@@ -130,6 +131,7 @@ namespace Geex
 		{
 			vit->vd_vertices.clear();
 			vit->contain_non_delaunay_facet = false;
+			vit->penetration = true;
 			//vit->weights.clear();
 		}
 		int nb_lost_facets = 0;
@@ -152,7 +154,10 @@ namespace Geex
 					Vertex_handle v_pre = current_edge->prev()->vertex();
 					//Vertex_handle v_pre = current_edge->opposite()->vertex();
 					if ( v_pre->group_id == vg[j]->group_id)
+					{
+						vg[j]->penetration = false;
 						break;
+					}
 					++current_edge;
 				} while (current_edge != start_edge);
 				Edge_circulator end = current_edge;

@@ -487,7 +487,7 @@ namespace Geex {
 		{
 			if (vertices_[i].curvature > median)
 				vertices_[i].curvature = median;
-			vertices_[i].weight()  = vertices_[i].curvature * vertices_[i].curvature;
+			vertices_[i].weight()  = pow(vertices_[i].curvature , gamma);
 		}
 
 		// compute face's weight by averaging weight of vertices
