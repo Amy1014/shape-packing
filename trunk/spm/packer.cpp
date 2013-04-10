@@ -80,6 +80,8 @@ namespace Geex
 			}
 			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 			{
+				if (mesh.is_on_boundary(i) || mesh.is_on_feature(i))
+					continue;
 				double nf = /*(2-epsilon)*epsilon**/nb_init_polygons*mesh.vertex(i).weight()*region_area[i]/total_weight;
 				int n(nf+res);
 				//int n(nf);
@@ -111,6 +113,9 @@ namespace Geex
 				while ( init_facets.find(idx) != init_facets.end() )
 					idx = ::rand()%mesh.size();
 				init_facets.insert(idx);
+				int vi0 = mesh[idx].vertex_index[0], vi1 = mesh[idx].vertex_index[1], vi2 = mesh[idx].vertex_index[2];
+				if (mesh.is_on_boundary(vi0) || mesh.is_on_boundary(vi1) || mesh.is_on_boundary(vi2))
+					continue;
 				Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
 				init_pos.push_back(std::make_pair(idx, c));
 			}
@@ -245,7 +250,7 @@ namespace Geex
 	{
 		rpvd.begin_insert();
 		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 20);
-		rpvd.insert_bounding_points(15);
+		rpvd.insert_bounding_points(20);
 		CGAL::Timer t;
 		t.start();
 		rpvd.end_insert();
