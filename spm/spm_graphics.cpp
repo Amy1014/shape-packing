@@ -242,6 +242,8 @@ namespace Geex
 			glBegin(GL_LINES);
 			for (Halfedge_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
 			{
+				if (eit->is_border() || eit->opposite()->is_border())
+					continue;
 				if (!eit->is_border()&& !eit->opposite()->is_border() && rpvd.is_delaunay_edge(eit))
 					glColor3f(0.6f, 0.0f, 0.0f);
 				else
@@ -335,10 +337,10 @@ namespace Geex
 			glBegin(GL_LINES);
 			for (unsigned int j = 0; j < h.size(); j++)
 			{
-				Halfedge_handle e = h[j];
-				Halfedge_handle oe = e->opposite();
-				glPoint_3(e->vertex()->mp);
-				glPoint_3(oe->vertex()->mp);
+				//Halfedge_handle e = h[j];
+				//Halfedge_handle oe = e->opposite();
+				glPoint_3(h[j].source());
+				glPoint_3(h[j].target());
 			}
 			glEnd();
 		}

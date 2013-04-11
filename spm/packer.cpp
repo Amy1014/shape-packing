@@ -306,14 +306,20 @@ namespace Geex
 		return avg_norm;
 	}
 
+	Packer::Local_frame Packer::compute_local_frame(const Packing_object& tile)
+	{
+		Local_frame lf;
+		lf.o = tile.centroid();
+		lf.w = tile.norm(); // assume this vector has already been normalized
+		Vector_3 u(lf.o, tile.vertex(0));
+		lf.u = u/CGAL::sqrt(u.squared_length());
+		lf.v = CGAL::cross_product(lf.w, lf.u);
+		return lf;
+	}
 	Packer::Optimization_res Packer::optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution)
 	{
 		// choose a local frame
-		lf.o = pack_objects[id].centroid();
-		lf.w = pack_objects[id].norm(); // assume this vector has already been normalized
-		Vector_3 u(lf.o, pack_objects[id].vertex(0));
-		lf.u = u/CGAL::sqrt(u.squared_length());
-		lf.v = CGAL::cross_product(lf.w, lf.u);
+		lf = compute_local_frame(pack_objects[id]);
 
 		// voronoi region
 		std::vector<Segment_2> vr_region;
@@ -728,7 +734,7 @@ namespace Geex
 			f->vacant = false;
 			std::queue<Halfedge_handle> active_front_edges;
 			std::list<Facet_iterator> ahole;
-			Hole hole_bd;
+			std::vector<Halfedge_handle> hole_bd;
 			Halfedge_handle e = f->halfedge();
 			active_front_edges.push(e);
 			active_front_edges.push(e->next());
@@ -765,7 +771,18 @@ namespace Geex
 			}
 
 			if (ahole_area >= hole_facet_area_threshold)
-				holes.push_back(hole_bd);
+			{
+				// convert to point representation
+				holes.push_back(Hole());
+				holes.back().reserve(hole_bd.size());
+				for (unsigned int i = 0; i < hole_bd.size(); i++)
+				{
+					Point_3 src = hole_bd[i]->vertex()->mp;
+					Point_3 tgt = hole_bd[i]->opposite()->vertex()->mp;
+					holes.back().push_back(Segment_3(src, tgt));
+				}
+				//holes.push_back(hole_bd);
+			}
 		}
 		std::cout<<holes.size()<<" holes were detected. \n";
 	}
@@ -786,14 +803,7 @@ namespace Geex
 		{
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
 
-			Local_frame lf;
-			lf.o = pack_objects[i].centroid();
-			Vector_3 u(lf.o, pack_objects[i].vertex(0));
-			//Vector_3 u(lf.o, vd_vertices[0]);
-			lf.u = u / CGAL::sqrt(u.squared_length());
-			lf.w = pack_objects[i].norm();
-			lf.w = lf.w / CGAL::sqrt(lf.w.squared_length());
-			lf.v = CGAL::cross_product(lf.w, lf.u);
+			Local_frame lf = compute_local_frame(pack_objects[i]);
 
 			std::vector<Segment_2> region2d;
 
@@ -937,72 +947,76 @@ namespace Geex
 		std::cout<<"Start filling holes...\n";
 		for (unsigned int i = 0; i < holes.size(); i++)
 		{
-			Hole& hl = holes[i];
-			std::vector<Segment_2> hole_bd_2d;
-			std::vector<Point_3> hole_verts;
-			hole_verts.reserve(hl.size()*2);
-			for (unsigned int j = 0; j < hl.size(); j++)
-			{
-				Halfedge_handle he = hl[j];
-				hole_verts.push_back(he->vertex()->point());
-				hole_verts.push_back(he->opposite()->vertex()->point());
-			}
-			Point_3 hole_cent = CGAL::centroid(hole_verts.begin(), hole_verts.end(), CGAL::Dimension_tag<0>());
-			vec3 v, prj_cent;
-			int fid;
-			prj_cent = mesh.project_to_mesh(to_geex_pnt(hole_cent), v, fid);
-			Local_frame lf;
-			lf.o = to_cgal_pnt(prj_cent);
-			lf.w = to_cgal_vec(v);
-			cgal_vec_normalize(lf.w);
-			Plane_3 prj_plane(lf.o, lf.w);
-			lf.u = prj_plane.base1();
-			cgal_vec_normalize(lf.u);
-			lf.v = CGAL::cross_product(lf.w, lf.u);
-			for (unsigned int j = 0; j < hl.size(); j++)
-			{
-				Halfedge_handle he = hl[j];
-				Point_2 s = lf.to_uv( prj_plane.projection(he->vertex()->point()) );
-				Point_2 t = lf.to_uv( prj_plane.projection(he->opposite()->vertex()->point()) );
-				hole_bd_2d.push_back( Segment_2(s, t) );
-			}
-			Polygon_matcher pm(hole_bd_2d, 200);
-			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
-			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
-				match_res.push(pm.affine_match(pgn_lib[idx], idx));
-			// choose the result with the smallest match error now
-			Match_info_item<unsigned int> matcher = match_res.top();
-
-			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
-			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
-
-			Packing_object filler;
-
-			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
-			{
-				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
-				filler.push_back(p);
-			}
-
-			filler.align(lf.w, lf.o);
-			double shrink_factor = 0.8;
-
-			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
-														( Transformation_3(CGAL::SCALING, shrink_factor) *
-															Transformation_3(CGAL::TRANSLATION, Vector_3(lf.o, CGAL::ORIGIN)) );	
-
-			std::transform(filler.vertices_begin(), filler.vertices_end(), filler.vertices_begin(), rescalor);
-			filler.factor = matcher.scale * shrink_factor;
-			filler.facet_idx = fid;
-			filler.lib_idx = matcher.val;
-			filler.texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
-			filler.texture_id = match_pgn.texture_id;
-			pack_objects.push_back(filler);
+			pack_objects.push_back(Packing_object());
+			fill_one_hole(holes[i], pack_objects.back());
 		}
 		generate_RDT();
 		stop_update_DT = false;
 		compute_clipped_VD();
 		std::cout<<"End filling holes.\n";
+	}
+
+	void Packer::fill_one_hole(Hole& hl, Packing_object& filler)
+	{
+		std::vector<Segment_2> hole_bd_2d;
+		std::vector<Point_3> hole_verts;
+		hole_verts.reserve(hl.size()*2);
+		for (unsigned int j = 0; j < hl.size(); j++)
+		{
+			const Segment_3& he = hl[j];
+			hole_verts.push_back(he.source());
+			hole_verts.push_back(he.target());
+		}
+		Point_3 hole_cent = CGAL::centroid(hole_verts.begin(), hole_verts.end(), CGAL::Dimension_tag<0>());
+		vec3 v, prj_cent;
+		int fid;
+		prj_cent = mesh.project_to_mesh(to_geex_pnt(hole_cent), v, fid);
+		Local_frame lf;
+		lf.o = to_cgal_pnt(prj_cent);
+		lf.w = to_cgal_vec(v);
+		cgal_vec_normalize(lf.w);
+		Plane_3 prj_plane(lf.o, lf.w);
+		lf.u = prj_plane.base1();
+		cgal_vec_normalize(lf.u);
+		lf.v = CGAL::cross_product(lf.w, lf.u);
+		for (unsigned int j = 0; j < hl.size(); j++)
+		{
+			const Segment_3& he = hl[j];
+			Point_2 s = lf.to_uv( prj_plane.projection(he.source()) );
+			Point_2 t = lf.to_uv( prj_plane.projection(he.target()) );
+			hole_bd_2d.push_back( Segment_2(s, t) );
+		}
+		Polygon_matcher pm(hole_bd_2d, 200);
+		std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
+		for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+			match_res.push(pm.affine_match(pgn_lib[idx], idx));
+		// choose the result with the smallest match error now
+		Match_info_item<unsigned int> matcher = match_res.top();
+
+		const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
+		Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
+
+		filler.clear();
+
+		for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+		{
+			Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+			filler.push_back(p);
+		}
+
+		filler.align(lf.w, lf.o);
+		double shrink_factor = 0.8;
+
+		Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
+			( Transformation_3(CGAL::SCALING, shrink_factor) *
+			Transformation_3(CGAL::TRANSLATION, Vector_3(lf.o, CGAL::ORIGIN)) );	
+
+		std::transform(filler.vertices_begin(), filler.vertices_end(), filler.vertices_begin(), rescalor);
+		filler.factor = matcher.scale * shrink_factor;
+		filler.facet_idx = fid;
+		filler.lib_idx = matcher.val;
+		filler.texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
+		filler.texture_id = match_pgn.texture_id;	
 	}
 
 	void Packer::remove_one_polygon(unsigned int id, Hole& hole)
@@ -1011,6 +1025,7 @@ namespace Geex
 		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
 		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 		hole.clear();
+		//std::list<Halfedge_handle> halfedge_bd;
 		for (unsigned int i = 0; i < samp_pnts.size(); i++)
 		{
 			Edge_circulator start_edge = samp_pnts[i]->vertex_begin();
@@ -1030,19 +1045,74 @@ namespace Geex
 					Halfedge_handle opposite_edge = current_edge->prev();
 					Vertex_handle v0 = opposite_edge->vertex(), v1 = opposite_edge->opposite()->vertex();
 					if (v0->group_id != samp_pnts[i]->group_id && v1->group_id != samp_pnts[i]->group_id)
-						hole.push_back(opposite_edge);
+					{
+						//halfedge_bd.push_back(opposite_edge);
+						Point_3 src = opposite_edge->vertex()->mp, tgt = opposite_edge->opposite()->vertex()->mp;
+						hole.push_back(Segment_3(src, tgt));
+					}
 				}
 				++current_edge;
 			} while (current_edge != start_edge);
 		}
+
+		// remove the corresponding triangulation
+		std::set<Facet_handle> removed_facets;
+		for (unsigned int i = 0; i < samp_pnts.size(); i++)
+		{
+			Edge_circulator start_edge = samp_pnts[i]->vertex_begin();
+			Edge_circulator current_edge = start_edge;	
+			bool border_break = false;
+			do 
+			{
+				if (current_edge->is_border() || current_edge->opposite()->is_border())
+				{
+					border_break = true;
+					break;
+				}
+				Facet_handle f = current_edge->facet();
+				removed_facets.insert(f);
+				++current_edge;
+			} while (current_edge != start_edge);
+			if (border_break)
+			{
+				//std::cout<<"border broken\n";
+				current_edge = start_edge;
+				do 
+				{
+					--current_edge;
+					if (current_edge->is_border() || current_edge->opposite()->is_border())
+					{
+						border_break = true;
+						break;
+					}
+					Facet_handle f = current_edge->facet();
+					removed_facets.insert(f);			
+				} while (current_edge != start_edge);
+			}
+		}
+		for (std::set<Facet_handle>::iterator it = removed_facets.begin(); it != removed_facets.end(); ++it)
+			rpvd.erase_facet((*it)->halfedge());
 	}
 
 	void Packer::remove_polygons()
 	{
 		static unsigned int id = 0;
-		holes.push_back(Hole());
-		remove_one_polygon(id, holes.back());
+		//for (unsigned int id = 0; id < pack_objects.size(); id++) 
+		{
+			holes.push_back(Hole());
+			remove_one_polygon(id, holes.back());
+		}
+
 		id++;
+	}
+
+	void Packer::replace_one_polygon(unsigned int id, Hole& region)
+	{
+		fill_one_hole(region, pack_objects[id]);
+
+		// re-triangulate the region nearby
+		// triangulate the polygon first
+
 	}
 
 	void Packer::save_curvature_and_area()

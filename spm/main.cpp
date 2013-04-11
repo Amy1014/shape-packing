@@ -132,6 +132,7 @@ namespace Geex {
 		void remove()
 		{
 			spm()->remove_polygons();
+			spm()->redraw_triangulation();
 		}
 		void enlarge_polygon()
 		{

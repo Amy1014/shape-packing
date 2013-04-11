@@ -32,109 +32,9 @@
  
 namespace Geex
 {
-	//debug
-	extern int nb_invalid_edges;
 	//extern std::ofstream of;
 
-	struct MyPoint
-	{
-		Point_3 p;
-		int group_id;
-		Point_3 prj_pnt;
-		MyPoint(const Point_3& _p, const Point_3& _prj, int _group_id) : p(_p), prj_pnt(_prj), group_id(_group_id) {}
-	};
-	class Builder : public CGAL::Modifier_base<RDT_data_structure::HalfedgeDS>
-	{
-		typedef RDT_data_structure::HalfedgeDS HDS;
-		typedef CGAL::Polyhedron_incremental_builder_3<HDS> Internal_Builder;
-		typedef RestrictedVoronoiDiagram_poly RestrictedVoronoiDiagram;
-		typedef HDS::Vertex_handle Vertex_handle;
-		typedef HDS::Vertex Vertex;
 
-	public:
-		Builder(RestrictedVoronoiDiagram& _rvd, std::vector<MyPoint>& verts, TriMesh& _m)
-						:rvd(_rvd), points(verts), m(_m) {}
-		void operator()(HDS& hds)
-		{
-			Internal_Builder builder(hds, true);
-			builder.begin_surface(points.size(), points.size()/3, CGAL::Polyhedron_incremental_builder_3<HDS>::ABSOLUTE_INDEXING);
-			
-			for (unsigned int i = 0; i < points.size(); i++)
-			{
-				Vertex_handle vh = builder.add_vertex(points[i].p);
-				vh->group_id = points[i].group_id;
-				vh->mp = points[i].prj_pnt;
-				vh->idx = i;
-				//of<<"v "<<points[i].prj_pnt.x()<<' '<<points[i].prj_pnt.y()<<' '<<points[i].prj_pnt.z()<<std::endl;
-			}
-			rvd.for_each_primal_triangle(construct_faces(builder, points, m));
-			builder.end_surface();
-
-			std::cout<<"Number of invalid facets: "<<nb_invalid_edges<<std::endl;
-		}
-	private:
-		RestrictedVoronoiDiagram& rvd;
-		std::vector<MyPoint>& points;
-		TriMesh& m;
-		//std::set<std::pair<unsigned int, unsigned int>> ordering;
-
-		struct construct_faces
-		{
-			Internal_Builder& b;
-			std::vector<MyPoint>& points;
-			TriMesh& m;
-
-			//std::set<std::pair<unsigned int, unsigned int>>& ordering;
-			construct_faces(Internal_Builder& _b, std::vector<MyPoint>& _points, TriMesh& _m)
-				: b(_b), points(_points), m(_m) {}
-			void operator()(unsigned int i, unsigned int j, unsigned int k) const
-			{
-				vec3 dv;
-				Vector_3 avgp = (points[i].prj_pnt - CGAL::ORIGIN)+(points[j].prj_pnt - CGAL::ORIGIN)+(points[k].prj_pnt - CGAL::ORIGIN); 
-				avgp = avgp / 3.0;
-				m.project_to_mesh(to_geex_pnt(CGAL::ORIGIN + avgp), dv);
-				Vector_3 n = to_cgal_vec(dv);
-				n = n / CGAL::sqrt(n.squared_length());
-				Vector_3 nij(points[i].prj_pnt, points[j].prj_pnt);
-				Vector_3 njk(points[j].prj_pnt, points[k].prj_pnt);
-				Vector_3 det = CGAL::cross_product(nij, njk);
-				det = det / CGAL::sqrt(det.squared_length());
-				if ( n*det < 0.0 )
-				{
-					unsigned int indices[] = {k, j, i};
-					if (b.test_facet(indices, indices+3))
-					{
-						HDS::Face_handle f = b.begin_facet();
-						b.add_vertex_to_facet(k);
-						b.add_vertex_to_facet(j);
-						b.add_vertex_to_facet(i);
-						b.end_facet();
-						f->is_delaunay = true;
-					}
-					else
-						nb_invalid_edges++;
-
-				}
-				else
-				{	
-					unsigned int indices[] = {i, j, k};
-					if (b.test_facet(indices, indices+3))
-					{
-						HDS::Face_handle f = b.begin_facet();
-						b.add_vertex_to_facet(i);
-						b.add_vertex_to_facet(j);
-						b.add_vertex_to_facet(k);
-						b.end_facet();
-						f->is_delaunay = true;
-					}
-					else
-						nb_invalid_edges++;
-				}
-				//of<<"f "<<i+1<<' '<<j+1<<' '<<k+1<<std::endl;
-			}
-		};
-
-	};
 class RestrictedPolygonVoronoiDiagram
 {
 
@@ -179,6 +79,8 @@ public:
 	void compute_clipped_VD(std::vector<Plane_3>& clipping_planes);
 
 	void iDT_update(); // edge flip to preserve intrinsic Delaunay structure
+
+	void erase_facet(Halfedge_handle h) { rdt_ds.erase_facet(h); }
 
 	/** access functions **/
 	const VertGroup& sample_points_group(unsigned int polygon_id) const { return samp_pnts[polygon_id]; }

@@ -2,7 +2,6 @@
 
 namespace Geex
 {
-	int nb_invalid_edges = 0;
 
 	double RestrictedPolygonVoronoiDiagram::pi = 3.141592653589793;
 
@@ -337,8 +336,12 @@ namespace Geex
 					system("pause");
 				fe->facet()->is_delaunay = fe->opposite()->facet()->is_delaunay = true;
 			}
-			e->facet()->is_delaunay = true;
-			oe->facet()->is_delaunay = true;
+			else
+			{
+				e->facet()->is_delaunay = true;
+				oe->facet()->is_delaunay = true;
+			}
+
 		}
 		std::cout<<"Number of unflippable edges: "<<nb_unflippable_edges<<std::endl;
 	}
