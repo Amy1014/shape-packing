@@ -47,7 +47,7 @@ namespace Geex
 		
 	public:
 
-		typedef std::vector<Halfedge_handle> Hole; // representing a hole, consisting of non-border edges
+		typedef std::vector<Segment_3> Hole; // representing a hole, consisting of non-border edges
 		
 		Packer();
 
@@ -85,6 +85,7 @@ namespace Geex
 		// replace
 		void replace();
 		void remove_polygons();
+		void replace_one_polygon(unsigned int id, Hole& region); // public for debug
 
 		// driver
 		void pack(void (*post_action)() = NULL); 
@@ -105,6 +106,8 @@ namespace Geex
 		void compute_clipped_VD();
 
 		vec3 approx_normal(unsigned int facet_idx);
+		
+		Local_frame compute_local_frame(const Packing_object& tile);
 
 		/** optimization **/
 		// one Lloyd iteration
@@ -128,9 +131,11 @@ namespace Geex
 		// mapping from curvature to transformation
 		void curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id);
 
-		/** replace **/
+		/** replace and hole filling**/
 		// remove one polygon and leave a hole
 		void remove_one_polygon(unsigned int id, Hole& hole);
+		// fill one hole
+		void fill_one_hole(Hole& hl, Packing_object& filler);
 
 	private:
 

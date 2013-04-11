@@ -17,6 +17,7 @@
 #include <CGAL/Extended_cartesian.h>
 #include <CGAL/Object.h>
 #include <CGAL/Triangle_3.h>
+#include <CGAL/utility.h>
 #include <Geex/CVT/geometry.h>
 #include "Polygon_3.h"
 
