@@ -56,6 +56,44 @@ void Containment::load_polygons(const std::string& inner_pgn_filename,const std:
 	origin_inner_pgn_ = inner_pgn_;
  }
 
+ void Containment::load_polygons(const Polygon_2& inner_pgn, const std::vector<Segment_2>& outer_pgn)
+ {
+	const_list_.clear();
+	for (unsigned int i = 0; i < inner_pgn.size(); i++)
+	{
+		Point_2 v = inner_pgn.vertex(i);
+		unsigned int min_idx;
+		double min_dist = std::numeric_limits<double>::max();
+		for (unsigned int j = 0; j < outer_pgn.size(); j++)
+		{
+			double dsrc = CGAL::squared_distance(v, outer_pgn[j].source());
+			double dtgt = CGAL::squared_distance(v, outer_pgn[j].target());
+			if (dsrc < min_dist || dtgt < min_dist)
+			{
+				min_dist = std::min(dsrc, dtgt);
+				min_idx = j;
+			}
+		}
+		unsigned int submin_idx;
+		double submin_dist = std::numeric_limits<double>::max();
+		for (unsigned int j = 0; j < outer_pgn.size(); j++)
+		{
+			if (j != min_idx)
+			{
+				double dsrc = CGAL::squared_distance(v, outer_pgn[j].source());
+				double dtgt = CGAL::squared_distance(v, outer_pgn[j].target());
+				if (dsrc < submin_dist || dtgt < submin_dist)
+				{
+					submin_dist = std::min(dsrc, dtgt);
+					submin_idx = j;
+				}			
+			}
+		}
+		const_list_.push_back(Constraint(v, outer_pgn[min_idx]));
+		const_list_.push_back(Constraint(v, outer_pgn[submin_idx]));
+	}
+ }
+
 void Containment::get_bbox( double& x_min, double& y_min, double& z_min,
 						   double& x_max, double& y_max, double& z_max )
 {

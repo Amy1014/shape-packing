@@ -6,9 +6,6 @@
 #include <string>
 #include <CGAL/Polygon_2.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Constrained_Delaunay_triangulation_2.h>
-#include <CGAL/Triangulation_vertex_base_2.h>
-#include <CGAL/Constrained_triangulation_face_base_2.h>
 
 #include <CGAL/Triangulation_euclidean_traits_2.h>
 #include <CGAL/Delaunay_triangulation_2.h>
@@ -77,44 +74,7 @@ namespace Geex {
 		v = v / CGAL::sqrt(v.squared_length());
 	}
 
-	//////////////////////////////////////////////////////////////////////////
-	//					Constrained Delaunay Triangulation					//
-	//////////////////////////////////////////////////////////////////////////
-	template <class Gt, class Vb = CGAL::Triangulation_vertex_base_2<Gt>>
-	class CDTVertex : public Vb
-	{
-	public:
-		typedef typename Vb::Vertex_handle	Vertex_handle;
-		typedef typename Vb::Face_handle		Face_handle;
-		typedef typename Vb::Point			Point;
-
-		template < typename TDS2 >
-		struct Rebind_TDS {
-			typedef typename Vb::template Rebind_TDS<TDS2>::Other Vb2;
-			typedef CDTVertex<Gt,Vb2> Other;
-		} ;
-	public:
-		CDTVertex() : Vb() {}
-		CDTVertex(const Point& p) : Vb(p), idx(-1) {}
-		CDTVertex(const Point& p, int index) : Vb(p), idx(index) {}
-	public:
-		int idx;
-	};
-
-	template <class Gt, class Fb = CGAL::Constrained_triangulation_face_base_2<Gt>>
-	class CDTFace : public Fb
-	{
-
-	};
-
-	typedef CGAL::Triangulation_data_structure_2<CDTVertex<K>, CDTFace<K>> CDTDS;
-
-	typedef CGAL::Exact_predicates_tag Itag;
-
-	class CDT : public CGAL::Constrained_Delaunay_triangulation_2<K, CDTDS, Itag> 
-	{
-
-	};
+	
 }
 
 #endif

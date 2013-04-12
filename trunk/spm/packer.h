@@ -47,7 +47,7 @@ namespace Geex
 		
 	public:
 
-		typedef std::vector<Segment_3> Hole; // representing a hole, consisting of non-border edges
+		typedef std::vector<std::pair<Vertex_handle, Vertex_handle>> Hole; // representing a hole, consisting of non-border edges
 		
 		Packer();
 
@@ -85,8 +85,7 @@ namespace Geex
 		// replace
 		void replace();
 		void remove_polygons();
-		void replace_one_polygon(unsigned int id, Hole& region); // public for debug
-
+		void ex_replace(); // extended replace
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug
@@ -137,12 +136,14 @@ namespace Geex
 		// fill one hole
 		void fill_one_hole(Hole& hl, Packing_object& filler);
 
+		void replace_one_polygon(unsigned int id, Hole& region); 
 	private:
 
 		static Packer *instance_;
 		
 		ProjectIO pio;
 		std::vector<Packing_object> pack_objects;
+		unsigned int samp_nb; // polygon sample number
 		std::vector<Ex_polygon_2> pgn_lib;
 		TriMesh mesh;
 		double mesh_area;

@@ -69,6 +69,9 @@ public:
 	// insert a group of polygons
 	template<class InputIterator> void insert_polygons(InputIterator first, InputIterator last, unsigned int samp_nb = 24);
 
+	// modify rdt through adding a cdt
+	void delegate(CDTtoRDT& cdt2rdt) { rdt_ds.delegate(cdt2rdt); }
+
 	// insert feature and bounding points, samp_nb is number of sampling points on each edge
 	void insert_bounding_points(unsigned int samp_nb = 5);
 
