@@ -7,11 +7,25 @@
 #include <CGAL/Polyhedron_items_3.h>
 #include <CGAL/Polyhedron_3.h>
 
+#include <CGAL/HalfedgeDS_items_decorator.h>
+#include <CGAL/Constrained_Delaunay_triangulation_2.h>
+#include <CGAL/Triangulation_vertex_base_2.h>
+#include <CGAL/Constrained_triangulation_face_base_2.h>
+
 #include "spm_cgal.h"
 
 
 namespace Geex
 {
+	struct MyPoint
+	{
+		Point_3 p;
+		int group_id;
+		Point_3 prj_pnt;
+		MyPoint() {}
+		MyPoint(const Point_3& _p, const Point_3& _prj, int _group_id) : p(_p), prj_pnt(_prj), group_id(_group_id) {}
+	};
+
 	/** representation of restricted Delaunay triangulation **/
 	template <class Refs, class Point>
 	struct MyVertex
@@ -78,16 +92,55 @@ namespace Geex
 	
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+	//					Constrained Delaunay Triangulation					//
+	//////////////////////////////////////////////////////////////////////////
+	template <class Gt, class Vb = CGAL::Triangulation_vertex_base_2<Gt>>
+	class CDTVertex : public Vb
+	{
+	public:
+		typedef typename Vb::Vertex_handle	Vertex_handle;
+		typedef typename Vb::Face_handle		Face_handle;
+		typedef typename Vb::Point			Point;
+
+		template < typename TDS2 >
+		struct Rebind_TDS {
+			typedef typename Vb::template Rebind_TDS<TDS2>::Other Vb2;
+			typedef CDTVertex<Gt,Vb2> Other;
+		} ;
+	public:
+
+		CDTVertex() : Vb() {}
+
+		CDTVertex(const Point& p) : Vb(p) {}
+		
+		//CDTVertex(const Point& p2d, const MyPoint& _geo_info, bool _already_exist_in_triangulation) 
+		//	: Vb(p2d), geo_info(_geo_info), already_exist_in_triangulation(_already_exist_in_triangulation) {}
+
+	public:
+		MyPoint geo_info;
+		bool already_exist_in_rdt;
+		RDT_data_structure::Vertex_handle rdt_handle;
+	};
+
+	template <class Gt, class Fb = CGAL::Constrained_triangulation_face_base_2<Gt>>
+	class CDTFace : public Fb
+	{
+
+	};
+
+	typedef CGAL::Triangulation_data_structure_2<CDTVertex<K>, CDTFace<K>> CDTDS;
+
+	typedef CGAL::Exact_predicates_tag Itag;
+
+	class CDT : public CGAL::Constrained_Delaunay_triangulation_2<K, CDTDS, Itag> 
+	{
+
+	};
+
 	/************************************************************************/
 	/*                        Helper classes                                */
 	/************************************************************************/
-	struct MyPoint
-	{
-		Point_3 p;
-		int group_id;
-		Point_3 prj_pnt;
-		MyPoint(const Point_3& _p, const Point_3& _prj, int _group_id) : p(_p), prj_pnt(_prj), group_id(_group_id) {}
-	};
 	class Builder : public CGAL::Modifier_base<RDT_data_structure::HalfedgeDS>
 	{
 		typedef RDT_data_structure::HalfedgeDS HDS;
@@ -183,76 +236,178 @@ namespace Geex
 
 	};
 
-	class Append : public CGAL::Modifier_base<RDT_data_structure::HalfedgeDS>
+	class CDTtoRDT : public CGAL::Modifier_base<RDT_data_structure::HalfedgeDS>
 	{
 		typedef RDT_data_structure::HalfedgeDS HDS;
 		typedef CGAL::Polyhedron_incremental_builder_3<HDS> Internal_Builder;
 		typedef RestrictedVoronoiDiagram_poly RestrictedVoronoiDiagram;
-		typedef HDS::Vertex_handle Vertex_handle;
-		typedef HDS::Vertex Vertex;
+		typedef RDT_data_structure::Vertex_handle Vertex_handle;
+		typedef RDT_data_structure::Halfedge_handle Halfedge_handle;
+		typedef RDT_data_structure::Facet_handle	Facet_handle;
+		typedef RDT_data_structure::Vertex		Vertex;
+		typedef RDT_data_structure::Halfedge	Halfedge;
+		typedef RDT_data_structure::Facet	Facet;
+		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 
 	public:
-		Append(std::vector<MyPoint>& pnts, std::vector<CGAL::Triple<int, int, int>>& adjacency, TriMesh& trimesh) 
-			: appended_points(pnts), adjacency_info(adjacency), mesh(trimesh), nb_invalid_facets(0) {}
+		CDTtoRDT(CDT& _cdt, TriMesh& _trimesh) : cdt(_cdt), trimesh(_trimesh), nb_invalid_facets(0) {}
 
 		void operator()(HDS& hds)
 		{
-			Internal_Builder builder(hds, true);
-			builder.begin_surface(appended_points.size(), appended_points.size()/3, CGAL::Polyhedron_incremental_builder_3<HDS>::RELATIVE_INDEXING);
-			for (unsigned int i = 0; i < appended_points.size(); i++)
+			for (CDT::All_vertices_iterator vit = cdt.all_vertices_begin(); vit != cdt.all_vertices_end(); ++vit)
 			{
-				Vertex_handle vh = builder.add_vertex(appended_points[i].p);
-				vh->group_id = appended_points[i].group_id;
-				vh->mp = appended_points[i].prj_pnt;
+				if (cdt.is_infinite(vit))
+					continue;
+				if (!vit->already_exist_in_rdt)
+				{
+					Vertex_handle rdt_v = hds.vertices_push_back(Vertex(vit->geo_info.p));
+					rdt_v->mp = vit->geo_info.prj_pnt;
+					vit->already_exist_in_rdt = true;
+					vit->rdt_handle = rdt_v;
+				}
 			}
-
-			for (unsigned int i = 0; i < adjacency_info.size(); i++)
+			// register already halfedges
+			for (CDT::All_edges_iterator eit = cdt.all_edges_begin(); eit != cdt.all_edges_end(); ++eit)
 			{
+				if (cdt.is_infinite(eit))
+					continue;
+				CDT::Face_handle f = eit->first;
+				int vi = eit->second;
+				CDT::Vertex_handle v0 = f->vertex(f->cw(vi)), v1 = f->vertex(f->ccw(vi));
+				Vertex_handle rdt_v0 = v0->rdt_handle, rdt_v1 = v1->rdt_handle;
+				if (cdt.is_constrained(*eit)) // this edge already existed in rdt
+				{
+					Edge_circulator start_edge = rdt_v0->vertex_begin();
+					Edge_circulator current_edge = start_edge;
+					bool found = false, border_break = false;
+					do 
+					{
+						if (current_edge->opposite()->vertex() == rdt_v1)
+						{
+							found = true;
+							break;
+						}
+						if (current_edge->is_border() || current_edge->opposite()->is_border())
+						{
+							border_break = true;
+							break;
+						}
+						++current_edge;
+					} while (current_edge != start_edge);
+					if (!found)
+					{
+						start_edge = current_edge;
+						--current_edge;
+						do 
+						{
+							if ( current_edge->opposite()->vertex() == rdt_v1 )
+							{
+								found = true;
+								break;	
+							}
+							if (current_edge->is_border() || current_edge->opposite()->is_border())
+								break;
+							--current_edge;
+						} while (current_edge != start_edge);
+					}
+					if (!found)
+					{
+						std::cout<<"!!! Caution: rdt data structure assertion failed!\n";
+						system("pause");
+					}
+					existing_halfedges[std::make_pair(rdt_v1, rdt_v0)] = current_edge;
+					existing_halfedges[std::make_pair(rdt_v0, rdt_v1)] = current_edge->opposite();				
+				}
+				else
+				{
+					Halfedge he;
+					Halfedge ohe;
+					//he.set_vertex(rdt_v0);
+					//decorator.set_vertex_halfedge(rdt_v0, he);
+					//ohe.set_vertex(rdt_v1);
+					//decorator.set_vertex_halfedge(rdt_v1, ohe);
+					Halfedge_handle h = hds.edges_push_back(he, ohe);
+					existing_halfedges[std::make_pair(rdt_v1, rdt_v0)] = h;
+					existing_halfedges[std::make_pair(rdt_v0, rdt_v1)] = h->opposite();
+					decorator.set_vertex_halfedge(rdt_v0, h);
+					decorator.set_vertex_halfedge(rdt_v1, h->opposite());
+				}
+
+			}
+			for (CDT::All_faces_iterator fit = cdt.all_faces_begin(); fit != cdt.all_faces_end(); ++fit)
+			{
+				if (cdt.is_infinite(fit))
+					continue;
+				CDT::Vertex_handle v[] = { fit->vertex(0), fit->vertex(1), fit->vertex(2) };
+				// check orientation
+				Point_3 c = CGAL::centroid(v[0]->geo_info.prj_pnt, v[1]->geo_info.prj_pnt, v[2]->geo_info.prj_pnt);
 				vec3 dv;
-				const Point_3& p0 = appended_points[adjacency_info[i].first].prj_pnt;
-				const Point_3& p1 = appended_points[adjacency_info[i].second].prj_pnt;
-				const Point_3& p2 = appended_points[adjacency_info[i].third].prj_pnt;
-				Point_3 cent = CGAL::centroid(p0, p1, p2);
-				mesh.project_to_mesh(to_geex_pnt(cent), dv);
-				Vector_3 n = to_cgal_vec(dv);
-				cgal_vec_normalize(n);
-				Vector_3 v01(p0, p1), v12(p1, p2);
+				trimesh.project_to_mesh(to_geex_pnt(c), dv);
+				Vector_3 ndv = to_cgal_vec(dv);
+				cgal_vec_normalize(ndv);
+				Vector_3 v01(v[0]->geo_info.prj_pnt, v[1]->geo_info.prj_pnt), v12(v[1]->geo_info.prj_pnt, v[2]->geo_info.prj_pnt);
 				cgal_vec_normalize(v01);
 				cgal_vec_normalize(v12);
 				Vector_3 det = CGAL::cross_product(v01, v12);
-				unsigned int indices[3];
-				if (n*det < 0.0)
+				cgal_vec_normalize(det);
+				if (ndv * det >= 0.0)
 				{
-					indices[0] = adjacency_info[i].third;
-					indices[1] = adjacency_info[i].second;
-					indices[2] = adjacency_info[i].first;
+					Halfedge_handle he01 = existing_halfedges[std::make_pair(v[0]->rdt_handle, v[1]->rdt_handle)];
+					Halfedge_handle he12 = existing_halfedges[std::make_pair(v[1]->rdt_handle, v[2]->rdt_handle)];
+					Halfedge_handle he20 = existing_halfedges[std::make_pair(v[2]->rdt_handle, v[0]->rdt_handle)];
+					//he01->set_prev(he20);
+					//he01->set_next(he12);
+					//he12->set_prev(he01);
+					//he12->set_next(he20);
+					//he20->set_prev(he12);
+					//he20->set_next(he01);
+					decorator.set_prev(he01, he20);
+					decorator.set_prev(he12, he01);
+					decorator.set_prev(he20, he12);
+					Facet_handle f = hds.faces_push_back(Facet());
+					//f->set_halfedge(he01);
+					//he01->set_face(f);
+					//he12->set_face(f);
+					//he20->set_face(f);
+					decorator.set_face_halfedge(f, he01);
+					decorator.set_face(he01, f);
+					decorator.set_face(he12, f);
+					decorator.set_face(he20, f);
 				}
 				else
 				{
-					indices[0] = adjacency_info[i].first;;
-					indices[1] = adjacency_info[i].second;
-					indices[2] = adjacency_info[i].third;
+					Halfedge_handle he21 = existing_halfedges[std::make_pair(v[2]->rdt_handle, v[1]->rdt_handle)];
+					Halfedge_handle he10 = existing_halfedges[std::make_pair(v[1]->rdt_handle, v[0]->rdt_handle)];
+					Halfedge_handle he02 = existing_halfedges[std::make_pair(v[0]->rdt_handle, v[2]->rdt_handle)];
+					//he21->set_prev(he02);
+					//he21->set_next(he10);
+					//he10->set_prev(he21);
+					//he10->set_next(he02);
+					//he02->set_prev(he10);
+					//he02->set_next(he21);
+					decorator.set_prev(he21, he02);
+					decorator.set_prev(he10, he21);
+					decorator.set_prev(he02, he10);
+					Facet_handle f = hds.faces_push_back(Facet());
+					//f->set_halfedge(he21);
+					//he21->set_face(f);
+					//he10->set_face(f);
+					//he02->set_face(f);
+					decorator.set_face_halfedge(f, he21);
+					decorator.set_face(he21, f);
+					decorator.set_face(he10, f);
+					decorator.set_face(he02, f);
 				}
-				if (builder.test_facet(indices, indices+3))
-				{
-					HDS::Face_handle f = builder.begin_facet();
-					builder.add_vertex_to_facet(indices[0]);
-					builder.add_vertex_to_facet(indices[1]);
-					builder.add_vertex_to_facet(indices[2]);
-					builder.end_facet();
-					f->is_delaunay = true;
-				}
-				else
-					nb_invalid_facets++;
 			}
-			builder.end_surface();
-			std::cout<<"number of invalid facets: "<<nb_invalid_facets<<std::endl;
+			//std::cout<<"number of invalid facets: "<<nb_invalid_facets<<std::endl;
 		}
 
 	private:
-		std::vector<MyPoint>& appended_points;
-		std::vector<CGAL::Triple<int, int, int>>& adjacency_info;
-		TriMesh& mesh;
+		CDT& cdt;
+		CGAL::HalfedgeDS_items_decorator<HDS> decorator;
+		TriMesh& trimesh;
+		std::map<std::pair<Vertex_handle, Vertex_handle>, Halfedge_handle> existing_halfedges;
 		int nb_invalid_facets;
 	};
+
 }

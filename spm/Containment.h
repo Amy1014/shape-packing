@@ -64,7 +64,7 @@ namespace Geex {
 	public:
 		void load_polygons(const std::string& inner_pgn_filename,	const std::string& outer_pgn_filename);
 		void load_polygons(const Polygon_2& inner_pgn, const Polygon_2& outer_pgn);
-		
+		void load_polygons(const Polygon_2& inner_pgn, const std::vector<Segment_2>& outer_pgn);// outer polygon represented as a vector of segments
 		void set_constraint_list();
 		void set_constraint_list_convex();           // the outer polygon is convex
 		void set_constraint_list_concave();  // the outer polygon is concave

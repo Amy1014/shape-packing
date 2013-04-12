@@ -22,6 +22,8 @@ namespace Geex
 
 		epsilon = 0.15;
 		match_weight = 0.0;
+
+		samp_nb = 20;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -250,7 +252,7 @@ namespace Geex
 	void Packer::generate_RDT()
 	{
 		rpvd.begin_insert();
-		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), 20);
+		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), samp_nb);
 		rpvd.insert_bounding_points(20);
 		CGAL::Timer t;
 		t.start();
@@ -777,9 +779,9 @@ namespace Geex
 				holes.back().reserve(hole_bd.size());
 				for (unsigned int i = 0; i < hole_bd.size(); i++)
 				{
-					Point_3 src = hole_bd[i]->vertex()->mp;
-					Point_3 tgt = hole_bd[i]->opposite()->vertex()->mp;
-					holes.back().push_back(Segment_3(src, tgt));
+					Vertex_handle src = hole_bd[i]->vertex();
+					Vertex_handle tgt = hole_bd[i]->opposite()->vertex();
+					holes.back().push_back(std::make_pair(src, tgt));
 				}
 				//holes.push_back(hole_bd);
 			}
@@ -963,9 +965,9 @@ namespace Geex
 		hole_verts.reserve(hl.size()*2);
 		for (unsigned int j = 0; j < hl.size(); j++)
 		{
-			const Segment_3& he = hl[j];
-			hole_verts.push_back(he.source());
-			hole_verts.push_back(he.target());
+			//const Segment_3& he = hl[j];
+			hole_verts.push_back(hl[j].first->mp);
+			hole_verts.push_back(hl[j].second->mp);
 		}
 		Point_3 hole_cent = CGAL::centroid(hole_verts.begin(), hole_verts.end(), CGAL::Dimension_tag<0>());
 		vec3 v, prj_cent;
@@ -981,9 +983,9 @@ namespace Geex
 		lf.v = CGAL::cross_product(lf.w, lf.u);
 		for (unsigned int j = 0; j < hl.size(); j++)
 		{
-			const Segment_3& he = hl[j];
-			Point_2 s = lf.to_uv( prj_plane.projection(he.source()) );
-			Point_2 t = lf.to_uv( prj_plane.projection(he.target()) );
+			//const Segment_3& he = hl[j];
+			Point_2 s = lf.to_uv( prj_plane.projection(hl[j].first->mp) );
+			Point_2 t = lf.to_uv( prj_plane.projection(hl[j].second->mp) );
 			hole_bd_2d.push_back( Segment_2(s, t) );
 		}
 		Polygon_matcher pm(hole_bd_2d, 200);
@@ -1005,7 +1007,7 @@ namespace Geex
 		}
 
 		filler.align(lf.w, lf.o);
-		double shrink_factor = 0.8;
+		double shrink_factor = 0.5;
 
 		Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
 			( Transformation_3(CGAL::SCALING, shrink_factor) *
@@ -1047,8 +1049,9 @@ namespace Geex
 					if (v0->group_id != samp_pnts[i]->group_id && v1->group_id != samp_pnts[i]->group_id)
 					{
 						//halfedge_bd.push_back(opposite_edge);
-						Point_3 src = opposite_edge->vertex()->mp, tgt = opposite_edge->opposite()->vertex()->mp;
-						hole.push_back(Segment_3(src, tgt));
+						//Point_3 src = opposite_edge->vertex()->mp, tgt = opposite_edge->opposite()->vertex()->mp;
+						Vertex_handle src = opposite_edge->vertex(), tgt = opposite_edge->opposite()->vertex();
+						hole.push_back(std::make_pair(src, tgt));
 					}
 				}
 				++current_edge;
@@ -1109,12 +1112,126 @@ namespace Geex
 	void Packer::replace_one_polygon(unsigned int id, Hole& region)
 	{
 		fill_one_hole(region, pack_objects[id]);
+		
+		// place the replacing polygon at a better place through optimization
+		Local_frame lf = compute_local_frame(pack_objects[id]);
+		Polygon_2 pgn2d;
+		Plane_3 pln(lf.o, lf.w);
+		for (unsigned int i = 0; i < pack_objects[id].size(); i++)
+			pgn2d.push_back(lf.to_uv(pack_objects[id].vertex(i)));
+		std::vector<Segment_2> hole2d;
+		hole2d.reserve(region.size());
+		for (unsigned int i = 0; i < region.size(); i++)
+		{
+			Point_3 tan_src = pln.projection(region[i].first->mp);
+			Point_3 tan_tgt = pln.projection(region[i].second->mp);
+			hole2d.push_back(Segment_2(lf.to_uv(tan_src), lf.to_uv(tan_tgt)));
+		}
+#ifdef	_CILK_
+		Containment& ctm = containments[id];
+#else
+		Containment& ctm = containment;
+#endif
+		ctm.load_polygons(pgn2d, hole2d);
+		const unsigned int try_time_limit = 10;
+		unsigned int try_times = 1;
+		int knitro_res;
+		Parameter solution;
+		while ( (knitro_res = KTR_optimize(&solution.k, &solution.theta, &solution.tx, &solution.ty, id)) && try_times < try_time_limit )
+		{
+			double r = Numeric::random_float64();
+			solution = Parameter(1.0, (rot_upper_bd-rot_lower_bd)*r+rot_lower_bd, 0.0, 0.0);
+			try_times++;
+		}
 
+		if (try_times != try_time_limit)
+		{
+			transform_one_polygon(id, lf, solution);
+		}
+		lf = compute_local_frame(pack_objects[id]);
+		pln = Plane_3(lf.o, lf.w);
+		
 		// re-triangulate the region nearby
-		// triangulate the polygon first
+		// triangulate the polygon first	
+		CDT cdt;
+		// sample the polygon
+		double perimeter = 0.0;
+		std::vector<double> edge_len(pack_objects[id].size());
+		unsigned int nb_polygon_samp = 0; // for debug
+		for ( unsigned int i = 0; i < pack_objects[id].size(); i++ )
+		{
+			Segment_3 e = pack_objects[id].edge(i);
+			edge_len[i] = CGAL::sqrt(e.squared_length());
+			perimeter += edge_len[i];
+		}
+		for ( unsigned int i = 0; i < pack_objects[id].size(); i++ )
+		{
+			Segment_3 e = pack_objects[id].edge(i);
+			unsigned int n = edge_len[i] / perimeter * samp_nb;
+			Point_3 src = e.source(), tgt = e.target();
+			for ( unsigned int j = 0; j < n+1; j++ )
+			{
+				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
+				p = e.supporting_line().projection(p);
+				vec3 dv;
+				vec3 pp = mesh.project_to_mesh(to_geex_pnt(p), dv);
+				CDT::Vertex_handle vh = cdt.insert(lf.to_uv(pln.projection(p)));
+				vh->geo_info = MyPoint(p, to_cgal_pnt(pp), id);
+				vh->already_exist_in_rdt = false;
+				nb_polygon_samp++;
+			}
+		}
+		// hole boundary segments as constraints
+		std::map<Vertex_handle, CDT::Vertex_handle> hole_bd_pnts;
+		for (unsigned int i = 0; i < region.size(); i++)
+		{
+			Vertex_handle s = region[i].first, t = region[i].second;
 
+			if ( hole_bd_pnts.find(s) == hole_bd_pnts.end() )
+			{
+				CDT::Vertex_handle vh = cdt.insert(lf.to_uv(pln.projection(s->point())));
+				vh->geo_info = MyPoint(s->point(),s->mp, s->group_id);
+				vh->already_exist_in_rdt = true;
+				vh->rdt_handle = s;
+				hole_bd_pnts.insert(std::make_pair(s, vh));
+			}
+			if ( hole_bd_pnts.find(t) == hole_bd_pnts.end() )
+			{
+				CDT::Vertex_handle vh = cdt.insert(lf.to_uv(pln.projection(t->point())));
+				vh->geo_info = MyPoint(t->point(), t->mp, t->group_id);
+				vh->already_exist_in_rdt = true;
+				vh->rdt_handle = t;
+				hole_bd_pnts.insert(std::make_pair(t, vh));
+			}
+		}
+		// add constraints
+		for (unsigned int i = 0;i < region.size(); i++)
+		{
+			CDT::Vertex_handle sh = hole_bd_pnts[region[i].first];
+			CDT::Vertex_handle th = hole_bd_pnts[region[i].second];
+			cdt.insert_constraint(sh, th);
+		}
+
+		//if (cdt.number_of_vertices() != (region.size()/2 + nb_polygon_samp))
+		//{
+		//	std::cout<<"assertion on number relationship failed!\n";
+		//	system("pause");
+		//	exit(0);
+		//}
+
+		//rpvd.delegate(CDTtoRDT(cdt, mesh));
 	}
 
+	void Packer::ex_replace()
+	{
+		static unsigned int id = 0;
+
+		replace_one_polygon(id, holes[id]);
+
+		
+
+		id++;
+	}
 	void Packer::save_curvature_and_area()
 	{
 		std::ofstream cur_area_file("cur_area.txt");

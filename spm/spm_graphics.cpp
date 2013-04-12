@@ -339,8 +339,8 @@ namespace Geex
 			{
 				//Halfedge_handle e = h[j];
 				//Halfedge_handle oe = e->opposite();
-				glPoint_3(h[j].source());
-				glPoint_3(h[j].target());
+				glPoint_3(h[j].first->mp);
+				glPoint_3(h[j].second->mp);
 			}
 			glEnd();
 		}

@@ -26,7 +26,7 @@ namespace Geex {
 	void TW_CALL tw_save_cur_area(void*);
 	void TW_CALL tw_fill(void*);
 	void TW_CALL tw_remove(void*);
-	//void TW_CALL tw_merge(void*);
+	void TW_CALL tw_ex_replace(void*);
 	//void TW_CALL tw_feature_set_callback(const void*, void *);
 	//void TW_CALL tw_feature_get_callback(void*, void*);
 	//void TW_CALL tw_curvature_get_callback(void*, void*);
@@ -134,6 +134,12 @@ namespace Geex {
 			spm()->remove_polygons();
 			spm()->redraw_triangulation();
 		}
+		void ex_replace()
+		{
+			spm()->ex_replace();
+			spm()->redraw_triangulation();
+			glut_viewer_redraw();
+		}
 		void enlarge_polygon()
 		{
 			if (enlarge_id >= 0 && enlarge_factor >= 1.0)
@@ -189,6 +195,7 @@ namespace Geex {
 			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
 			TwAddButton(function_bar, "remove", tw_remove, NULL, "key=R group = 'Replace' ");
+			TwAddButton(function_bar, "ex-replace", tw_ex_replace, NULL, "key=e group = 'Replace' ");
 			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999 group = 'Optimization' ");
 			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
 			TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
@@ -246,7 +253,7 @@ void TW_CALL tw_save_triangulation(void* clientData)
 void TW_CALL tw_save_cur_area( void *clientData ) { spm_app()->save_cur_area(); }
 void TW_CALL tw_fill( void *clientData ) { spm_app()->fill_holes(); }
 void TW_CALL tw_remove(void* clientData) { spm_app()->remove(); }
-////void TW_CALL tw_correct_normals(void* clientData) { spm_app()->correct_normals(); }
+void TW_CALL tw_ex_replace(void *cientData) { spm_app()->ex_replace(); }
 ////void TW_CALL tw_smooth_normals(void* clientData) { spm_app()->smooth_normals(); }
 //void TW_CALL tw_flip_normals(void* clientData) { spm_app()->flip_normals(); }
 //void TW_CALL tw_dump(void *clientData) { spm_app()->dump(); }
