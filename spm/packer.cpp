@@ -1095,6 +1095,7 @@ namespace Geex
 		}
 		for (std::set<Facet_handle>::iterator it = removed_facets.begin(); it != removed_facets.end(); ++it)
 			rpvd.erase_facet((*it)->halfedge());
+		rpvd.delete_point_group(id);
 	}
 
 	void Packer::remove_polygons()
@@ -1112,11 +1113,13 @@ namespace Geex
 	void Packer::replace_one_polygon(unsigned int id, Hole& region)
 	{
 		fill_one_hole(region, pack_objects[id]);
-		
+
+
 		// place the replacing polygon at a better place through optimization
 		Local_frame lf = compute_local_frame(pack_objects[id]);
 		Polygon_2 pgn2d;
 		Plane_3 pln(lf.o, lf.w);
+#if 0
 		for (unsigned int i = 0; i < pack_objects[id].size(); i++)
 			pgn2d.push_back(lf.to_uv(pack_objects[id].vertex(i)));
 		std::vector<Segment_2> hole2d;
@@ -1150,7 +1153,8 @@ namespace Geex
 		}
 		lf = compute_local_frame(pack_objects[id]);
 		pln = Plane_3(lf.o, lf.w);
-		
+#endif
+
 		// re-triangulate the region nearby
 		// triangulate the polygon first	
 		CDT cdt;
@@ -1172,7 +1176,7 @@ namespace Geex
 			for ( unsigned int j = 0; j < n+1; j++ )
 			{
 				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
-				p = e.supporting_line().projection(p);
+				//p = e.supporting_line().projection(p);
 				vec3 dv;
 				vec3 pp = mesh.project_to_mesh(to_geex_pnt(p), dv);
 				CDT::Vertex_handle vh = cdt.insert(lf.to_uv(pln.projection(p)));
@@ -1212,14 +1216,14 @@ namespace Geex
 			cdt.insert_constraint(sh, th);
 		}
 
-		//if (cdt.number_of_vertices() != (region.size()/2 + nb_polygon_samp))
-		//{
-		//	std::cout<<"assertion on number relationship failed!\n";
-		//	system("pause");
-		//	exit(0);
-		//}
+		if (cdt.number_of_vertices() != (region.size() + nb_polygon_samp))
+		{
+			std::cout<<"assertion on number relationship failed!\n";
+			system("pause");
+			exit(0);
+		}
 
-		//rpvd.delegate(CDTtoRDT(cdt, mesh));
+		rpvd.delegate(CDTtoRDT(cdt, mesh, hole_bd_pnts));
 	}
 
 	void Packer::ex_replace()
