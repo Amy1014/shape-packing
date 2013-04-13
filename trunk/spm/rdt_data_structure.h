@@ -110,9 +110,9 @@ namespace Geex
 		} ;
 	public:
 
-		CDTVertex() : Vb() {}
+		CDTVertex() : Vb(), already_exist_in_rdt(false) {}
 
-		CDTVertex(const Point& p) : Vb(p) {}
+		CDTVertex(const Point& p) : Vb(p), already_exist_in_rdt(false) {}
 		
 		//CDTVertex(const Point& p2d, const MyPoint& _geo_info, bool _already_exist_in_triangulation) 
 		//	: Vb(p2d), geo_info(_geo_info), already_exist_in_triangulation(_already_exist_in_triangulation) {}
@@ -246,14 +246,17 @@ namespace Geex
 		typedef RDT_data_structure::Facet_handle	Facet_handle;
 		typedef RDT_data_structure::Vertex		Vertex;
 		typedef RDT_data_structure::Halfedge	Halfedge;
+		typedef Halfedge::Base	HBase;
 		typedef RDT_data_structure::Facet	Facet;
 		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 
 	public:
-		CDTtoRDT(CDT& _cdt, TriMesh& _trimesh) : cdt(_cdt), trimesh(_trimesh), nb_invalid_facets(0) {}
+		CDTtoRDT(CDT& _cdt, TriMesh& _trimesh, std::map<Vertex_handle, CDT::Vertex_handle>& _v_map) 
+			: cdt(_cdt), trimesh(_trimesh), v_map(_v_map), nb_invalid_facets(0) {}
 
 		void operator()(HDS& hds)
 		{
+			//std::cout<<"Number of vertices before inserting points: "<<hds.size_of_vertices()<<std::endl;
 			for (CDT::All_vertices_iterator vit = cdt.all_vertices_begin(); vit != cdt.all_vertices_end(); ++vit)
 			{
 				if (cdt.is_infinite(vit))
@@ -262,54 +265,58 @@ namespace Geex
 				{
 					Vertex_handle rdt_v = hds.vertices_push_back(Vertex(vit->geo_info.p));
 					rdt_v->mp = vit->geo_info.prj_pnt;
-					vit->already_exist_in_rdt = true;
+					rdt_v->group_id = vit->geo_info.group_id;
+					//vit->already_exist_in_rdt = true;
 					vit->rdt_handle = rdt_v;
 				}
 			}
+			//std::cout<<"Number of vertices after inserting points: "<<hds.size_of_vertices()<<std::endl;
 			// register already halfedges
 			for (CDT::All_edges_iterator eit = cdt.all_edges_begin(); eit != cdt.all_edges_end(); ++eit)
 			{
 				if (cdt.is_infinite(eit))
 					continue;
 				CDT::Face_handle f = eit->first;
+				//if (cdt.is_infinite(f))
+				//	continue;
 				int vi = eit->second;
 				CDT::Vertex_handle v0 = f->vertex(f->cw(vi)), v1 = f->vertex(f->ccw(vi));
 				Vertex_handle rdt_v0 = v0->rdt_handle, rdt_v1 = v1->rdt_handle;
 				if (cdt.is_constrained(*eit)) // this edge already existed in rdt
 				{
-					Edge_circulator start_edge = rdt_v0->vertex_begin();
-					Edge_circulator current_edge = start_edge;
+					//Halfedge_handle start_edge = rdt_v0->vertex_begin();
+					//Halfedge_handle current_edge = start_edge;
+					Halfedge_handle start_edge = rdt_v0->halfedge();
+					Halfedge_handle current_edge = start_edge;
 					bool found = false, border_break = false;
-					do 
+					while (!current_edge->is_border() && !current_edge->opposite()->is_border())
+						current_edge = current_edge->opposite()->prev();
+					start_edge = current_edge;
+					if (current_edge->is_border())
 					{
-						if (current_edge->opposite()->vertex() == rdt_v1)
-						{
-							found = true;
-							break;
-						}
-						if (current_edge->is_border() || current_edge->opposite()->is_border())
-						{
-							border_break = true;
-							break;
-						}
-						++current_edge;
-					} while (current_edge != start_edge);
-					if (!found)
-					{
-						start_edge = current_edge;
-						--current_edge;
 						do 
 						{
-							if ( current_edge->opposite()->vertex() == rdt_v1 )
+							if (current_edge->opposite()->vertex() == rdt_v1)
 							{
 								found = true;
-								break;	
-							}
-							if (current_edge->is_border() || current_edge->opposite()->is_border())
 								break;
-							--current_edge;
+							}
+							current_edge = current_edge->opposite()->prev();
 						} while (current_edge != start_edge);
 					}
+					else if (current_edge->opposite()->is_border())
+					{
+						do 
+						{
+							if (current_edge->opposite()->vertex() == rdt_v1)
+							{
+								found = true;
+								break;
+							}
+							current_edge = current_edge->next()->opposite();
+						} while (current_edge != start_edge);
+					}
+
 					if (!found)
 					{
 						std::cout<<"!!! Caution: rdt data structure assertion failed!\n";
@@ -329,8 +336,8 @@ namespace Geex
 					Halfedge_handle h = hds.edges_push_back(he, ohe);
 					existing_halfedges[std::make_pair(rdt_v1, rdt_v0)] = h;
 					existing_halfedges[std::make_pair(rdt_v0, rdt_v1)] = h->opposite();
-					decorator.set_vertex_halfedge(rdt_v0, h);
-					decorator.set_vertex_halfedge(rdt_v1, h->opposite());
+					//decorator.set_vertex_halfedge(rdt_v0, h);
+					//decorator.set_vertex_halfedge(rdt_v1, h->opposite());
 				}
 
 			}
@@ -355,20 +362,19 @@ namespace Geex
 					Halfedge_handle he01 = existing_halfedges[std::make_pair(v[0]->rdt_handle, v[1]->rdt_handle)];
 					Halfedge_handle he12 = existing_halfedges[std::make_pair(v[1]->rdt_handle, v[2]->rdt_handle)];
 					Halfedge_handle he20 = existing_halfedges[std::make_pair(v[2]->rdt_handle, v[0]->rdt_handle)];
-					//he01->set_prev(he20);
-					//he01->set_next(he12);
-					//he12->set_prev(he01);
-					//he12->set_next(he20);
-					//he20->set_prev(he12);
-					//he20->set_next(he01);
 					decorator.set_prev(he01, he20);
+					he20->HBase::set_next(he01);
 					decorator.set_prev(he12, he01);
+					he01->HBase::set_next(he12);
 					decorator.set_prev(he20, he12);
+					he12->HBase::set_next(he20);
+					decorator.set_vertex_halfedge(v[1]->rdt_handle, he01);
+					decorator.set_vertex(he01, v[1]->rdt_handle);
+					decorator.set_vertex_halfedge(v[2]->rdt_handle, he12);
+					decorator.set_vertex(he12, v[2]->rdt_handle);
+					decorator.set_vertex_halfedge(v[0]->rdt_handle, he20);
+					decorator.set_vertex(he20, v[0]->rdt_handle);
 					Facet_handle f = hds.faces_push_back(Facet());
-					//f->set_halfedge(he01);
-					//he01->set_face(f);
-					//he12->set_face(f);
-					//he20->set_face(f);
 					decorator.set_face_halfedge(f, he01);
 					decorator.set_face(he01, f);
 					decorator.set_face(he12, f);
@@ -379,20 +385,19 @@ namespace Geex
 					Halfedge_handle he21 = existing_halfedges[std::make_pair(v[2]->rdt_handle, v[1]->rdt_handle)];
 					Halfedge_handle he10 = existing_halfedges[std::make_pair(v[1]->rdt_handle, v[0]->rdt_handle)];
 					Halfedge_handle he02 = existing_halfedges[std::make_pair(v[0]->rdt_handle, v[2]->rdt_handle)];
-					//he21->set_prev(he02);
-					//he21->set_next(he10);
-					//he10->set_prev(he21);
-					//he10->set_next(he02);
-					//he02->set_prev(he10);
-					//he02->set_next(he21);
 					decorator.set_prev(he21, he02);
+					he02->HBase::set_next(he21);
 					decorator.set_prev(he10, he21);
+					he21->HBase::set_next(he10);
 					decorator.set_prev(he02, he10);
+					he10->HBase::set_next(he02);
+					decorator.set_vertex_halfedge(v[1]->rdt_handle, he21);
+					decorator.set_vertex(he21, v[1]->rdt_handle);
+					decorator.set_vertex_halfedge(v[0]->rdt_handle, he10);
+					decorator.set_vertex(he10, v[0]->rdt_handle);
+					decorator.set_vertex_halfedge(v[2]->rdt_handle, he02);
+					decorator.set_vertex(he02, v[2]->rdt_handle);
 					Facet_handle f = hds.faces_push_back(Facet());
-					//f->set_halfedge(he21);
-					//he21->set_face(f);
-					//he10->set_face(f);
-					//he02->set_face(f);
 					decorator.set_face_halfedge(f, he21);
 					decorator.set_face(he21, f);
 					decorator.set_face(he10, f);
@@ -406,6 +411,7 @@ namespace Geex
 		CDT& cdt;
 		CGAL::HalfedgeDS_items_decorator<HDS> decorator;
 		TriMesh& trimesh;
+		std::map<Vertex_handle, CDT::Vertex_handle>& v_map;
 		std::map<std::pair<Vertex_handle, Vertex_handle>, Halfedge_handle> existing_halfedges;
 		int nb_invalid_facets;
 	};
