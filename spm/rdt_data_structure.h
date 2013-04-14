@@ -126,12 +126,28 @@ namespace Geex
 	template <class Gt, class Fb = CGAL::Constrained_triangulation_face_base_2<Gt>>
 	class CDTFace : public Fb
 	{
-
+	public:
+		typedef Gt Geom_traits;
+		typedef typename Fb::Vertex_handle	Vertex_handle;
+		typedef typename Fb::Face_handle	Face_handle;
+		template < typename TDS2 >
+		struct Rebind_TDS {
+			typedef typename Fb::template Rebind_TDS<TDS2>::Other Fb2;
+			typedef CDTFace<Gt,Fb2> Other;
+		};
+	public:
+		CDTFace() : Fb() {}
+		CDTFace(Vertex_handle v0, Vertex_handle v1, Vertex_handle v2) : Fb(v0, v1, v2) {}
+		CDTFace(Vertex_handle v0, Vertex_handle v1, Vertex_handle v2,
+			Face_handle n0, Face_handle n1, Face_handle n2)
+			: Fb(v0,v1,v2,n0,n1,n2) {}
+	public:
+		bool inside_hole;
 	};
 
 	typedef CGAL::Triangulation_data_structure_2<CDTVertex<K>, CDTFace<K>> CDTDS;
 
-	typedef CGAL::Exact_predicates_tag Itag;
+	typedef CGAL::Exact_predicates_tag  Itag;
 
 	class CDT : public CGAL::Constrained_Delaunay_triangulation_2<K, CDTDS, Itag> 
 	{
@@ -277,9 +293,8 @@ namespace Geex
 				if (cdt.is_infinite(eit))
 					continue;
 				CDT::Face_handle f = eit->first;
-				//if (cdt.is_infinite(f))
-				//	continue;
 				int vi = eit->second;
+				CDT::Face_handle nf = f->neighbor(vi);
 				CDT::Vertex_handle v0 = f->vertex(f->cw(vi)), v1 = f->vertex(f->ccw(vi));
 				Vertex_handle rdt_v0 = v0->rdt_handle, rdt_v1 = v1->rdt_handle;
 				if (cdt.is_constrained(*eit)) // this edge already existed in rdt
@@ -325,6 +340,8 @@ namespace Geex
 					existing_halfedges[std::make_pair(rdt_v1, rdt_v0)] = current_edge;
 					existing_halfedges[std::make_pair(rdt_v0, rdt_v1)] = current_edge->opposite();				
 				}
+				else if (!f->inside_hole && !nf->inside_hole)
+					continue;
 				else
 				{
 					Halfedge he;
@@ -346,6 +363,8 @@ namespace Geex
 				if (cdt.is_infinite(fit))
 					continue;
 				CDT::Vertex_handle v[] = { fit->vertex(0), fit->vertex(1), fit->vertex(2) };
+				if (!fit->inside_hole)
+					continue;
 				// check orientation
 				Point_3 c = CGAL::centroid(v[0]->geo_info.prj_pnt, v[1]->geo_info.prj_pnt, v[2]->geo_info.prj_pnt);
 				vec3 dv;

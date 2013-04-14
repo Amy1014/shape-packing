@@ -500,7 +500,7 @@ namespace Geex
 
 			if (res == NO_MORE_ENLARGEMENT)
 			{
-				stop_update_DT = true;
+				stop_update_DT = false;
 				std::cout<<"Caution: Stopped updating iDT\n";
 			}
 			if (!stop_update_DT)
@@ -1110,7 +1110,7 @@ namespace Geex
 		id++;
 	}
 
-	void Packer::replace_one_polygon(unsigned int id, Hole& region)
+	bool Packer::replace_one_polygon(unsigned int id, Hole& region)
 	{
 		fill_one_hole(region, pack_objects[id]);
 
@@ -1157,7 +1157,8 @@ namespace Geex
 
 		// re-triangulate the region nearby
 		// triangulate the polygon first	
-		CDT cdt;
+		//CDT cdt;
+		cdt.clear();
 		// sample the polygon
 		double perimeter = 0.0;
 		std::vector<double> edge_len(pack_objects[id].size());
@@ -1209,31 +1210,58 @@ namespace Geex
 			}
 		}
 		// add constraints
+		std::vector<Segment_2> hole_edges;
+		hole_edges.reserve(region.size());
 		for (unsigned int i = 0;i < region.size(); i++)
 		{
 			CDT::Vertex_handle sh = hole_bd_pnts[region[i].first];
 			CDT::Vertex_handle th = hole_bd_pnts[region[i].second];
+			hole_edges.push_back(Segment_2(sh->point(), th->point()));
 			cdt.insert_constraint(sh, th);
 		}
-
+		
+		for (CDT::All_faces_iterator fit = cdt.all_faces_begin(); fit != cdt.all_faces_end(); ++fit)
+		{
+			if (cdt.is_infinite(fit))
+			{
+				fit->inside_hole = false;
+				continue;
+			}
+			CDT::Vertex_handle v[] = {fit->vertex(0), fit->vertex(1), fit->vertex(2)};
+			Point_2 c = CGAL::centroid(v[0]->point(), v[1]->point(), v[2]->point());
+			if (inside_polygon(c, hole_edges))
+				fit->inside_hole = true;
+			else
+				fit->inside_hole = false;
+		}
 		if (cdt.number_of_vertices() != (region.size() + nb_polygon_samp))
 		{
 			std::cout<<"assertion on number relationship failed!\n";
-			system("pause");
-			exit(0);
+			std::cout<<"number of vertices in cdt: "<<cdt.number_of_vertices()<<std::endl;
+			std::cout<<"number of vertices in polygons: "<<region.size() + nb_polygon_samp<<std::endl;
+			return false;
+			//system("pause");
+			//exit(0);
 		}
-
-		rpvd.delegate(CDTtoRDT(cdt, mesh, hole_bd_pnts));
+		else
+		{
+			rpvd.delegate(CDTtoRDT(cdt, mesh, hole_bd_pnts));
+			return true;
+		}
 	}
 
 	void Packer::ex_replace()
 	{
 		static unsigned int id = 0;
-
-		replace_one_polygon(id, holes[id]);
-
+		//for (unsigned int id = 0; id < pack_objects.size(); id++)
+		//{
+		//	holes.push_back(Hole());
+		//	remove_one_polygon(id, holes.back());
+		//	if (!replace_one_polygon(id, holes.back()))
+		//		break;
+		//}
 		
-
+		replace_one_polygon(id, holes.back());
 		id++;
 	}
 	void Packer::save_curvature_and_area()

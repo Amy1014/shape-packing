@@ -25,6 +25,7 @@ namespace Geex {
 	typedef K::Point_2		Point_2;
 	typedef K::Vector_2		Vector_2;
 	typedef K::Line_2		Line_2;
+	typedef K::Ray_2		Ray_2;
 	typedef K::Segment_2	Segment_2;
 	typedef CGAL::Polygon_2<K>	Polygon_2;
 	typedef CGAL::Aff_transformation_2<K>	Transformation_2;
