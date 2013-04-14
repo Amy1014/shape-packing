@@ -25,13 +25,15 @@ namespace Geex
 		how_to_draw_polygons = OUTLINE_DRAW;
 		show_mesh_ = true;
 		show_polygons_ = true;
-		show_voronoi_cell_ = true;
+		show_voronoi_cell_ = false;
 		show_triangulation_ = false;
 		show_vertices_ = false;
 		show_hole_triangles_ = false;
 		show_local_frame_ = false;
 		show_curvatures_ = false;
 		textured = false;
+		show_holes_ = false;
+		show_cdt_ = false;
 		highlighted_group = -1;
 	}
 
@@ -69,6 +71,8 @@ namespace Geex
 			draw_holes();
 		if (show_local_frame_)
 			draw_local_frames();
+		if (show_cdt_)
+			draw_cdt();
 		if (show_curvatures_)
 			glCallList(cur_color_displist);
 	}
@@ -527,5 +531,39 @@ namespace Geex
 			free(pixels);
 		}
 		textured = true;
+	}
+
+	void SPM_Graphics::draw_cdt()
+	{
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glLineWidth(1.5f);
+		glBegin(GL_LINES);
+		CDT& cdt = packer->get_cdt();
+		//for (CDT::All_edges_iterator eit = cdt.all_edges_begin(); eit != cdt.all_edges_end(); ++eit)
+		//{
+		//	if (cdt.is_infinite(eit))
+		//		continue;
+		//	CDT::Face_handle f = eit->first;
+		//	int vi = eit->second;
+		//	CDT::Vertex_handle v0 = f->vertex(f->cw(vi)), v1 = f->vertex(f->ccw(vi));
+		//	if (!cdt.is_constrained(*eit) && v0->already_exist_in_rdt && v1->already_exist_in_rdt)
+		//		continue;
+		//	Point_3 p0 = v0->geo_info.prj_pnt, p1 = v1->geo_info.prj_pnt;
+		//	glPoint_3(p0);
+		//	glPoint_3(p1);
+		//}
+		for (CDT::All_faces_iterator fit = cdt.all_faces_begin(); fit != cdt.all_faces_end(); ++fit)
+		{
+			if (!fit->inside_hole)
+				continue;
+			CDT::Vertex_handle v[] = {fit->vertex(0), fit->vertex(1), fit->vertex(2)};
+			
+			for (int i = 0; i < 3; i++)
+			{
+				glPoint_3(v[i]->geo_info.prj_pnt);
+				glPoint_3(v[(i+1)%3]->geo_info.prj_pnt);
+			}
+		}
+		glEnd();
 	}
 }

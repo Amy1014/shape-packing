@@ -14,6 +14,7 @@
 #include "packer.h"
 #include "polygon_diagram.h"
 
+
 namespace Geex
 {
 	class SPM_Graphics
@@ -60,6 +61,7 @@ namespace Geex
 		int& highlighted_group_id() { return highlighted_group; }
 
 		GLboolean& show_local_frame() { return show_local_frame_; }
+		GLboolean& show_cdt() { return show_cdt_; }
 
 		void load_graphics() 
 		{
@@ -86,6 +88,7 @@ namespace Geex
 		void cur_color_map(double cur, double min_cur, double max_cur, GLfloat& r, GLfloat& g, GLfloat& b);
 		// debug
 		void draw_all_vertices();
+		void draw_cdt(); 
 
 		void draw_local_frames();
 		/** call opengl **/
@@ -113,6 +116,7 @@ namespace Geex
 
 		// debug
 		GLboolean show_local_frame_;
+		GLboolean show_cdt_;
 		int highlighted_group;
 		// colors
 		int random_color_index;

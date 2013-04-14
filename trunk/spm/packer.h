@@ -27,6 +27,7 @@
 #include "Containment.h"
 #include "knitro.h"
 #include "polygon_matcher.h"
+#include "utilities.h"
 
 namespace Geex
 {
@@ -93,7 +94,7 @@ namespace Geex
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
 		void save_curvature_and_area(); 
 		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty);
-
+		CDT& get_cdt() {  return cdt; }
 	private:
 
 		/** initialization **/
@@ -136,7 +137,7 @@ namespace Geex
 		// fill one hole
 		void fill_one_hole(Hole& hl, Packing_object& filler);
 
-		void replace_one_polygon(unsigned int id, Hole& region); 
+		bool replace_one_polygon(unsigned int id, Hole& region); 
 	private:
 
 		static Packer *instance_;
@@ -259,7 +260,7 @@ namespace Geex
 
 	public: // for debug
 		RestrictedPolygonVoronoiDiagram rpvd;
-
+		CDT cdt;
 		//std::vector<Local_frame> local_frames;
 
 
