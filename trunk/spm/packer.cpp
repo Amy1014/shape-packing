@@ -500,7 +500,7 @@ namespace Geex
 
 			if (res == NO_MORE_ENLARGEMENT)
 			{
-				stop_update_DT = false;
+				stop_update_DT = true;
 				std::cout<<"Caution: Stopped updating iDT\n";
 			}
 			if (!stop_update_DT)

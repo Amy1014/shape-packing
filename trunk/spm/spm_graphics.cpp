@@ -239,6 +239,9 @@ namespace Geex
 		{
 			triangulation_displist = glGenLists(1);
 			glNewList(triangulation_displist, GL_COMPILE);
+			GLboolean old_cull_face_config = glIsEnabled(GL_CULL_FACE);
+			glEnable(GL_CULL_FACE);
+			glCullFace(GL_BACK);
 			glLineWidth(1.0f);
 			glColor3f(0.6f, 0.0f, 0.0f);
 			glDisable(GL_LIGHTING);
@@ -259,6 +262,8 @@ namespace Geex
 			}
 			glEnd();
 			glEnable(GL_LIGHTING);
+			if (!old_cull_face_config)
+				glDisable(GL_CULL_FACE);
 			glEndList();
 		}
 		glCallList(triangulation_displist);
