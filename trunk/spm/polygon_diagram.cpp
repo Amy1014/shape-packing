@@ -299,6 +299,8 @@ namespace Geex
 				//	}
 				//	++surround_edge;
 				//}while (surround_edge != end_edge);
+				if (e->vertex()->group_id == e->opposite()->vertex()->group_id)
+					e->facet()->is_delaunay = e->opposite()->facet()->is_delaunay = false;
 				if (vpedges.find(Edge(u, v)) != vpedges.end())
 				{
 					//std::cout<<"Unflippable edge!\n";

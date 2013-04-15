@@ -847,7 +847,7 @@ namespace Geex
 
 			std::vector<Segment_2> region2d;
 
-			bool contain_non_delaunay_facet = false;
+			//bool contain_non_delaunay_facet = false;
 			bool penetration = false;
 			
 			for (unsigned int j = 0; j < samp_pnts.size(); j++)
@@ -862,7 +862,7 @@ namespace Geex
 						region2d.push_back(Segment_2(lf.to_uv(s), lf.to_uv(t)));
 					}
 				}
-				contain_non_delaunay_facet |= samp_pnts[j]->contain_non_delaunay_facet;
+				//contain_non_delaunay_facet |= samp_pnts[j]->contain_non_delaunay_facet;
 				penetration |= samp_pnts[j]->penetration;
 			}
 			Polygon_matcher pm(region2d, 200);
@@ -897,7 +897,7 @@ namespace Geex
 			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
 
 			double shrink_factor;
-			if (contain_non_delaunay_facet || penetration)
+			if (penetration)
 				shrink_factor = 0.3;
 			else
 				shrink_factor = 0.6;
