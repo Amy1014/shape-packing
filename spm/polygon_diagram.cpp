@@ -285,21 +285,8 @@ namespace Geex
 				// check whether flippable
 				Vertex_handle v = e->next()->vertex();
 				Vertex_handle u = e->opposite()->next()->vertex();
-				//Edge_circulator surround_edge = v->vertex_begin();
-				//Edge_circulator end_edge = surround_edge;
-				//do 
-				//{
-				//	if (surround_edge->is_border() || surround_edge->opposite()->is_border())
-				//		system("pause");
-				//	if (surround_edge->opposite()->vertex() == u && surround_edge->vertex() == v
-				//		|| surround_edge->vertex() == u && surround_edge->opposite()->vertex() == v)
-				//	{
-				//		std::cout<<"Unflippable edge!\n";
-				//		e->facet()->is_delaunay = oe->facet()->is_delaunay = false;
-				//	}
-				//	++surround_edge;
-				//}while (surround_edge != end_edge);
-				if (e->vertex()->group_id == e->opposite()->vertex()->group_id)
+				if (e->vertex()->group_id == e->opposite()->vertex()->group_id 
+					&& std::abs(e->vertex()->idx - e->opposite()->vertex()->idx) == 1)
 					e->facet()->is_delaunay = e->opposite()->facet()->is_delaunay = false;
 				if (vpedges.find(Edge(u, v)) != vpedges.end())
 				{
