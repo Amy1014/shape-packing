@@ -137,7 +137,7 @@ namespace Geex
 		const std::vector<std::vector<Packing_object>>& multi_tiles = packer->res_pack_objects;
 
 		static GLfloat amb_mat[][4] = {{0.19225f, 0.19225f, 0.19225f, 1.0f}, {0.19225f, 0.19225f, 0.19225f, 1.0f}, {0.19225f, 0.19225f, 0.19225f, 1.0f}};
-		static GLfloat diff_mat[][4] = {{0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.50754f, 0.50754f, 0.50754f, 1.0f}};
+		static GLfloat diff_mat[][4] = {{0.2f, 0.2f, 0.2f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.50754f, 0.50754f, 0.50754f, 1.0f}};
 		static GLfloat spec_mat[][4] = {{0.608273f, 0.608273f, 0.608273f, 1.0f}, {0.608273f, 0.608273f, 0.608273f, 1.0f}, {0.608273f, 0.608273f, 0.608273f, 1.0f}};
 		static GLfloat pgn_shininess = 0.4;
 
