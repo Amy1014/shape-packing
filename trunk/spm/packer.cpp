@@ -24,22 +24,58 @@ namespace Geex
 		match_weight = 0.0;
 
 		samp_nb = 20;
+
+		submesh_id = 0;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
 	{
 		pio.load_project(prj_config_file);
-		pio>>mesh>>pgn_lib;
+		if (!pio.multi_meshes_specified())
+		{
+			pio>>mesh>>pgn_lib;
+			initialize();
+			std::cout<<"Start computing RDT...\n";
+			generate_RDT();
+			compute_clipped_VD();
+		}
+		else
+		{
+			pio>>pgn_lib;
+			pio>>mesh_segments;
+		}
+		//rpvd.save_triangulation("rdt.obj");
+	}
+
+	void Packer::pack_next_submesh()
+	{
+		//static unsigned int mesh_id = 0;
+		mesh.clear();
+		pack_objects.clear();
+		stop_update_DT = false;
+		mesh = mesh_segments[submesh_id];
 		initialize();
-		std::cout<<"Start computing RDT...\n";
+		std::cout<<"start "<<submesh_id<<" mesh\n";
 		generate_RDT();
 		compute_clipped_VD();
-		//rpvd.save_triangulation("rdt.obj");
+		//mesh_id++;
+	}
+
+	void Packer::write_to_results()
+	{
+		//static unsigned int mesh_id = 0;
+		res_pack_objects.push_back(std::vector<Packing_object>());
+		res_pack_objects.back().reserve(pack_objects.size());
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+			res_pack_objects.back().push_back(pack_objects[i]);
+		submesh_id++;
+		
 	}
 
 	void Packer::initialize()
 	{
 		mesh.build_kdtree();
+		
 		// compute mesh area
 		mesh_area = 0.0;
 		for (unsigned int i = 0; i < mesh.size(); i++)
@@ -56,8 +92,10 @@ namespace Geex
 		}
 		mean_pgn_area /= pgn_lib.size();
 		std::cout<<"Maximum polygon area: "<<max_pgn_area<<std::endl;
-
-		rpvd.set_mesh(pio.attribute_value("MeshFile"));
+		if (!pio.multi_meshes_specified())
+			rpvd.set_mesh(pio.attribute_value("MeshFile"));
+		else
+			rpvd.set_mesh(pio.get_submesh_files().at(submesh_id));
 		rpvd.set_trimesh(&mesh);
 
 		// distribute polygons by different strategies
@@ -146,7 +184,7 @@ namespace Geex
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
 			double s = std::min(fa/pa, pa/fa);
-			s = 0.1*std::sqrt(s);
+			s = 0.05*std::sqrt(s);
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), init_pos[i].second, s));
 			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
@@ -253,7 +291,7 @@ namespace Geex
 	{
 		rpvd.begin_insert();
 		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), samp_nb);
-		rpvd.insert_bounding_points(20);
+		rpvd.insert_bounding_points(40);
 		CGAL::Timer t;
 		t.start();
 		rpvd.end_insert();
@@ -1032,26 +1070,33 @@ namespace Geex
 		{
 			Edge_circulator start_edge = samp_pnts[i]->vertex_begin();
 			Edge_circulator current_edge = start_edge;
+			//bool penetration = true;
 			do 
 			{
 				Vertex_handle v_adj = current_edge->opposite()->vertex();
 				if (v_adj->group_id == samp_pnts[i]->group_id)
+				{
+					//penetration = false;
 					break;
+				}
 				++current_edge;
 			} while (current_edge != start_edge);
+			//if (penetration)
+				//std::cout<<"Caution: penetration may happened.! Polygon id: "<<id<<std::endl;
 			start_edge = current_edge;
 			do 
 			{
 				if (current_edge->facet() != Facet_handle() )
 				{
-					Halfedge_handle opposite_edge = current_edge->prev();
-					Vertex_handle v0 = opposite_edge->vertex(), v1 = opposite_edge->opposite()->vertex();
+					//Halfedge_handle opposite_edge = current_edge->prev();
+					//Vertex_handle v0 = opposite_edge->vertex(), v1 = opposite_edge->opposite()->vertex();
+					Vertex_handle v0 = current_edge->prev()->vertex(), v1 = current_edge->next()->vertex();
 					if (v0->group_id != samp_pnts[i]->group_id && v1->group_id != samp_pnts[i]->group_id)
 					{
 						//halfedge_bd.push_back(opposite_edge);
 						//Point_3 src = opposite_edge->vertex()->mp, tgt = opposite_edge->opposite()->vertex()->mp;
-						Vertex_handle src = opposite_edge->vertex(), tgt = opposite_edge->opposite()->vertex();
-						hole.push_back(std::make_pair(src, tgt));
+						//Vertex_handle src = opposite_edge->vertex(), tgt = opposite_edge->opposite()->vertex();
+						hole.push_back(std::make_pair(v0, v1));
 					}
 				}
 				++current_edge;
@@ -1239,6 +1284,31 @@ namespace Geex
 			std::cout<<"assertion on number relationship failed!\n";
 			std::cout<<"number of vertices in cdt: "<<cdt.number_of_vertices()<<std::endl;
 			std::cout<<"number of vertices in polygons: "<<region.size() + nb_polygon_samp<<std::endl;
+			//std::cout<<"now shrink relevant polygons...\n";
+			//if (cdt.number_of_vertices() > (region.size() + nb_polygon_samp)) // constraint intersection
+			//{
+			//	std::set<unsigned int> pene_pgn_id;
+			//	for (unsigned int k = 0; k < region.size(); k++)
+			//		for (unsigned int l = k+1; l < region.size(); l++)
+			//		{
+			//			Segment_2 ek(hole_bd_pnts[region[k].first]->point(), hole_bd_pnts[region[k].second]->point());
+			//			Segment_2 el(hole_bd_pnts[region[l].first]->point(), hole_bd_pnts[region[l].second]->point());
+			//			if (CGAL::do_intersect(ek, el))
+			//			{
+			//				pene_pgn_id.insert(region[k].first->group_id);
+			//				pene_pgn_id.insert(region[k].second->group_id);
+			//				pene_pgn_id.insert(region[l].first>group_id);
+			//				pene_pgn_id.insert(region[l].second->group_id);
+			//			}
+			//		}
+			//	// shrink the relevant polygons
+			//	Parameter shrink_trans(0.95, 0.0, 0.0, 0.0);
+			//	for (std::set<unsigned int>::const_iterator it = pene_pgn_id.begin(); it != pene_pgn_id.end(); ++it)
+			//	{
+			//		Local_frame lf = compute_local_frame(pack_objects[*it]);
+			//		transform_one_polygon(*it, lf, shrink_trans);
+			//	}
+			//}
 			return false;
 			//system("pause");
 			//exit(0);
@@ -1252,17 +1322,90 @@ namespace Geex
 
 	void Packer::ex_replace()
 	{
-		static unsigned int id = 0;
-		//for (unsigned int id = 0; id < pack_objects.size(); id++)
-		//{
-		//	holes.push_back(Hole());
-		//	remove_one_polygon(id, holes.back());
-		//	if (!replace_one_polygon(id, holes.back()))
-		//		break;
-		//}
-		
-		replace_one_polygon(id, holes.back());
-		id++;
+		//static unsigned int id = 0;
+		//replace_one_polygon(id, holes.back());
+		//id++;
+		generate_RDT();
+		eliminate_penetration();
+		unsigned int id;
+		for ( id = 0; id < pack_objects.size(); id++)
+		{
+			holes.push_back(Hole());
+			backup = pack_objects[id];
+			remove_one_polygon(id, holes.back());
+			if (!replace_one_polygon(id, holes.back()))
+				break;
+		}
+		if (id < pack_objects.size())
+		{
+			pack_objects[id] = backup;
+			generate_RDT();
+		}
+
+	}
+	void Packer::eliminate_penetration()
+	{
+		std::cout<<"Start eliminating penetration\n";
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			// collect neighboring polygons
+			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+			std::set<unsigned int> nid;
+			for (unsigned int j = 0; j < samp_pnts.size(); j++)
+			{
+				Halfedge_handle e = samp_pnts[j]->halfedge();
+				Halfedge_handle end = e;
+				do
+				{
+					nid.insert(e->opposite()->vertex()->group_id);
+					e = e->next()->opposite();
+				} while ( e != end);
+			}
+			bool penetration_detected = true;
+			while (penetration_detected)
+			{
+				penetration_detected = false;
+				for (std::set<unsigned int>::const_iterator it = nid.begin(); it != nid.end(); ++it)
+					if ( *it != i)
+					{
+						if (pair_penetration(i, *it))
+						{
+							std::cout<<"Penetration or overlap detected!\n";
+							penetration_detected = true;
+							break;
+						}
+					}
+				if (penetration_detected)
+				{
+					Local_frame lf = compute_local_frame(pack_objects[i]);
+					Parameter shrink(0.90, 0.0, 0.0, 0.0);
+					transform_one_polygon(i, lf, shrink);
+					rpvd.iDT_update();
+				}				
+			}
+		}
+		std::cout<<"Eliminating penetration ends.\n";
+	}
+
+	bool Packer::pair_penetration(unsigned int id0, unsigned int id1)
+	{
+		Local_frame lf = compute_local_frame(pack_objects[id0]);
+		Polygon_2 pgn0_2d;
+		std::vector<Point_2> pgn1_2d;
+		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id1);
+		pgn1_2d.reserve(samp_pnts.size());
+		for (unsigned int i = 0; i < pack_objects[id0].size(); i++)
+			pgn0_2d.push_back(lf.to_uv(pack_objects[id0].vertex(i)));
+		Plane_3 pln(lf.o, lf.w);
+		for (unsigned int i = 0; i < samp_pnts.size(); i++)
+			pgn1_2d.push_back(lf.to_uv(pln.projection(samp_pnts[i]->point())));
+		// check whether id1 overlaps with id0
+		for (unsigned int i = 0; i < pgn1_2d.size(); i++)
+		{
+			if (!pgn0_2d.has_on_unbounded_side(pgn1_2d[i]))
+				return true;
+		}
+		return false;
 	}
 	void Packer::save_curvature_and_area()
 	{
@@ -1436,12 +1579,24 @@ namespace Geex
 	{
 		x_min = y_min = z_min = DBL_MAX;
 		x_max = y_max = z_max = DBL_MIN;
-		for(unsigned int i=0; i<mesh.size(); i++) 
-			for(unsigned int j=0; j<3; j++) 
-			{
-				const vec3& p = mesh[i].vertex[j] ;
-				x_min = gx_min(x_min, p.x); y_min = gx_min(y_min, p.y);	z_min = gx_min(z_min, p.z);
-				x_max = gx_max(x_max, p.x);	y_max = gx_max(y_max, p.y); z_max = gx_max(z_max, p.z) ;
-			}
+		if (!pio.multi_meshes_specified())
+			for(unsigned int i=0; i<mesh.size(); i++) 
+				for(unsigned int j=0; j<3; j++) 
+				{
+					const vec3& p = mesh[i].vertex[j] ;
+					x_min = gx_min(x_min, p.x); y_min = gx_min(y_min, p.y);	z_min = gx_min(z_min, p.z);
+					x_max = gx_max(x_max, p.x);	y_max = gx_max(y_max, p.y); z_max = gx_max(z_max, p.z) ;
+				}
+		else
+		{
+			for (unsigned int i = 0; i < mesh_segments.size(); i++)
+				for (unsigned int j = 0; j < mesh_segments[i].size(); j++)
+					for (unsigned int k = 0; k < 3; k++)
+					{
+						const vec3& p = mesh_segments[i][j].vertex[k] ;
+						x_min = gx_min(x_min, p.x); y_min = gx_min(y_min, p.y);	z_min = gx_min(z_min, p.z);
+						x_max = gx_max(x_max, p.x);	y_max = gx_max(y_max, p.y); z_max = gx_max(z_max, p.z) ;
+					}
+		}
 	}
 }

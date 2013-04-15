@@ -26,7 +26,8 @@ namespace Geex
 
 	void RestrictedPolygonVoronoiDiagram::set_mesh(const std::string& mesh_file_name)
 	{
-		assert(!mesh);
+		//assert(!mesh);
+		delete mesh;
 		mesh = new TopoPolyMesh;
 		mesh->load(mesh_file_name);
 		//rvd = new RestrictedVoronoiDiagram(del, mesh);

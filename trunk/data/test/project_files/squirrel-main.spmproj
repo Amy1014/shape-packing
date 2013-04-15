@@ -1,0 +1,13 @@
+< SpMProject >  Pig Fruit Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\squirrel_cut\squirrel-main.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\squirrel_TMR\    </ PolygonDir >
+
+< DensityFile >      ..\..\surfaces\squirrel_cut\squirrel-main.txt </ DensityFile >
+
+< gamma > 1.0 < /gamma >
+
+< TextureImageDir >  ..\..\polygons\squirrel_TMR\  </ TextureImageDir >

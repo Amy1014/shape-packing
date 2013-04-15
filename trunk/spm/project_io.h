@@ -43,6 +43,15 @@ public:
 		return ( it != attr_val.end() && !cmp(it->second, "True") && !cmp("True", it->second) );
 	}
 
+	inline bool multi_meshes_specified() const
+	{
+		TagLookupTable::const_iterator it = attr_val.find("MultiMesh");
+		CaseInsensitiveTagCmp cmp;
+		return ( it != attr_val.end() && !cmp(it->second, "True") && !cmp("True", it->second) );
+	}
+
+	const std::vector<std::string>& get_submesh_files() const { return submesh_files; }
+
 	/** input **/
 	// load a whole project from a file, the same function as the constructor
 	void load_project(const string& prj_configure_file);
@@ -51,6 +60,7 @@ public:
 
 	// read triangle mesh
 	ProjectIO& operator>>(TriMesh& mesh);
+	ProjectIO& operator>>(std::vector<TriMesh>& multimesh);
 	
 	ProjectIO& operator>>(vector<Ex_polygon_2>& polygons); 
 	
@@ -84,7 +94,7 @@ private:
 private:
 	typedef std::map<string, string, CaseInsensitiveTagCmp> TagLookupTable;
 	TagLookupTable attr_val; // attribute-value pairs
-
+	std::vector<std::string> submesh_files;
 	/** indicators of what are input **/
 	bool has_density_input_; // each vertex has a weight, e.g. curvature
 
