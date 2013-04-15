@@ -57,6 +57,9 @@ namespace Geex
 
 		void initialize(); // top-level initialization function. distribute polygons in some way	
 
+		/** multi meshes **/
+		void pack_next_submesh();
+		void write_to_results();
 		/** access functions **/
 		const TriMesh& mesh_domain() const { return mesh; }
 		const vector<Packing_object>& get_tiles() const { return pack_objects; }
@@ -69,6 +72,9 @@ namespace Geex
 		double& get_epsilon() { return epsilon; }
 		double& get_match_weight() { return match_weight; }
 		ProjectIO& get_project_ioer() { return pio; }
+
+		const std::vector<std::vector<Packing_object>>& get_multigroup_tiles() const { return res_pack_objects; }
+		const std::vector<TriMesh>& get_multigroup_submeshes() const { return mesh_segments; }
 
 		static Packer* instance() { return instance_; }
 
@@ -95,6 +101,8 @@ namespace Geex
 		void save_curvature_and_area(); 
 		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty);
 		CDT& get_cdt() {  return cdt; }
+
+		
 	private:
 
 		/** initialization **/
@@ -138,6 +146,9 @@ namespace Geex
 		void fill_one_hole(Hole& hl, Packing_object& filler);
 
 		bool replace_one_polygon(unsigned int id, Hole& region); 
+
+		void eliminate_penetration();
+		bool pair_penetration(unsigned int id0, unsigned int id1);
 	private:
 
 		static Packer *instance_;
@@ -149,6 +160,10 @@ namespace Geex
 		TriMesh mesh;
 		double mesh_area;
 
+		/** for segmented mesh**/
+		//std::vector<std::vector<Packing_object>> res_pack_objects; // results on different sub-meshes
+		std::vector<TriMesh> mesh_segments; // multiple sub-meshes from segmentation
+		unsigned int submesh_id;
 		/** holes **/
 		std::vector<Hole> holes;
 		double frontier_edge_size;
@@ -262,8 +277,8 @@ namespace Geex
 		RestrictedPolygonVoronoiDiagram rpvd;
 		CDT cdt;
 		//std::vector<Local_frame> local_frames;
-
-
+		Packing_object backup;
+std::vector<std::vector<Packing_object>> res_pack_objects;
 	};
 
 

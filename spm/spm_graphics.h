@@ -39,6 +39,10 @@ namespace Geex
 
 		GLboolean& show_mesh()	{ return show_mesh_; }
 
+		GLboolean& show_multi_submeshes() { return show_multi_submeshes_; }
+
+		GLboolean& show_multi_tiles() { return show_multi_tiles_; }
+
 		GLboolean& show_polygons()	{ return show_polygons_; }
 
 		GLboolean& show_voronoi_cell() { return show_voronoi_cell_; }
@@ -77,6 +81,10 @@ namespace Geex
 		void fill_draw_polygons();
 		void texture_draw_polygons();
 		void draw_mesh();
+		void draw_multi_submeshes(); 
+
+		void draw_multi_tiles();
+
 		void draw_polygons();
 		void draw_triangulation();
 		void draw_voronoi_cell();
@@ -98,6 +106,9 @@ namespace Geex
 		Packer* packer;
 		Polygon_draw_type how_to_draw_polygons;
 		GLboolean show_mesh_;
+		GLboolean show_multi_submeshes_;
+		GLboolean show_multi_tiles_;
+
 		GLboolean show_polygons_;
 		GLboolean show_voronoi_cell_;
 		GLboolean show_triangulation_;

@@ -62,7 +62,7 @@ public:
 
 	/** set functions **/
 	void set_mesh(const std::string& mesh_file_name);
-	void set_trimesh(TriMesh *_trimesh) { assert(!trimesh); trimesh = _trimesh; }
+	void set_trimesh(TriMesh *_trimesh) { trimesh = _trimesh; }
 
 	void begin_insert() ;
 

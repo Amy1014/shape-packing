@@ -213,6 +213,32 @@ namespace Geex
 		return *this;
 	}
 
+	ProjectIO& ProjectIO::operator>>(std::vector<TriMesh>& multimesh)
+	{
+		TagLookupTable::const_iterator it = attr_val.find("MeshDir");
+		if (it == attr_val.end() )
+			prompt_and_exit("Mesh Directory not specified.");
+		std::vector<std::string> all_mesh_files;
+		Geex::FileSystem::get_files(it->second, all_mesh_files);
+		if (all_mesh_files.empty())
+			prompt_and_exit("Fatal error: program cannot load multiple meshes.");
+		for (unsigned int i = 0; i < all_mesh_files.size(); i++)
+			if (Geex::FileSystem::extension(all_mesh_files[i]) == "obj")
+			{
+				multimesh.push_back(TriMesh());
+				multimesh.back().load(all_mesh_files[i]);
+				submesh_files.push_back(all_mesh_files[i]);
+			}
+		unsigned int idx = 0;
+		for (unsigned int i = 0; i < all_mesh_files.size(); i++)
+			if (Geex::FileSystem::extension(all_mesh_files[i]) == "txt")
+			{
+				multimesh[idx].load_density(all_mesh_files[i]);
+				idx++;
+			}
+		return *this;
+	}
+
 	string ProjectIO::attribute_value(const string& attribute_name)
 	{
 		TagLookupTable::const_iterator it = attr_val.find(attribute_name);

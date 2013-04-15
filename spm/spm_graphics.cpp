@@ -75,6 +75,10 @@ namespace Geex
 			draw_cdt();
 		if (show_curvatures_)
 			glCallList(cur_color_displist);
+		if (show_multi_submeshes_)
+			draw_multi_submeshes();
+		if (show_multi_tiles_)
+			draw_multi_tiles();
 	}
 
 	void SPM_Graphics::draw_mesh()
@@ -101,6 +105,71 @@ namespace Geex
 		
 	}
 
+	void SPM_Graphics::draw_multi_submeshes()
+	{
+		show_mesh_ = false;
+
+		glCullFace(GL_FRONT) ;
+		glEnable(GL_LIGHTING);
+		glPushMatrix();
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, surf_diff);
+		glMaterialfv(GL_FRONT, GL_SPECULAR, surf_spec);
+		glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
+		const std::vector<TriMesh>& submeshes = packer->get_multigroup_submeshes();
+		for (unsigned int i = 0; i < submeshes.size(); i++)
+		{
+			const TriMesh& m = submeshes[i];
+			vec3 n = m[i].normal();
+			glBegin(GL_TRIANGLES);
+			glNormal(n);
+			glVertex(m[i].vertex[0]) ;
+			glVertex(m[i].vertex[1]) ;
+			glVertex(m[i].vertex[2]) ;
+			glEnd();
+		}
+		glPopMatrix();
+		glDisable(GL_LIGHTING);
+
+	}
+
+	void SPM_Graphics::draw_multi_tiles()
+	{
+		const std::vector<std::vector<Packing_object>>& multi_tiles = packer->res_pack_objects;
+
+		static GLfloat amb_mat[][4] = {{0.19225f, 0.19225f, 0.19225f, 1.0f}, {0.19225f, 0.19225f, 0.19225f, 1.0f}, {0.19225f, 0.19225f, 0.19225f, 1.0f}};
+		static GLfloat diff_mat[][4] = {{0.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.50754f, 0.50754f, 0.50754f, 1.0f}};
+		static GLfloat spec_mat[][4] = {{0.608273f, 0.608273f, 0.608273f, 1.0f}, {0.608273f, 0.608273f, 0.608273f, 1.0f}, {0.608273f, 0.608273f, 0.608273f, 1.0f}};
+		static GLfloat pgn_shininess = 0.4;
+
+		for (unsigned int k = 0; k < multi_tiles.size(); k++)
+		{
+			glCullFace(GL_FRONT);
+			glEnable(GL_LIGHTING);
+			const std::vector<Packing_object>& tiles = multi_tiles[k];
+			glPushMatrix();
+			//glMaterialfv(GL_FRONT, GL_AMBIENT, amb_mat);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, diff_mat[k%3]);
+			glMaterialfv(GL_FRONT, GL_SPECULAR, spec_mat[k%3]);
+			glMaterialf(GL_FRONT, GL_SHININESS, 50.0f);
+			for (unsigned int i = 0; i < tiles.size(); i++)
+			{
+				glBegin(GL_TRIANGLES);
+				Point_3 c = tiles[i].centroid();
+				Vector_3 n = tiles[i].norm();
+				glNormal3d(n.x(), n.y(), n.z());
+				for (unsigned int j = 0; j < tiles[i].size(); j++)
+				{
+					glPoint_3(c);
+					glPoint_3(tiles[i].vertex(j));
+					glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()));
+				}
+				glEnd();
+			}
+			glPopMatrix();
+			glDisable(GL_LIGHTING);
+		}
+		
+	}
 	void SPM_Graphics::draw_polygons()
 	{
 		switch (how_to_draw_polygons)
@@ -339,10 +408,12 @@ namespace Geex
 		glDisable(GL_LIGHTING);
 		//glColor3f(0.0f, 0.0f, 1.0f);
 		
-		for (unsigned int i = 0; i < holes.size(); i++)
+		for (unsigned int i = holes.size()-1; i < holes.size(); i++)
 		{
 			Packer::Hole h = holes[i];
-			gl_table_color(i);
+			//gl_table_color(i);
+			glColor3f(1.0, 0.0f, 0.0f);
+			glLineWidth(1.5f);
 			glBegin(GL_LINES);
 			for (unsigned int j = 0; j < h.size(); j++)
 			{
