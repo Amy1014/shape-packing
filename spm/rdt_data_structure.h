@@ -60,6 +60,7 @@ namespace Geex
 		typedef CGAL::HalfedgeDS_face_base<Refs> baseclass;
 	public:
 		Vector_3 n;
+		//Vector_3 dn;
 		bool vacant;
 		bool is_delaunay;
 	};
@@ -226,6 +227,7 @@ namespace Geex
 						b.add_vertex_to_facet(i);
 						b.end_facet();
 						f->is_delaunay = true;
+						f->n = det;
 					}
 					else
 						nb_invalid_facets++;
@@ -242,6 +244,7 @@ namespace Geex
 						b.add_vertex_to_facet(k);
 						b.end_facet();
 						f->is_delaunay = true;
+						f->n = det;
 					}
 					else
 						nb_invalid_facets++;
