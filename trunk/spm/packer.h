@@ -134,18 +134,18 @@ namespace Geex
 		void transform_one_polygon(unsigned int id, Local_frame& lf, Parameter& param);
 
 		// constraint transformation to avoid triangle flip
-		void constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, vector<double>& min_factors);
+		void constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, bool constrain_scale);
 
 		// mapping from curvature to transformation
 		void curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id);
 
 		/** replace and hole filling**/
 		// remove one polygon and leave a hole
-		void remove_one_polygon(unsigned int id, Hole& hole);
+		void remove_one_polygon(unsigned int id, Hole& hole, std::set<Facet_handle>& removed_facets);
 		// fill one hole
 		void fill_one_hole(Hole& hl, Packing_object& filler);
 
-		bool replace_one_polygon(unsigned int id, Hole& region); 
+		bool replace_one_polygon(unsigned int id, Hole& region, std::set<Facet_handle>& removed_facets); 
 
 		void eliminate_penetration();
 		bool pair_penetration(unsigned int id0, unsigned int id1);

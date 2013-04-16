@@ -83,7 +83,7 @@ namespace Geex
 		std::cout<<"Surface area: "<<mesh_area<<std::endl;
 
 		// compute maximum and average polygon area in the library
-		double max_pgn_area = DBL_MIN, mean_pgn_area = 0.0;
+		double max_pgn_area = std::numeric_limits<double>::min(), mean_pgn_area = 0.0;
 		for (unsigned int i = 0; i < pgn_lib.size(); i++)
 		{
 			double s = std::fabs(pgn_lib[i].area());
@@ -459,6 +459,8 @@ namespace Geex
 			if (!enlarge)
 				solutions[i].k = 1.0;
 		}
+
+		// do statistics on transformation
 		double mink = std::numeric_limits<double>::max();
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
@@ -477,11 +479,16 @@ namespace Geex
 					solutions[i].k = mink;
 		}
 		std::cout<<"Minimum enlargement factor = "<<mink<<std::endl;
-		std::vector<double> min_factors(solutions.size(), 1.0);// factors to constraint transformation
-		if (!stop_update_DT)
-		{
-			constraint_transformation(solutions, lfs, min_factors);
-		}
+
+		//if (!stop_update_DT)
+		//{
+			// first constrain rotation and translation
+			constraint_transformation(solutions, lfs, false);
+			// second constrain enlargement
+			if (mink < min_scalor && enlarge)
+				constraint_transformation(solutions, lfs, true);
+		//}
+		//rpvd.save_triangulation("before_transform.obj");
 		//std::ofstream of("parameters.txt");
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -489,10 +496,62 @@ namespace Geex
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{
-			Parameter constrained_parameter = solutions[i]*min_factors[i];
-			curv_constrained_transform(constrained_parameter, pack_objects[i].facet_idx, i);
-			transform_one_polygon(i, lfs[i], constrained_parameter);
-			solutions[i] -= constrained_parameter;// residual transformation
+			//Parameter constrained_parameter = solutions[i]*min_factors[i];
+			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
+			transform_one_polygon(i, lfs[i], solutions[i]);
+			//solutions[i] -= constrained_parameter;// residual transformation
+		}
+		//int nb_flipped = 0;
+		//typedef RestrictedPolygonVoronoiDiagram RPVD;
+		//for (RPVD::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
+		//{
+		//	RPVD::Halfedge_handle eh = fit->halfedge();
+		//	Point_3 v0 = eh->vertex()->mp;
+		//	int i0 = eh->vertex()->group_id;
+
+		//	eh = eh->next();
+		//	Point_3 v1 = eh->vertex()->mp;
+		//	int i1 = eh->vertex()->group_id;
+
+		//	eh = eh->next();
+		//	Point_3 v2 = eh->vertex()->mp;
+		//	int i2 = eh->vertex()->group_id;
+		//	Vector_3 v01(v0, v1), v12(v1, v2);
+		//	cgal_vec_normalize(v01);
+		//	cgal_vec_normalize(v12);
+		//	Vector_3 n = CGAL::cross_product(v01, v12);
+		//	double nlen2 = n.squared_length();
+		//	if (nlen2 == 0.0) //degenerate case
+		//	{
+		//		std::cout<<"degenerate at <"<<i0<<", "<<i1<<", "<<i2<<">\n";
+		//		continue;
+		//	}
+		//	cgal_vec_normalize(n);
+		//	double cp = n*fit->n;
+		//	if (Geex::Numeric::is_nan(cp))
+		//		system("pause");
+		//	if (n*fit->n < 0.0)
+		//	{
+		//		nb_flipped++;
+		//	}
+		//}	
+		//std::cout<<"Number of flipped triangles: "<<nb_flipped<<std::endl;
+		for (RestrictedPolygonVoronoiDiagram::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
+		{
+			RestrictedPolygonVoronoiDiagram::Halfedge_handle eh = fit->halfedge();
+			Point_3 v0 = eh->vertex()->mp;
+
+			eh = eh->next();
+			Point_3 v1 = eh->vertex()->mp;
+
+			eh = eh->next();
+			Point_3 v2 = eh->vertex()->mp;
+
+			Vector_3 v01(v0, v1), v12(v1, v2);
+			cgal_vec_normalize(v01);
+			cgal_vec_normalize(v12);
+			fit->n = CGAL::cross_product(v01, v12);
+			fit->n = fit->n / CGAL::sqrt(fit->n.squared_length());
 		}
 		if (enlarge && mink < min_scalor)
 			return NO_MORE_ENLARGEMENT;
@@ -559,10 +618,6 @@ namespace Geex
 				t.stop();
 				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
 				std::cout<<"End iDT updating\n";	
-
-				if (post_action != NULL)
-					post_action();
-
 				// compensate for the constrained transformation in the last step
 				//std::cout<<"Compensate for lost transformation...\n";
 				//std::vector<double> min_factors(solutions.size());
@@ -617,29 +672,10 @@ namespace Geex
 			post_action();
 	}
 
-	void Packer::constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, vector<double>& min_factors)
+	void Packer::constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, bool constrain_scale)
 	{
-		min_factors.assign(parameters.size(), 1.0);
+		std::vector<double> min_factors(parameters.size(), 1.0);
 		typedef RestrictedPolygonVoronoiDiagram RPVD;
-		for (RPVD::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
-		{
-			RPVD::Halfedge_handle eh = fit->halfedge();
-			Point_3 v0 = eh->vertex()->mp;
-			int i0 = eh->vertex()->group_id;
-
-			eh = eh->next();
-			Point_3 v1 = eh->vertex()->mp;
-			int i1 = eh->vertex()->group_id;
-
-			eh = eh->next();
-			Point_3 v2 = eh->vertex()->mp;
-			int i2 = eh->vertex()->group_id;
-
-// 			if (i0 < 0 || i1 < 0 || i2 < 0)
-// 				continue;
-			fit->n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
-			fit->n = fit->n / CGAL::sqrt(fit->n.squared_length());
-		}
 		unsigned int N = 20, n = 1;
 		bool stop = false;
 		while (n < N && !stop)
@@ -650,7 +686,11 @@ namespace Geex
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 			{
-				Parameter sp = parameters[i]*min_factors[i];
+				Parameter sp = parameters[i]; // constrained transformation to try
+				if (constrain_scale)
+					sp.k = (sp.k - 1.0) * min_factors[i] + 1.0;
+				else
+					sp = parameters[i]*min_factors[i];
 				Apply_transformation t(sp, lfs[i]);
 				Packing_object future_pgn = pack_objects[i];
 				std::transform(future_pgn.vertices_begin(), future_pgn.vertices_end(), future_pgn.vertices_begin(), t);
@@ -684,26 +724,29 @@ namespace Geex
 			{
 				RPVD::Halfedge_handle eh = fit->halfedge();
 				Point_3 v0 = eh->vertex()->mp;
+				//Point_3 dv0 = eh->vertex()->point();
 				int i0 = eh->vertex()->group_id;
 
 				eh = eh->next();
 				Point_3 v1 = eh->vertex()->mp;
+				//Point_3 dv1 = eh->vertex()->point();
 				int i1 = eh->vertex()->group_id;
 
 				eh = eh->next();
 				Point_3 v2 = eh->vertex()->mp;
+				//Point_3 dv2 = eh->vertex()->point();
 				int i2 = eh->vertex()->group_id;
-// 
-// 				if (i0 < 0 || i1 < 0 || i2 < 0)
-// 					continue;
-				Vector_3 n = CGAL::cross_product(Vector_3(v0, v1), Vector_3(v1, v2));
+				Vector_3 v01(v0, v1), v12(v1, v2);
+				cgal_vec_normalize(v01);
+				cgal_vec_normalize(v12);
+				Vector_3 n = CGAL::cross_product(v01, v12);
 				double nlen2 = n.squared_length();
 				if (nlen2 == 0.0) //degenerate case
 				{
 					//std::cout<<"degenerate at <"<<i0<<", "<<i1<<", "<<i2<<">\n";
 					continue;
 				}
-				n = n / CGAL::sqrt(nlen2);
+				cgal_vec_normalize(n);
 				if (n*fit->n < 0.0)
 				{
 					nb_flipped++;
@@ -726,7 +769,14 @@ namespace Geex
 				}
 			}
 		}
-		std::cout<<"Try times for constraint: "<<n<<std::endl;
+
+		if (constrain_scale)
+			for (unsigned int i = 0; i < parameters.size(); i++)
+				parameters[i].k = (parameters[i].k - 1.0) * min_factors[i] + 1.0;
+		else
+			for (unsigned int i = 0; i < parameters.size(); i++)
+				parameters[i] *= min_factors[i];
+		std::cout<<"Trial times for constraint: "<<n<<std::endl;
 			
 	}
 
@@ -1022,8 +1072,8 @@ namespace Geex
 		for (unsigned int j = 0; j < hl.size(); j++)
 		{
 			//const Segment_3& he = hl[j];
-			Point_2 s = lf.to_uv( prj_plane.projection(hl[j].first->mp) );
-			Point_2 t = lf.to_uv( prj_plane.projection(hl[j].second->mp) );
+			Point_2 s = lf.to_uv( prj_plane.projection(hl[j].first->point()) );
+			Point_2 t = lf.to_uv( prj_plane.projection(hl[j].second->point()) );
 			hole_bd_2d.push_back( Segment_2(s, t) );
 		}
 		Polygon_matcher pm(hole_bd_2d, 200);
@@ -1059,7 +1109,7 @@ namespace Geex
 		filler.texture_id = match_pgn.texture_id;	
 	}
 
-	void Packer::remove_one_polygon(unsigned int id, Hole& hole)
+	void Packer::remove_one_polygon(unsigned int id, Hole& hole, std::set<Facet_handle>& removed_facets)
 	{
 		// build the hole after removing the polygon
 		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
@@ -1104,7 +1154,7 @@ namespace Geex
 		}
 
 		// remove the corresponding triangulation
-		std::set<Facet_handle> removed_facets;
+		//std::set<Facet_handle> removed_facets;
 		for (unsigned int i = 0; i < samp_pnts.size(); i++)
 		{
 			Edge_circulator start_edge = samp_pnts[i]->vertex_begin();
@@ -1138,9 +1188,9 @@ namespace Geex
 				} while (current_edge != start_edge);
 			}
 		}
-		for (std::set<Facet_handle>::iterator it = removed_facets.begin(); it != removed_facets.end(); ++it)
-			rpvd.erase_facet((*it)->halfedge());
-		rpvd.delete_point_group(id);
+		//for (std::set<Facet_handle>::iterator it = removed_facets.begin(); it != removed_facets.end(); ++it)
+		//	rpvd.erase_facet((*it)->halfedge());
+		//rpvd.delete_point_group(id);
 	}
 
 	void Packer::remove_polygons()
@@ -1149,13 +1199,14 @@ namespace Geex
 		//for (unsigned int id = 0; id < pack_objects.size(); id++) 
 		{
 			holes.push_back(Hole());
-			remove_one_polygon(id, holes.back());
+			std::set<Facet_handle> removed_facets;
+			remove_one_polygon(id, holes.back(), removed_facets);
 		}
 
 		id++;
 	}
 
-	bool Packer::replace_one_polygon(unsigned int id, Hole& region)
+	bool Packer::replace_one_polygon(unsigned int id, Hole& region, std::set<Facet_handle>& removed_facets)
 	{
 		fill_one_hole(region, pack_objects[id]);
 
@@ -1315,6 +1366,9 @@ namespace Geex
 		}
 		else
 		{
+			for (std::set<Facet_handle>::iterator it = removed_facets.begin(); it != removed_facets.end(); ++it)
+				rpvd.erase_facet((*it)->halfedge());
+			rpvd.delete_point_group(id);
 			rpvd.delegate(CDTtoRDT(cdt, mesh, hole_bd_pnts));
 			return true;
 		}
@@ -1325,21 +1379,22 @@ namespace Geex
 		//static unsigned int id = 0;
 		//replace_one_polygon(id, holes.back());
 		//id++;
-		generate_RDT();
-		eliminate_penetration();
+		//generate_RDT();
+		//eliminate_penetration();
 		unsigned int id;
 		for ( id = 0; id < pack_objects.size(); id++)
 		{
 			holes.push_back(Hole());
 			backup = pack_objects[id];
-			remove_one_polygon(id, holes.back());
-			if (!replace_one_polygon(id, holes.back()))
+			std::set<Facet_handle> removed_facets;
+			remove_one_polygon(id, holes.back(), removed_facets);
+			if (!replace_one_polygon(id, holes.back(), removed_facets))
 				break;
 		}
 		if (id < pack_objects.size())
 		{
 			pack_objects[id] = backup;
-			generate_RDT();
+			//generate_RDT();
 		}
 
 	}
