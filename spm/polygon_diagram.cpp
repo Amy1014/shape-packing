@@ -355,4 +355,16 @@ namespace Geex
 			os<<"f "<<i0+1<<' '<<i1+1<<' '<<i2+1<<'\n';			
 		}
 	}
+
+	void RestrictedPolygonVoronoiDiagram::smooth_VD_region()
+	{
+		for (unsigned int i = 0; i < nb_groups; i++)
+		{
+			VertGroup& vg = samp_pnts[i];
+			for (unsigned int j = 0; j < vg.size(); j++)
+			{
+				std::vector<Point_3>& vd_vertices
+			}
+		}
+	}
 }
