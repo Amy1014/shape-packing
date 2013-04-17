@@ -46,6 +46,8 @@ namespace Geex
 		GLboolean& show_polygons()	{ return show_polygons_; }
 
 		GLboolean& show_voronoi_cell() { return show_voronoi_cell_; }
+		GLboolean& show_smoothed_voronoi_cell() { return show_smoothed_voronoi_cell_; }
+
 		void redraw_voronoi_cell() { glDeleteLists(vc_displist, 1); }
 
 		GLboolean& show_triangulation() { return show_triangulation_; }
@@ -87,7 +89,10 @@ namespace Geex
 
 		void draw_polygons();
 		void draw_triangulation();
+
 		void draw_voronoi_cell();
+		void draw_smoothed_voronoi_cell();
+
 		void draw_hole_triangles();
 		void draw_holes();
 		void draw_curvature();
@@ -111,6 +116,8 @@ namespace Geex
 
 		GLboolean show_polygons_;
 		GLboolean show_voronoi_cell_;
+		GLboolean show_smoothed_voronoi_cell_;
+
 		GLboolean show_triangulation_;
 		GLboolean show_vertices_;
 		GLboolean show_hole_triangles_;

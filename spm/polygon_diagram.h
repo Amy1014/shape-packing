@@ -26,6 +26,8 @@
 
 #include <CGAL/Polyhedron_incremental_builder_3.h>
 #include <CGAL/Object.h>
+#include <CGAL/ch_graham_andrew.h>
+
 #include "spm_cgal.h"
 #include "meshes.h"
 #include "rdt_data_structure.h"
@@ -91,6 +93,7 @@ public:
 	const VertGroup& sample_points_group(unsigned int polygon_id) const { return samp_pnts[polygon_id]; }
 	VertGroup& sample_points_group(unsigned int polygon_id) { return samp_pnts[polygon_id]; }
 	void delete_point_group(unsigned int group_id) { samp_pnts[group_id].clear();}
+	const std::vector<std::vector<Point_3>>& get_smoothed_voronoi_regions() const { return smoothed_VD_regions; }
 	
 	Vertex_iterator vertices_begin() { return rdt_ds.vertices_begin(); }
 	Vertex_iterator vertices_end() { return rdt_ds.vertices_end(); }
@@ -131,6 +134,7 @@ private:
 	std::vector<VertGroup> samp_pnts;
 	std::vector<Vertex_handle> bounding_pnts;
 	std::vector<MyPoint> all_points;
+	std::vector<std::vector<Point_3>> smoothed_VD_regions;
 	/** geometry **/
 	TopoPolyMesh *mesh;
 	TriMesh *trimesh;//the same as mesh, but with some other necessary functions

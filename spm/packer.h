@@ -93,6 +93,7 @@ namespace Geex
 		void replace();
 		void remove_polygons();
 		void ex_replace(); // extended replace
+		void con_replace(); 
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug

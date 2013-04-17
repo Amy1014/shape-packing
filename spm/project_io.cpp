@@ -229,13 +229,29 @@ namespace Geex
 				multimesh.back().load(all_mesh_files[i]);
 				submesh_files.push_back(all_mesh_files[i]);
 			}
+		// load density
+		TagLookupTable::const_iterator gamma_it = attr_val.find("gamma");
+		double gamma = 1.0;
+		if ( gamma_it != attr_val.end() )
+		{
+			std::istringstream str_gamma;
+			str_gamma.str(gamma_it->second);
+			str_gamma >> gamma;
+			std::cout<<"using gamma = "<<gamma<<std::endl;
+		}
+		
 		unsigned int idx = 0;
+		bool load_density_ok = true;
 		for (unsigned int i = 0; i < all_mesh_files.size(); i++)
 			if (Geex::FileSystem::extension(all_mesh_files[i]) == "txt")
 			{
-				multimesh[idx].load_density(all_mesh_files[i]);
+				load_density_ok = load_density_ok && multimesh[idx].load_density(all_mesh_files[i], gamma);
 				idx++;
 			}
+		if (load_density_ok)
+			has_density_input_ = true;
+		else
+			has_density_input_ = false;
 		return *this;
 	}
 

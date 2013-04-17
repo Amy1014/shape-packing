@@ -27,6 +27,7 @@ namespace Geex {
 	void TW_CALL tw_fill(void*);
 	void TW_CALL tw_remove(void*);
 	void TW_CALL tw_ex_replace(void*);
+	void TW_CALL tw_con_replace(void *);
 	void TW_CALL tw_pack_next(void*);
 	void TW_CALL tw_save_subresult(void*);
 	//void TW_CALL tw_curvature_get_callback(void*, void*);
@@ -140,6 +141,11 @@ namespace Geex {
 			spm()->redraw_triangulation();
 			glut_viewer_redraw();
 		}
+		void con_replace()
+		{
+			spm()->con_replace();
+			post_update();
+		}
 		void enlarge_polygon()
 		{
 			if (enlarge_id >= 0 && enlarge_factor >= 1.0)
@@ -184,6 +190,7 @@ namespace Geex {
 		
 			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "group = 'Geometry' ");
+			TwAddVarRW(graphics_bar, "Smoothed Voronoi", TW_TYPE_BOOL8, &spm()->show_smoothed_voronoi_cell(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Vertices", TW_TYPE_BOOL8, &spm()->show_vertices(), "group = 'Geometry' ");
 
 			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "group = 'Debug' ");
@@ -212,6 +219,8 @@ namespace Geex {
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
 			TwAddButton(function_bar, "remove", tw_remove, NULL, "key=R group = 'Replace' ");
 			TwAddButton(function_bar, "ex-replace", tw_ex_replace, NULL, "key=e group = 'Replace' ");
+			TwAddButton(function_bar, "ext-replace", tw_con_replace, NULL, "key = x group = 'Replace' ");
+
 			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999 group = 'Optimization' ");
 			TwAddButton(function_bar, "pack next", tw_pack_next, NULL, "group = 'multimesh' ");
 			TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
@@ -273,6 +282,7 @@ void TW_CALL tw_save_cur_area( void *clientData ) { spm_app()->save_cur_area(); 
 void TW_CALL tw_fill( void *clientData ) { spm_app()->fill_holes(); }
 void TW_CALL tw_remove(void* clientData) { spm_app()->remove(); }
 void TW_CALL tw_ex_replace(void *cientData) { spm_app()->ex_replace(); }
+void TW_CALL tw_con_replace(void * clientData) { spm_app()->con_replace(); }
 void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
 void TW_CALL tw_save_subresult(void* clientData) { spm_app()->save_subresult(); }
 ////void TW_CALL tw_smooth_normals(void* clientData) { spm_app()->smooth_normals(); }
