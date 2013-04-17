@@ -447,6 +447,7 @@ namespace Geex {
 		MeshVertex& vertex(int idx) { return vertices_[idx]; }
 		double surrounding_region_area(int idx) const;
 		inline bool is_on_boundary(int idx) const { return vert_on_boundary[idx]; }
+		bool near_boundary(int idx) const;
 		inline bool is_on_feature(int idx) const { return vert_on_feature[idx]; }
 		inline const MeshVertex& vertex(int idx) const { return vertices_[idx]; }
 		void add_vertex(vec3 p) { vertices_.push_back(MeshVertex(p)); }

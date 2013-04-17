@@ -63,6 +63,8 @@ namespace Geex
 			draw_triangulation();
 		if (show_voronoi_cell_)
 			draw_voronoi_cell();
+		if (show_smoothed_voronoi_cell_)
+			draw_smoothed_voronoi_cell();
 		if (show_vertices_)
 			draw_all_vertices();
 		if (show_hole_triangles_)
@@ -75,6 +77,7 @@ namespace Geex
 			draw_cdt();
 		if (show_curvatures_)
 			glCallList(cur_color_displist);
+
 		if (show_multi_submeshes_)
 			draw_multi_submeshes();
 		if (show_multi_tiles_)
@@ -641,5 +644,23 @@ namespace Geex
 			}
 		}
 		glEnd();
+	}
+
+	void SPM_Graphics::draw_smoothed_voronoi_cell()
+	{
+		const RestrictedPolygonVoronoiDiagram& rpvd = packer->get_rpvd();
+		const std::vector<std::vector<Point_3>>& smoothed_regions = rpvd.get_smoothed_voronoi_regions();
+		glDisable(GL_LIGHTING);
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glLineWidth(1.5f);
+		for (unsigned int i = 0; i < smoothed_regions.size(); i++)
+		{
+			const std::vector<Point_3>& smoothed_region = smoothed_regions[i];
+			glBegin(GL_LINE_LOOP);
+			for (unsigned int j = 0; j < smoothed_region.size(); j++)
+				glPoint_3(smoothed_region[j]);
+			glEnd();
+		}
+		glEnable(GL_LIGHTING);
 	}
 }

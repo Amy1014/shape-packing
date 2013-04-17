@@ -253,6 +253,26 @@ namespace Geex {
 		std::cout << "number of boundary vertices: "<<boundaryEdges.size()<<std::endl;
     }
 
+	bool TriMesh::near_boundary(int idx) const
+	{
+		if (is_on_boundary(idx))
+			return true;
+		std::vector<int>& adj_faces = vertices_[idx].faces_;
+		for (unsigned int i = 0; i < adj_faces.size(); i++)
+		{
+			const Facet& f = operator[](adj_faces[i]);
+			int vi0 = f.vertex_index[0];
+			if (is_on_boundary(vi0))
+				return true;
+			int vi1 = f.vertex_index[1];
+			if (is_on_boundary(vi1))
+				return true;
+			int vi2 = f.vertex_index[2];
+			if (is_on_boundary(vi2))
+				return true;
+		}
+		return false;
+	}
 	void TriMesh::setFeatureAngle(double ang)
 	{
 		if (ang < 0.0 || ang > 180.0)

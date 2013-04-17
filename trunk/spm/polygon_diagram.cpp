@@ -135,17 +135,19 @@ namespace Geex
 			//vit->weights.clear();
 		}
 		int nb_lost_facets = 0;
+		smoothed_VD_regions.resize(nb_groups);
 		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 		for (unsigned int i = 0; i < nb_groups; i++)
 		{
 			const VertGroup& vg = samp_pnts[i];
 			const Plane_3& pln = clipping_planes[i];
-
+			smoothed_VD_regions[i].clear();
 			// for curvature correction optimization
 			Vector_3 pln_nm = pln.orthogonal_vector();
 			cgal_vec_normalize(pln_nm);
 			for (unsigned int j = 0; j < vg.size(); j++)
 			{
+				std::vector<bool> is_triple_pnt;
 				int gid = vg[j]->group_id;
 				Edge_circulator start_edge = vg[j]->vertex_begin();
 				Edge_circulator current_edge = start_edge;
@@ -177,7 +179,11 @@ namespace Geex
 						{
 							c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
 							vg[j]->vd_vertices.push_back(c);
-
+							if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id
+								|| v_pre->group_id < 0 && v_nxt->group_id < 0 )
+								is_triple_pnt.push_back(true);
+							else
+								is_triple_pnt.push_back(false);
 							// for curvature correction optimization
 							//Vector_3 tri_nm = CGAL::orthogonal_vector(v_pre->mp, v_nxt->mp, vg[j]->mp);
 							//cgal_vec_normalize(tri_nm);
@@ -189,7 +195,12 @@ namespace Geex
 							c = CGAL::centroid(v_pre->mp, v_nxt->mp, vg[j]->mp);
 							vg[j]->vd_vertices.push_back(c);
 							vg[j]->contain_non_delaunay_facet = true;
-							// for curvature corretion optimization
+							if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id
+								|| v_pre->group_id < 0 && v_nxt->group_id < 0)
+								is_triple_pnt.push_back(true);
+							else
+								is_triple_pnt.push_back(false);
+							// for curvature correction optimization
 							//Vector_3 tri_nm = CGAL::orthogonal_vector(v_pre->mp, v_nxt->mp, vg[j]->mp);
 							//cgal_vec_normalize(tri_nm);
 							//double w = std::fabs(pln_nm * tri_nm);
@@ -199,11 +210,30 @@ namespace Geex
 					++current_edge;
 				} while (current_edge != end);
 				std::vector<Point_3>& vd_vertices = vg[j]->vd_vertices;
-				for (unsigned int k = 0; k <  vd_vertices.size(); k++)
+				//std::vector<bool>& is_triple_pnt = vg[j]->is_triple_pnt;
+				for (unsigned int k = 0; k < vd_vertices.size(); k++)
 				{
 					vd_vertices[k] = pln.projection(vd_vertices[k]);
+					if (is_triple_pnt[k])
+						smoothed_VD_regions[i].push_back(vd_vertices[k]);
 				}
 			}
+			std::vector<Point_2> conhull;
+			std::vector<Point_2> pnt2d;
+			pnt2d.reserve(smoothed_VD_regions[i].size());
+			Vector_3 base1 = pln.base1(), base2 = pln.base2();
+			cgal_vec_normalize(base1);
+			cgal_vec_normalize(base2);
+			Point_3 o = pln.point();
+			for (unsigned int k = 0; k < smoothed_VD_regions[i].size(); k++)
+			{
+				Vector_3 v(o, smoothed_VD_regions[i][k]);
+				pnt2d.push_back(Point_2(v*base1, v*base2));
+			}
+			CGAL::ch_graham_andrew(pnt2d.begin(), pnt2d.end(), std::back_insert_iterator<std::vector<Point_2>>(conhull));
+			smoothed_VD_regions[i].clear();
+			for (unsigned k = 0; k < conhull.size(); k++)
+				smoothed_VD_regions[i].push_back(o + ( conhull[k].x()*base1 + conhull[k].y()*base2 ) );
 		}
 		std::cout<<"Number of lost facets (due to wrong RDT): "<<nb_lost_facets<<std::endl;
 	}
@@ -356,15 +386,15 @@ namespace Geex
 		}
 	}
 
-	void RestrictedPolygonVoronoiDiagram::smooth_VD_region()
-	{
-		for (unsigned int i = 0; i < nb_groups; i++)
-		{
-			VertGroup& vg = samp_pnts[i];
-			for (unsigned int j = 0; j < vg.size(); j++)
-			{
-				std::vector<Point_3>& vd_vertices
-			}
-		}
-	}
+	//void RestrictedPolygonVoronoiDiagram::smooth_VD_region()
+	//{
+	//	for (unsigned int i = 0; i < nb_groups; i++)
+	//	{
+	//		VertGroup& vg = samp_pnts[i];
+	//		for (unsigned int j = 0; j < vg.size(); j++)
+	//		{
+	//			std::vector<Point_3>& vd_vertices
+	//		}
+	//	}
+	//}
 }

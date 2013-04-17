@@ -121,7 +121,7 @@ namespace Geex
 			}
 			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 			{
-				if (mesh.is_on_boundary(i) || mesh.is_on_feature(i))
+				if (mesh.near_boundary(i) || mesh.is_on_feature(i))
 					continue;
 				double nf = nb_init_polygons*mesh.vertex(i).weight()*region_area[i]/total_weight;
 				int n(nf+res);
@@ -155,7 +155,7 @@ namespace Geex
 					idx = ::rand()%mesh.size();
 				init_facets.insert(idx);
 				int vi0 = mesh[idx].vertex_index[0], vi1 = mesh[idx].vertex_index[1], vi2 = mesh[idx].vertex_index[2];
-				if (mesh.is_on_boundary(vi0) || mesh.is_on_boundary(vi1) || mesh.is_on_boundary(vi2))
+				if (mesh.near_boundary(vi0) || mesh.near_boundary(vi1) || mesh.near_boundary(vi2))
 					continue;
 				Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
 				init_pos.push_back(std::make_pair(idx, c));
@@ -485,9 +485,9 @@ namespace Geex
 			// first constrain rotation and translation
 			//constraint_transformation(solutions, lfs, false);
 			// second constrain enlargement
-			if (mink < min_scalor && enlarge)
-				constraint_transformation(solutions, lfs, true);
-			else
+			//if (mink < min_scalor && enlarge)
+			//	constraint_transformation(solutions, lfs, true);
+			//else
 				constraint_transformation(solutions, lfs, false);
 		//}
 		//rpvd.save_triangulation("before_transform.obj");
@@ -884,8 +884,6 @@ namespace Geex
 		std::cout<<"Start replacing...\n";
 		CGAL::Timer replace_timer;
 		replace_timer.start();
-		//std::ofstream res("parameters.txt");
-		//rpvd.save_triangulation("pre_replace.obj");
 		
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -1097,7 +1095,7 @@ namespace Geex
 		}
 
 		filler.align(lf.w, lf.o);
-		double shrink_factor = 0.5;
+		double shrink_factor = 0.3;
 
 		Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
 			( Transformation_3(CGAL::SCALING, shrink_factor) *
@@ -1376,6 +1374,85 @@ namespace Geex
 		}
 	}
 
+	void Packer::con_replace()
+	{
+		std::cout<<"Start replacing...\n";
+		CGAL::Timer replace_timer;
+		replace_timer.start();
+
+#ifdef _CILK_
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+#endif
+		{
+			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+
+			const std::vector<Point_3>& smoothed_region = rpvd.get_smoothed_voronoi_regions().at(i);
+
+			Local_frame lf = compute_local_frame(pack_objects[i]);
+
+			std::vector<Segment_2> region2d;
+			
+			for (unsigned int j = 0; j < smoothed_region.size(); j++)
+			{
+				Point_2 s = lf.to_uv(smoothed_region[j]);
+				Point_2 t = lf.to_uv(smoothed_region[(j+1)%smoothed_region.size()]);
+				region2d.push_back(Segment_2(s, t));
+			}
+			Polygon_matcher pm(region2d, 200);
+			//double region_area = pm.get_model_area();
+			//double tile_area = pack_objects[i].area();
+			//if (tile_area/region_area < 0.84)
+			//{
+			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
+			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
+
+			// choose the result with the smallest match error now
+			Match_info_item<unsigned int> matcher = match_res.top();
+
+			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
+			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
+
+			pack_objects[i].clear();
+
+			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+			{
+				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+				pack_objects[i].push_back(p);
+			}
+
+			Point_3 c = pack_objects[i].centroid();
+			vec3 v;
+			int fid;
+			vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
+
+			v = approx_normal(fid);
+			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
+
+			double shrink_factor;
+			shrink_factor = 0.6;
+
+			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
+				( Transformation_3(CGAL::SCALING, shrink_factor) *
+				Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
+
+			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
+			//
+			pack_objects[i].lib_idx = matcher.val;
+			pack_objects[i].factor = matcher.scale*shrink_factor;
+			pack_objects[i].facet_idx = fid;
+			pack_objects[i].texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
+			pack_objects[i].texture_id = match_pgn.texture_id;
+		}
+		replace_timer.stop();
+		// rebuild the restricted delaunay triangulation and voronoi cell
+		generate_RDT();
+		compute_clipped_VD();
+		stop_update_DT = false;
+		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
+	}
 	void Packer::ex_replace()
 	{
 		//static unsigned int id = 0;
@@ -1396,9 +1473,7 @@ namespace Geex
 		if (id < pack_objects.size())
 		{
 			pack_objects[id] = backup;
-			//generate_RDT();
 		}
-
 	}
 	void Packer::eliminate_penetration()
 	{
