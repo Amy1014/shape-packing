@@ -4,4 +4,6 @@
             
 < polygonfile >      ..\..\polygons\voronoi418_bunny.poly      </ PolygonFile >
 
+< gamma > 2.5 </ gamma>
+
 < DensityFile >      ..\..\surfaces\bunny.txt </ DensityFile >

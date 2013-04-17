@@ -4,6 +4,6 @@
             
 < polygonfile >      ..\..\polygons\voronoi417_kitten.poly      </ PolygonFile >
 
-< DensityFile >      ..\..\surfaces\kitten.cur </ DensityFile >
+< DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
 
 < TextureImageDir >  ./texture  </ TextureImageDir >
