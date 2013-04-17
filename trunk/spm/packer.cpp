@@ -483,10 +483,12 @@ namespace Geex
 		//if (!stop_update_DT)
 		//{
 			// first constrain rotation and translation
-			constraint_transformation(solutions, lfs, false);
+			//constraint_transformation(solutions, lfs, false);
 			// second constrain enlargement
 			if (mink < min_scalor && enlarge)
 				constraint_transformation(solutions, lfs, true);
+			else
+				constraint_transformation(solutions, lfs, false);
 		//}
 		//rpvd.save_triangulation("before_transform.obj");
 		//std::ofstream of("parameters.txt");

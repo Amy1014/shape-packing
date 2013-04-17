@@ -81,6 +81,8 @@ public:
 
 	void compute_clipped_VD(std::vector<Plane_3>& clipping_planes);
 
+	void smooth_VD_region();
+
 	void iDT_update(); // edge flip to preserve intrinsic Delaunay structure
 
 	void erase_facet(Halfedge_handle h) { rdt_ds.erase_facet(h); }
