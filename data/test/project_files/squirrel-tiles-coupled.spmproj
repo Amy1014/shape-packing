@@ -1,0 +1,11 @@
+< SpMProject >  Squirrel-TMR couple Texture Test </ SPMProject >
+
+< MeshPolygonCoupled > True </ MeshPolygonCoupled >
+
+< MeshPolygonCoupleDir >   ..\..\surface-polygon\squirrel-taiji\squirrel-cut-left ;  ..\..\surface-polygon\squirrel-taiji\squirrel-cut-right ;  ..\..\surface-polygon\squirrel-taiji\squirrel-main    </ MeshPolygonCoupleDir > 
+
+< WithTexture > True </ WithTexture>   
+
+< gamma > 1.5 </ gamma >
+
+< TextureImageDir >  ..\..\polygons\squirrel_TMR_s\  </ TextureImageDir >

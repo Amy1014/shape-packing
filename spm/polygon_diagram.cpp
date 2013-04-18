@@ -17,7 +17,8 @@ namespace Geex
 
 	RestrictedPolygonVoronoiDiagram::~RestrictedPolygonVoronoiDiagram()
 	{
-		mesh->clear();
+		//mesh->clear();
+		delete mesh;
 		std::for_each(samp_pnts.begin(), samp_pnts.end(), std::mem_fun_ref(&VertGroup::clear));
 		samp_pnts.clear();
 		bounding_pnts.clear();
@@ -177,8 +178,24 @@ namespace Geex
 						}
 						else if (current_edge->facet()->is_delaunay)
 						{
-							c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
-							vg[j]->vd_vertices.push_back(c);
+							Point_3 c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
+							if (v_nxt->group_id < 0 && v_pre->group_id < 0)
+								vg[j]->vd_vertices.push_back( v_nxt->mp );
+							else if (v_nxt->group_id < 0 && v_pre->group_id >= 0)
+							{
+								vg[j]->vd_vertices.push_back(v_nxt->mp);
+								//if (vg[j]->group_id != v_pre->group_id)
+								//	vg[j]->vd_vertices.push_back( c );
+							}
+							else if (v_nxt->group_id >= 0 && v_pre->group_id < 0)
+							{
+								if (vg[j]->group_id != v_nxt->group_id)
+									vg[j]->vd_vertices.push_back(c);
+								//vg[j]->vd_vertices.push_back(v_pre->mp);
+							}
+							else
+								vg[j]->vd_vertices.push_back( c );
+							//vg[j]->vd_vertices.push_back(c);
 							if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id
 								|| v_pre->group_id < 0 && v_nxt->group_id < 0 )
 								is_triple_pnt.push_back(true);
@@ -192,8 +209,24 @@ namespace Geex
 						}
 						else
 						{
-							c = CGAL::centroid(v_pre->mp, v_nxt->mp, vg[j]->mp);
-							vg[j]->vd_vertices.push_back(c);
+							Point_3 c = CGAL::centroid(v_pre->mp, v_nxt->mp, vg[j]->mp);
+							if (v_nxt->group_id < 0 && v_pre->group_id < 0)
+								vg[j]->vd_vertices.push_back( v_nxt->mp );
+							else if (v_nxt->group_id < 0 && v_pre->group_id >= 0)
+							{
+								vg[j]->vd_vertices.push_back(v_nxt->mp);
+								//if (vg[j]->group_id != v_pre->group_id)
+								//	vg[j]->vd_vertices.push_back( c );
+							}
+							else if (v_nxt->group_id >= 0 && v_pre->group_id < 0)
+							{
+								if (vg[j]->group_id != v_nxt->group_id)
+									vg[j]->vd_vertices.push_back(c);								
+								//vg[j]->vd_vertices.push_back(v_pre->mp);
+							}
+							else
+								vg[j]->vd_vertices.push_back( c );
+							//vg[j]->vd_vertices.push_back(c);
 							vg[j]->contain_non_delaunay_facet = true;
 							if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id
 								|| v_pre->group_id < 0 && v_nxt->group_id < 0)

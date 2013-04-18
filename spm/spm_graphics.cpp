@@ -122,12 +122,15 @@ namespace Geex
 		for (unsigned int i = 0; i < submeshes.size(); i++)
 		{
 			const TriMesh& m = submeshes[i];
-			vec3 n = m[i].normal();
 			glBegin(GL_TRIANGLES);
-			glNormal(n);
-			glVertex(m[i].vertex[0]) ;
-			glVertex(m[i].vertex[1]) ;
-			glVertex(m[i].vertex[2]) ;
+			for (unsigned int j = 0; j < m.size(); j++)
+			{
+				vec3 n = m[j].normal();			
+				glNormal(n);
+				glVertex(m[j].vertex[0]) ;
+				glVertex(m[j].vertex[1]) ;
+				glVertex(m[j].vertex[2]) ;
+			}
 			glEnd();
 		}
 		glPopMatrix();
