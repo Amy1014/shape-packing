@@ -45,16 +45,23 @@ namespace Geex
 				prompt_and_exit(error_tag_dismatch);
 
 			// trim
-			string::iterator it;
-			for ( it = value.begin(); it != value.end() && std::isspace(*it); ++it);
-				value.erase(value.begin(), it);
-			string::reverse_iterator rit;
-			for ( rit = value.rbegin(); rit != value.rend() && std::isspace(*rit); ++rit);
-			value.erase(rit.base(), value.end());
+			trim(value);
 			attr_val[name] = value;
 		}
 		//debug_print();
+		check_project_validity();
 	}
+	
+	void ProjectIO::trim(std::string& s)
+	{
+		string::iterator it;
+		for ( it = s.begin(); it != s.end() && std::isspace(*it); ++it);
+		s.erase(s.begin(), it);
+		string::reverse_iterator rit;
+		for ( rit = s.rbegin(); rit != s.rend() && std::isspace(*rit); ++rit);
+		s.erase(rit.base(), s.end());	
+	}
+
 	string ProjectIO::get_start_token(std::ifstream& fs)
 	{
 		string token;
@@ -83,85 +90,186 @@ namespace Geex
 			prompt_and_exit(error_end_tag);
 		return token;
 	}
+	void ProjectIO::check_project_validity()
+	{
+		if (!mesh_polygon_coupled())
+		{
+			if (!texture_specified()) // polygons are in one single file, without texture
+			{
+				TagLookupTable::const_iterator it = attr_val.find("PolygonFile");
+				if ( it == attr_val.end() )
+					prompt_and_exit(error_pgn_file_fail + " Not specified.");
+				single_tile_file = it->second;
+			}
+			else // polygons are in one directory, with texture
+			{
+				TagLookupTable::const_iterator it = attr_val.find("PolygonDir");
+				if ( it == attr_val.end() )
+					prompt_and_exit(error_pgn_file_fail + " Polygon directory not specified. ");
+				single_tile_dir = it->second;
+			}
+			if (!multi_meshes_specified()) // one single mesh, one single file
+			{
+				TagLookupTable::const_iterator it = attr_val.find("MeshFile");
+				if ( it == attr_val.end() )
+					prompt_and_exit(error_mesh_file_fail+" Not specified.");
+				single_mesh_file = it->second;
+				it = attr_val.find("DensityFile");
+				if (it != attr_val.end())
+					single_density_file = it->second;
+			}
+			else // multiple meshes, multiple files in one single directory
+			{
+				TagLookupTable::const_iterator it = attr_val.find("MeshDir");
+				if (it == attr_val.end() )
+					prompt_and_exit("Mesh Directory not specified.");
+				std::vector<std::string> all_files;
+				Geex::FileSystem::get_files(it->second, all_files);
+				if (all_files.empty())
+					prompt_and_exit("Fatal error: program cannot load multiple meshes.");
+				CaseInsensitiveTagCmp cmp;
+				for (unsigned int i = 0; i < all_files.size(); i++)
+				{
+					std::string ext = Geex::FileSystem::extension(all_files[i]);
+					if ( !cmp(ext, "obj") && !cmp("obj", ext) )
+						multi_mesh_files.push_back(all_files[i]);
+					else if ( !cmp(ext, "txt") && !cmp("txt", ext) )
+						multi_density_files.push_back(all_files[i]);
+				}
+			}
+		}
+		else // one polygon set (with texture) is paired with one mesh inside one directory, several such pairs
+		{
+			TagLookupTable::const_iterator it = attr_val.find("MeshPolygonCoupleDir");
+			if (it == attr_val.end())
+				prompt_and_exit("No mesh-polygon pair (<MeshPolygonCoupleDir>) input specified!");
+			// extract all the directories
+			std::string::const_iterator semicolon_it,  copy_start_it = it->second.begin();
+			mesh_tile_couple_dir.push_back(std::string());
+			while ( (semicolon_it = std::find(copy_start_it, it->second.end(), ';')) != it->second.end() )
+			{
+				std::copy(copy_start_it, semicolon_it, std::back_insert_iterator<std::string>(mesh_tile_couple_dir.back()));
+				trim(mesh_tile_couple_dir.back());
+				copy_start_it = semicolon_it + 1;
+				mesh_tile_couple_dir.push_back(std::string());
+			}
+			std::copy(copy_start_it, semicolon_it, std::back_insert_iterator<std::string>(mesh_tile_couple_dir.back()));
+			trim(mesh_tile_couple_dir.back());
+			// debug print
+			std::cout<<"Mesh-polygon pair directories are: \n";
+			for (unsigned int i = 0; i < mesh_tile_couple_dir.size(); i++)
+				std::cout<<'|'<<mesh_tile_couple_dir[i]<<'|'<<std::endl;
 
+			// get the file of all meshes
+			for (unsigned int i = 0; i < mesh_tile_couple_dir.size(); i++)
+			{
+				std::vector<std::string> all_files;
+				Geex::FileSystem::get_files(mesh_tile_couple_dir[i], all_files);
+				if (all_files.empty())
+					prompt_and_exit("Fatal error: program cannot load multiple meshes at the directory." + mesh_tile_couple_dir[i]);
+				CaseInsensitiveTagCmp cmp;
+				for (unsigned int i = 0; i < all_files.size(); i++)
+				{
+					std::string ext = Geex::FileSystem::extension(all_files[i]);
+					if ( !cmp(ext, "obj") && !cmp("obj", ext) )
+						multi_mesh_files.push_back(all_files[i]);
+					else if ( !cmp(ext, "txt") && !cmp("txt", ext) )
+						multi_density_files.push_back(all_files[i]);
+				}
+			}
+		}
+	}
 	void ProjectIO::debug_print()
 	{
 		for (TagLookupTable::const_iterator it = attr_val.begin(); it != attr_val.end(); it++)
 			std::cout<<it->first<<": |"<<it->second<<'|'<<std::endl;
 	}
 
+	void ProjectIO::read_polygons_from_file(std::vector<Ex_polygon_2>& res, const std::string& fn)
+	{
+		std::ifstream infile(fn.c_str());
+		if (infile.fail())
+			prompt_and_exit(error_pgn_file_fail);
+		res.clear();
+		unsigned int nb_polygons = 0;
+		infile >> nb_polygons;
+		res.reserve(nb_polygons);
+		for (unsigned int i = 0; i < nb_polygons; i++)
+		{	
+			unsigned int nb_edges = 0;
+			infile >> nb_edges;
+			res.push_back(Ex_polygon_2());
+			for (unsigned int j = 0; j < nb_edges; j++)
+			{
+				double x, y; 
+				infile >> x;
+				infile >> y;
+				res.back().push_back(Point_2(x, y));
+			}
+		}
+	}
+
+	void ProjectIO::read_polygons_from_dir(std::vector<Ex_polygon_2>& res, const std::string& dir)
+	{
+		std::vector<std::string> all_files;
+		Geex::FileSystem::get_files(dir, all_files);
+		if (all_files.empty())
+			prompt_and_exit(error_pgn_file_fail + " Directory " + dir +" does not exist.");
+		std::vector<std::string> all_pgn_files;
+		for (unsigned int i = 0; i < all_files.size(); i++)
+			if (Geex::FileSystem::extension(all_files[i]) == "tply")
+				all_pgn_files.push_back(all_files[i]);
+		res.reserve(all_pgn_files.size());
+		int texture_id = 0;
+		for (unsigned int i = 0; i < all_pgn_files.size(); i++)
+		{
+			//std::cout<<"loading "<<all_pgn_files[i]<<std::endl;
+			std::ifstream pgn_file(all_pgn_files[i].c_str());
+			unsigned int nb_vert;
+			pgn_file >> nb_vert;
+			res.push_back(Ex_polygon_2());
+			for (unsigned int j = 0; j < nb_vert; j++)
+			{
+				double x, y;
+				double tx, ty;
+				if (!(pgn_file >> x) )
+					prompt_and_exit(error_incomplete_file); 
+				if (!(pgn_file >> y) )
+					prompt_and_exit(error_incomplete_file);
+				res.back().push_back(Point_2(x, y));
+
+				if (!(pgn_file >> tx))
+					prompt_and_exit(error_incomplete_file);
+				if (!(pgn_file >> ty))
+					prompt_and_exit(error_incomplete_file);
+				res.back().texture_coords.push_back(Point_2(tx, ty));
+			}
+			res.back().texture_id = texture_id;
+			texture_id++;
+		}
+	}
 	ProjectIO& ProjectIO::operator>>(vector<Ex_polygon_2>& polygons)
 	{
-
 		if (!texture_specified())
 		{
-			TagLookupTable::const_iterator it = attr_val.find("PolygonFile");
-			if ( it == attr_val.end() )
-				prompt_and_exit(error_pgn_file_fail + " Not specified.");
-			std::ifstream pgn_file(it->second.c_str());
-			if (pgn_file.fail())
-				prompt_and_exit(error_pgn_file_fail);
-			polygons.clear();
-			unsigned int nb_polygons = 0;
-			pgn_file >> nb_polygons;
-			polygons.reserve(nb_polygons);
-			for (unsigned int i = 0; i < nb_polygons; i++)
-			{	
-				unsigned int nb_edges = 0;
-				pgn_file >> nb_edges;
-				polygons.push_back(Ex_polygon_2());
-				for (unsigned int j = 0; j < nb_edges; j++)
-				{
-					double x, y; 
-					pgn_file >> x;
-					pgn_file >> y;
-					polygons.back().push_back(Point_2(x, y));
-				}
-			}
+			read_polygons_from_file(polygons, single_tile_file);
 		}
 		else // with texture
 		{
-			TagLookupTable::const_iterator it = attr_val.find("PolygonDir");
-			if ( it == attr_val.end() )
-				prompt_and_exit(error_pgn_file_fail + " Polygon directory not specified. ");
-			std::vector<std::string> all_files;
-			Geex::FileSystem::get_files(it->second, all_files);
-			if (all_files.empty())
-				prompt_and_exit(error_pgn_file_fail + " Directory " + it->second +" does not exist.");
-			std::vector<std::string> all_pgn_files;
-			for (unsigned int i = 0; i < all_files.size(); i++)
-				if (Geex::FileSystem::extension(all_files[i]) == "tply")
-					all_pgn_files.push_back(all_files[i]);
-			int texture_id = 0;
-			for (unsigned int i = 0; i < all_pgn_files.size(); i++)
-			{
-				//std::cout<<"loading "<<all_pgn_files[i]<<std::endl;
-				std::ifstream pgn_file(all_pgn_files[i].c_str());
-				unsigned int nb_vert;
-				pgn_file >> nb_vert;
-				polygons.push_back(Ex_polygon_2());
-				for (unsigned int j = 0; j < nb_vert; j++)
-				{
-					double x, y;
-					double tx, ty;
-					if (!(pgn_file >> x) )
-						prompt_and_exit(error_incomplete_file); 
-					if (!(pgn_file >> y) )
-						prompt_and_exit(error_incomplete_file);
-					polygons.back().push_back(Point_2(x, y));
-					
-					if (!(pgn_file >> tx))
-						prompt_and_exit(error_incomplete_file);
-					if (!(pgn_file >> ty))
-						prompt_and_exit(error_incomplete_file);
-					polygons.back().texture_coords.push_back(Point_2(tx, ty));
-				}
-				polygons.back().texture_id = texture_id;
-				texture_id++;
-			}
+			read_polygons_from_dir(polygons, single_tile_dir);
 		}
 
 		return *this;
+	}
+
+	ProjectIO& ProjectIO::operator>>(std::vector<std::vector<Ex_polygon_2>>& multi_polygon_set)
+	{
+		multi_polygon_set.reserve(mesh_tile_couple_dir.size());
+		for (unsigned int i = 0; i < mesh_tile_couple_dir.size(); i++)
+		{
+			multi_polygon_set.push_back(std::vector<Ex_polygon_2>());
+			read_polygons_from_dir(multi_polygon_set.back(), mesh_tile_couple_dir[i]);
+		}
 	}
 
 	void ProjectIO::read_texture_files(std::vector<string>& texture_files)
@@ -188,46 +296,39 @@ namespace Geex
 				//std::cout<<"loading "<<texture_files.back()<<std::endl;
 			}
 	}
+	
 	ProjectIO& ProjectIO::operator>>(TriMesh& mesh)
 	{
-		TagLookupTable::const_iterator it = attr_val.find("MeshFile"), gamma_it;
-		if ( it == attr_val.end() )
-			prompt_and_exit(error_mesh_file_fail+" Not specified.");
-		mesh.load(it->second);
+		if (single_mesh_file.empty())
+			prompt_and_exit("No single mesh file input. Try multiple mesh files.");
+
+		mesh.load(single_mesh_file);
 
 		// possibly load density(curvature) file
-		it = attr_val.find("DensityFile");
-		if ( it != attr_val.end() )
-		{
-			gamma_it = attr_val.find("gamma");
-			std::istringstream str_gamma;
-			if (gamma_it != attr_val.end())
-				str_gamma.str(gamma_it->second);
-			else
-				str_gamma.str("1.0");
-			double gamma;
-			str_gamma >> gamma;
-			std::cout<<"using gamma = "<<str_gamma.str()<<std::endl;
-			has_density_input_ = mesh.load_density(it->second, gamma);
-		}
+		TagLookupTable::const_iterator gamma_it = attr_val.find("gamma");
+		std::istringstream str_gamma;
+		if (gamma_it != attr_val.end())
+			str_gamma.str(gamma_it->second);
+		else
+			str_gamma.str("1.0");
+		double gamma;
+		str_gamma >> gamma;
+		std::cout<<"using gamma = "<<str_gamma.str()<<std::endl;
+		has_density_input_ = mesh.load_density(single_density_file, gamma);
+	
 		return *this;
 	}
 
 	ProjectIO& ProjectIO::operator>>(std::vector<TriMesh>& multimesh)
 	{
-		TagLookupTable::const_iterator it = attr_val.find("MeshDir");
-		if (it == attr_val.end() )
+		if (multi_mesh_files.empty())
 			prompt_and_exit("Mesh Directory not specified.");
-		std::vector<std::string> all_mesh_files;
-		Geex::FileSystem::get_files(it->second, all_mesh_files);
-		if (all_mesh_files.empty())
-			prompt_and_exit("Fatal error: program cannot load multiple meshes.");
-		for (unsigned int i = 0; i < all_mesh_files.size(); i++)
-			if (Geex::FileSystem::extension(all_mesh_files[i]) == "obj")
+
+		for (unsigned int i = 0; i < multi_mesh_files.size(); i++)
+			//if (Geex::FileSystem::extension(multi_mesh_files[i]) == "obj")
 			{
 				multimesh.push_back(TriMesh());
-				multimesh.back().load(all_mesh_files[i]);
-				submesh_files.push_back(all_mesh_files[i]);
+				multimesh.back().load(multi_mesh_files[i]);
 			}
 		// load density
 		TagLookupTable::const_iterator gamma_it = attr_val.find("gamma");
@@ -242,10 +343,10 @@ namespace Geex
 		
 		unsigned int idx = 0;
 		bool load_density_ok = true;
-		for (unsigned int i = 0; i < all_mesh_files.size(); i++)
-			if (Geex::FileSystem::extension(all_mesh_files[i]) == "txt")
+		for (unsigned int i = 0; i < multi_density_files.size(); i++)
+			//if (Geex::FileSystem::extension(all_mesh_files[i]) == "txt")
 			{
-				load_density_ok = load_density_ok && multimesh[idx].load_density(all_mesh_files[i], gamma);
+				load_density_ok = load_density_ok && multimesh[idx].load_density(multi_density_files[i], gamma);
 				idx++;
 			}
 		if (load_density_ok)

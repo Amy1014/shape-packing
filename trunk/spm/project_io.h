@@ -50,7 +50,14 @@ public:
 		return ( it != attr_val.end() && !cmp(it->second, "True") && !cmp("True", it->second) );
 	}
 
-	const std::vector<std::string>& get_submesh_files() const { return submesh_files; }
+	inline bool mesh_polygon_coupled() const
+	{
+		TagLookupTable::const_iterator it = attr_val.find("MeshPolygonCoupled");
+		CaseInsensitiveTagCmp cmp;
+		return ( it != attr_val.end() && !cmp(it->second, "True") && !cmp("True", it->second) );
+	}
+
+	const std::vector<std::string>& get_submesh_files() const { return multi_mesh_files; }
 
 	/** input **/
 	// load a whole project from a file, the same function as the constructor
@@ -63,6 +70,7 @@ public:
 	ProjectIO& operator>>(std::vector<TriMesh>& multimesh);
 	
 	ProjectIO& operator>>(vector<Ex_polygon_2>& polygons); 
+	ProjectIO& operator>>(std::vector<std::vector<Ex_polygon_2>>& multi_polygon_set);
 	
 	/** output **/
 	void dump_results(const string& filename, const string& directory="");
@@ -74,6 +82,13 @@ private:
 	
 	string get_start_token(std::ifstream& fs);
 	string get_end_token(std::ifstream& fs);
+	void trim(std::string& s);
+
+	void read_polygons_from_file(std::vector<Ex_polygon_2>& res, const std::string& fn);
+	void read_polygons_from_dir(std::vector<Ex_polygon_2>& res, const std::string& dir);
+
+	void check_project_validity(); // check the validity of the project file and construct the basic file information
+	//void read_mesh_from_file(TriMesh& mesh, const std::string& fn);
 	
 	struct CaseInsensitiveCmp : public std::binary_function<char, char, bool>
 	{
@@ -94,7 +109,14 @@ private:
 private:
 	typedef std::map<string, string, CaseInsensitiveTagCmp> TagLookupTable;
 	TagLookupTable attr_val; // attribute-value pairs
-	std::vector<std::string> submesh_files;
+	std::string single_mesh_file; // one single mesh
+	std::string single_density_file; // density of one single mesh
+	std::string single_tile_file; // all polygons are in one single file
+	std::string single_tile_dir; // all polygons are in one directory with texture
+	std::vector<std::string> multi_mesh_files; // multiple meshes
+	std::vector<std::string> multi_density_files; // density file of multiple meshes
+	//std::vector<std::string> tile_set_directories; // polygons are in different directories with texture
+	std::vector<std::string> mesh_tile_couple_dir; // one polygon set and one mesh are in the same directory
 	/** indicators of what are input **/
 	bool has_density_input_; // each vertex has a weight, e.g. curvature
 

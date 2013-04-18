@@ -164,7 +164,9 @@ namespace Geex
 		/** for segmented mesh**/
 		//std::vector<std::vector<Packing_object>> res_pack_objects; // results on different sub-meshes
 		std::vector<TriMesh> mesh_segments; // multiple sub-meshes from segmentation
-		unsigned int submesh_id;
+		unsigned int sub_pack_id;
+		std::vector<std::vector<Ex_polygon_2>> pgn_lib_sets; // we have multiple polygon libraries
+
 		/** holes **/
 		std::vector<Hole> holes;
 		double frontier_edge_size;

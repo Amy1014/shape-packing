@@ -25,40 +25,62 @@ namespace Geex
 
 		samp_nb = 20;
 
-		submesh_id = 0;
+		sub_pack_id = 0;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
 	{
 		pio.load_project(prj_config_file);
-		if (!pio.multi_meshes_specified())
+		if (pio.mesh_polygon_coupled())
 		{
-			pio>>mesh>>pgn_lib;
-			initialize();
-			std::cout<<"Start computing RDT...\n";
-			generate_RDT();
-			compute_clipped_VD();
+			std::cout<<"reading pairs of polygons and meshes...\n";
+			pio >> pgn_lib_sets;
+			pio >> mesh_segments;
 		}
 		else
 		{
-			pio>>pgn_lib;
-			pio>>mesh_segments;
+			if (!pio.multi_meshes_specified())
+			{
+				pio>>mesh>>pgn_lib;
+				initialize();
+				std::cout<<"Start computing RDT...\n";
+				generate_RDT();
+				compute_clipped_VD();
+			}
+			else
+			{
+				pio>>pgn_lib;
+				pio>>mesh_segments;
+			}
 		}
+
 		//rpvd.save_triangulation("rdt.obj");
 	}
 
-	void Packer::pack_next_submesh()
+	void Packer::pack_next_submesh() // start a new packing process
 	{
 		//static unsigned int mesh_id = 0;
-		mesh.clear();
-		pack_objects.clear();
-		stop_update_DT = false;
-		mesh = mesh_segments[submesh_id];
+		if (mesh_segments.size() > 0)
+		{
+			mesh.clear();
+			pack_objects.clear();
+			stop_update_DT = false;
+			mesh = mesh_segments[sub_pack_id];
+		}
+
+		// if polygon is coupled with mesh
+		if (pgn_lib_sets.size() > 0)
+		{
+			pgn_lib.clear();
+			//pgn_lib = pgn_lib_sets[sub_pack_id];
+			pgn_lib.reserve(pgn_lib_sets[sub_pack_id].size());
+			for (unsigned int i = 0; i < pgn_lib_sets[sub_pack_id].size(); i++)
+				pgn_lib.push_back(pgn_lib_sets[sub_pack_id][i]);
+		}
 		initialize();
-		std::cout<<"start "<<submesh_id<<" mesh\n";
+		std::cout<<"start another packing process...\n";
 		generate_RDT();
 		compute_clipped_VD();
-		//mesh_id++;
 	}
 
 	void Packer::write_to_results()
@@ -68,8 +90,7 @@ namespace Geex
 		res_pack_objects.back().reserve(pack_objects.size());
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 			res_pack_objects.back().push_back(pack_objects[i]);
-		submesh_id++;
-		
+		sub_pack_id++;	
 	}
 
 	void Packer::initialize()
@@ -92,15 +113,16 @@ namespace Geex
 		}
 		mean_pgn_area /= pgn_lib.size();
 		std::cout<<"Maximum polygon area: "<<max_pgn_area<<std::endl;
-		if (!pio.multi_meshes_specified())
+		if (mesh_segments.size() == 0)
 			rpvd.set_mesh(pio.attribute_value("MeshFile"));
 		else
-			rpvd.set_mesh(pio.get_submesh_files().at(submesh_id));
+			rpvd.set_mesh(pio.get_submesh_files().at(sub_pack_id));
 		rpvd.set_trimesh(&mesh);
 
 		// distribute polygons by different strategies
 		// 1. random 
 		unsigned int nb_init_polygons = mesh_area / mean_pgn_area;
+		std::cout<<nb_init_polygons<<" polygons are expected.\n";
 		random_init_tiles(nb_init_polygons);
 		std::cout<<pack_objects.size()<<" polygons are loaded initially.\n";
 		// 2. multi-class or more (TODO)
@@ -148,14 +170,15 @@ namespace Geex
 					res += nf;
 			}
 			// pick up the lost ones
-			while ( init_facets.size() < nb_init_polygons )
+			while ( init_pos.size() < nb_init_polygons )
 			{
 				int idx = ::rand()%mesh.size();
 				while ( init_facets.find(idx) != init_facets.end() )
 					idx = ::rand()%mesh.size();
 				init_facets.insert(idx);
 				int vi0 = mesh[idx].vertex_index[0], vi1 = mesh[idx].vertex_index[1], vi2 = mesh[idx].vertex_index[2];
-				if (mesh.near_boundary(vi0) || mesh.near_boundary(vi1) || mesh.near_boundary(vi2))
+				bool v_near_bd[] = { mesh.near_boundary(vi0), mesh.near_boundary(vi1), mesh.near_boundary(vi2)};
+				if ( v_near_bd[0] && v_near_bd[1]  || v_near_bd[1] && v_near_bd[2] || v_near_bd[2] && v_near_bd[0] )
 					continue;
 				Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
 				init_pos.push_back(std::make_pair(idx, c));
@@ -1711,7 +1734,7 @@ namespace Geex
 	{
 		x_min = y_min = z_min = DBL_MAX;
 		x_max = y_max = z_max = DBL_MIN;
-		if (!pio.multi_meshes_specified())
+		if (mesh_segments.size() == 0)
 			for(unsigned int i=0; i<mesh.size(); i++) 
 				for(unsigned int j=0; j<3; j++) 
 				{
