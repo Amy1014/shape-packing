@@ -1,0 +1,13 @@
+< SpMProject >  Squirrel Cut Right Marble Texture Test </ SPMProject >
+
+< MeshFile >         ..\..\surfaces\squirrel_cut\squirrel-cut-right.obj </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\surface-polygon\squirrel-taiji\squirrel-cut-right\    </ PolygonDir >
+
+< gamma > 1.5 </ gamma >
+
+< DensityFile >      ..\..\surfaces\squirrel_cut\squirrel-cut-right.txt </ DensityFile >
+
+< TextureImageDir >  ..\..\surface-polygon\squirrel-taiji\squirrel-cut-right\  </ TextureImageDir >

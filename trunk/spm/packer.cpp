@@ -83,9 +83,11 @@ namespace Geex
 		compute_clipped_VD();
 	}
 
-	void Packer::write_to_results()
+	void Packer::save_sub_result()
 	{
 		//static unsigned int mesh_id = 0;
+		if (pack_objects.size() == 0)
+			return;
 		res_pack_objects.push_back(std::vector<Packing_object>());
 		res_pack_objects.back().reserve(pack_objects.size());
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -113,6 +115,7 @@ namespace Geex
 		}
 		mean_pgn_area /= pgn_lib.size();
 		std::cout<<"Maximum polygon area: "<<max_pgn_area<<std::endl;
+		std::cout<<"Mean polygon area: "<<mean_pgn_area<<std::endl;
 		if (mesh_segments.size() == 0)
 			rpvd.set_mesh(pio.attribute_value("MeshFile"));
 		else
@@ -170,15 +173,15 @@ namespace Geex
 					res += nf;
 			}
 			// pick up the lost ones
-			while ( init_pos.size() < nb_init_polygons )
+			while ( init_pos.size() < nb_init_polygons && init_facets.size() < mesh.size() )
 			{
 				int idx = ::rand()%mesh.size();
 				while ( init_facets.find(idx) != init_facets.end() )
 					idx = ::rand()%mesh.size();
 				init_facets.insert(idx);
 				int vi0 = mesh[idx].vertex_index[0], vi1 = mesh[idx].vertex_index[1], vi2 = mesh[idx].vertex_index[2];
-				bool v_near_bd[] = { mesh.near_boundary(vi0), mesh.near_boundary(vi1), mesh.near_boundary(vi2)};
-				if ( v_near_bd[0] && v_near_bd[1]  || v_near_bd[1] && v_near_bd[2] || v_near_bd[2] && v_near_bd[0] )
+				bool v_near_bd[] = { mesh.is_on_boundary(vi0), mesh.is_on_boundary(vi1), mesh.is_on_boundary(vi2)};
+				if ( v_near_bd[0] && v_near_bd[1] || v_near_bd[1] && v_near_bd[2] || v_near_bd[2] && v_near_bd[0] )
 					continue;
 				Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
 				init_pos.push_back(std::make_pair(idx, c));

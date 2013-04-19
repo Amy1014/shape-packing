@@ -296,6 +296,29 @@ namespace Geex
 				//std::cout<<"loading "<<texture_files.back()<<std::endl;
 			}
 	}
+
+	void ProjectIO::read_texture_files(std::vector<std::vector<std::string>>& texture_files_set)
+	{
+		std::for_each(texture_files_set.begin(), texture_files_set.end(), std::mem_fun_ref(&std::vector<std::string>::clear));
+		texture_files_set.clear();
+		texture_files_set.reserve(mesh_tile_couple_dir.size());
+		for (unsigned int i = 0; i < mesh_tile_couple_dir.size(); i++)
+		{
+			
+			std::vector<std::string> all_files;
+			Geex::FileSystem::get_files(mesh_tile_couple_dir[i], all_files);
+			if (all_files.empty())
+				prompt_and_exit("The directory " + mesh_tile_couple_dir[i] + " does not exist. ");
+			texture_files_set.push_back(std::vector<std::string>());
+			for (unsigned int j = 0; j < all_files.size(); j++)
+			{
+				std::string ext = Geex::FileSystem::extension(all_files[j]);
+				CaseInsensitiveTagCmp cmp;
+				if ( !cmp(ext, "jpg") && !cmp("jpg", ext) )
+					texture_files_set.back().push_back(all_files[j]);
+			}		
+		}
+	}
 	
 	ProjectIO& ProjectIO::operator>>(TriMesh& mesh)
 	{

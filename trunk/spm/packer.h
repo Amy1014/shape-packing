@@ -57,9 +57,6 @@ namespace Geex
 
 		void initialize(); // top-level initialization function. distribute polygons in some way	
 
-		/** multi meshes **/
-		void pack_next_submesh();
-		void write_to_results();
 		/** access functions **/
 		const TriMesh& mesh_domain() const { return mesh; }
 		const vector<Packing_object>& get_tiles() const { return pack_objects; }
@@ -103,6 +100,10 @@ namespace Geex
 		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty);
 		CDT& get_cdt() {  return cdt; }
 
+	protected:
+		/** multi meshes **/
+		void pack_next_submesh();
+		void save_sub_result();
 		
 	private:
 
