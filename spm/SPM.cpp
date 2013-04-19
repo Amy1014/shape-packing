@@ -5,7 +5,8 @@ namespace Geex
 {
 	SPM::SPM(): SPM_Graphics(this)
 	{
-
+		contain_multi_pack_ = false; 
+		pack_process_id = 0;
 	}
 	void SPM::do_draw()
 	{

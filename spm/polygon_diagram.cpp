@@ -57,11 +57,14 @@ namespace Geex
 			for ( unsigned int j = 0; j < n+1; j++ )
 			{
 				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
+				assert(!Numeric::is_nan(p.x()) && !Numeric::is_nan(p.y()) && !Numeric::is_nan(p.z()));
 				//all_points.push_back(p);
 				//p->group_id = group_id;
 				p = e.supporting_line().projection(p);
+				assert(!Numeric::is_nan(p.x()) && !Numeric::is_nan(p.y()) && !Numeric::is_nan(p.z()));
 				vec3 dv;
 				vec3 pp = trimesh->project_to_mesh(to_geex_pnt(p), dv);
+				assert(!Numeric::is_nan(pp.x) && !Numeric::is_nan(pp.y) && !Numeric::is_nan(pp.z));
 				all_points.push_back(MyPoint(p, to_cgal_pnt(pp), group_id));
 				//all_points.back().mp = to_cgal_pnt(pp);
 				nb_pnts++;

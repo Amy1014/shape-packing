@@ -62,9 +62,9 @@ public:
 	/** input **/
 	// load a whole project from a file, the same function as the constructor
 	void load_project(const string& prj_configure_file);
-	// read 2D polygons
+	// read all texture files in one single directory
 	void read_texture_files(std::vector<std::string>& texture_files);
-
+	void read_texture_files(std::vector<std::vector<std::string>>& texture_files_set);
 	// read triangle mesh
 	ProjectIO& operator>>(TriMesh& mesh);
 	ProjectIO& operator>>(std::vector<TriMesh>& multimesh);
@@ -74,6 +74,8 @@ public:
 	
 	/** output **/
 	void dump_results(const string& filename, const string& directory="");
+
+	unsigned int nb_sub_pack_parts() const { return mesh_tile_couple_dir.size(); }
 
 	/** debug **/
 	void debug_print();

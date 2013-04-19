@@ -77,11 +77,17 @@ namespace Geex
 			//	glEnable(GL_TEXTURE_2D);
 		}
 
+	protected:
+		// for multiple polygon sets display
+		void load_next_texture_lib();
+
 	private:
 		inline void gl_table_color(int index);
-		void outline_draw_polygons();
-		void fill_draw_polygons();
-		void texture_draw_polygons();
+
+		void outline_draw_polygons(const std::vector<Packing_object>& tiles);
+		void fill_draw_polygons(const std::vector<Packing_object>& tiles);
+		void texture_draw_polygons(const std::vector<Packing_object>& tiles);
+
 		void draw_mesh();
 		void draw_multi_submeshes(); 
 
@@ -98,12 +104,18 @@ namespace Geex
 		void draw_curvature();
 		void build_curv_color_list(); 
 		void build_texture_lib();
+
+		bool build_texture_from_files(std::vector<GLuint>& text_indices, const std::vector<std::string>& text_files);
+
+		void clear_all_textures();
+
 		void cur_color_map(double cur, double min_cur, double max_cur, GLfloat& r, GLfloat& g, GLfloat& b);
 		// debug
 		void draw_all_vertices();
 		void draw_cdt(); 
 
 		void draw_local_frames();
+
 		/** call opengl **/
 		inline void glPoint_3(const Point_3& p) { glVertex3d(p.x(), p.y(), p.z()); }
 
@@ -126,6 +138,10 @@ namespace Geex
 
 		GLboolean textured;
 		std::vector<GLuint> texture_lib;
+
+		// for multiple sets of polygons
+		std::vector<std::vector<GLuint>> multi_texture_libs;
+		unsigned int sub_pack_id;
 
 		/** display list **/
 		GLuint triangulation_displist;

@@ -29,7 +29,7 @@ namespace Geex {
 	void TW_CALL tw_ex_replace(void*);
 	void TW_CALL tw_con_replace(void *);
 	void TW_CALL tw_pack_next(void*);
-	void TW_CALL tw_save_subresult(void*);
+	//void TW_CALL tw_save_subresult(void*);
 	//void TW_CALL tw_curvature_get_callback(void*, void*);
 	//void TW_CALL tw_curvature_set_callback(const void*, void*);
 	//void TW_CALL tw_dump(void*);
@@ -158,14 +158,13 @@ namespace Geex {
 		}
 		void pack_next()
 		{
-			spm()->pack_next_submesh();
-			post_update();
+			spm()->start_new_packing();
 		}
-		void save_subresult()
-		{
-			spm()->write_to_results();
-			post_update();
-		}
+		//void save_subresult()
+		//{
+		//	spm()->write_to_results();
+		//	post_update();
+		//}
 		void save_cur_area()
 		{
 			spm()->save_curvature_and_area();
@@ -200,8 +199,11 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Holes", TW_TYPE_BOOL8, &spm()->show_holes(), "group = 'Geometry' ");
 			
-			TwAddVarRW(graphics_bar, "Seg-mesh", TW_TYPE_BOOL8, &spm()->show_multi_submeshes(), "group = 'Multi-mesh' ");
-			TwAddVarRW(graphics_bar, "Seg-tiles", TW_TYPE_BOOL8, &spm()->show_multi_tiles(), "group = 'Multi-mesh' ");
+			if (spm()->contain_multi_packing())
+			{
+				TwAddVarRW(graphics_bar, "Seg-mesh", TW_TYPE_BOOL8, &spm()->show_multi_submeshes(), "group = 'Multi-mesh' ");
+				TwAddVarRW(graphics_bar, "Seg-tiles", TW_TYPE_BOOL8, &spm()->show_multi_tiles(), "group = 'Multi-mesh' ");
+			}
 
 			TwBar* function_bar = TwNewBar("Functions");
 			TwDefine("Functions position='16 320' size='200 350' alpha=200");
@@ -222,8 +224,9 @@ namespace Geex {
 			TwAddButton(function_bar, "ext-replace", tw_con_replace, NULL, "key = x group = 'Replace' ");
 
 			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999 group = 'Optimization' ");
-			TwAddButton(function_bar, "pack next", tw_pack_next, NULL, "group = 'multimesh' ");
-			TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
+			if (spm()->contain_multi_packing())
+				TwAddButton(function_bar, "pack next", tw_pack_next, NULL, "group = 'multimesh' ");
+			//TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
 			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
 			TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
 
@@ -284,7 +287,7 @@ void TW_CALL tw_remove(void* clientData) { spm_app()->remove(); }
 void TW_CALL tw_ex_replace(void *cientData) { spm_app()->ex_replace(); }
 void TW_CALL tw_con_replace(void * clientData) { spm_app()->con_replace(); }
 void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
-void TW_CALL tw_save_subresult(void* clientData) { spm_app()->save_subresult(); }
+//void TW_CALL tw_save_subresult(void* clientData) { spm_app()->save_subresult(); }
 ////void TW_CALL tw_smooth_normals(void* clientData) { spm_app()->smooth_normals(); }
 //void TW_CALL tw_flip_normals(void* clientData) { spm_app()->flip_normals(); }
 //void TW_CALL tw_dump(void *clientData) { spm_app()->dump(); }

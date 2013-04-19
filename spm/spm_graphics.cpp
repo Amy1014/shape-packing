@@ -35,6 +35,9 @@ namespace Geex
 		show_holes_ = false;
 		show_cdt_ = false;
 		highlighted_group = -1;
+		show_multi_tiles_ = false;
+		show_multi_submeshes_ = false;
+		sub_pack_id = 0;
 	}
 
 	SPM_Graphics::~SPM_Graphics()
@@ -42,10 +45,26 @@ namespace Geex
 		glDeleteLists(triangulation_displist, 1);
 		glDeleteLists(vc_displist, 1);
 		glDeleteLists(cur_color_displist, 1);
-		for (unsigned int i = 0; i < texture_lib.size(); i++)
-			glDeleteTextures(1, &texture_lib[i]);
+		clear_all_textures();
 	}
 
+	void SPM_Graphics::clear_all_textures()
+	{
+		if (multi_texture_libs.empty())
+		{
+			for (unsigned int i = 0; i < texture_lib.size(); i++)
+				glDeleteTextures(1, &texture_lib[i]);		
+		}
+		else
+		{
+			for (unsigned int i = 0; i < multi_texture_libs.size(); i++)
+				for (unsigned int j = 0; j < multi_texture_libs[i].size(); j++)
+					glDeleteTextures(1, &multi_texture_libs[i][j]);
+			std::for_each(multi_texture_libs.begin(), multi_texture_libs.end(), std::mem_fun_ref(std::vector<GLuint>::clear));
+			multi_texture_libs.clear();
+		}
+		texture_lib.clear();
+	}
 	inline void SPM_Graphics::gl_table_color(int index)
 	{
 		int i = index % (sizeof(color_table)/sizeof(color_table[0]));
@@ -149,56 +168,51 @@ namespace Geex
 
 		for (unsigned int k = 0; k < multi_tiles.size(); k++)
 		{
-			glCullFace(GL_FRONT);
-			glEnable(GL_LIGHTING);
-			const std::vector<Packing_object>& tiles = multi_tiles[k];
-			glPushMatrix();
-			//glMaterialfv(GL_FRONT, GL_AMBIENT, amb_mat);
-			glMaterialfv(GL_FRONT, GL_DIFFUSE, diff_mat[k%3]);
-			glMaterialfv(GL_FRONT, GL_SPECULAR, spec_mat[k%3]);
-			glMaterialf(GL_FRONT, GL_SHININESS, 50.0f);
-			for (unsigned int i = 0; i < tiles.size(); i++)
+			switch (how_to_draw_polygons)
 			{
-				glBegin(GL_TRIANGLES);
-				Point_3 c = tiles[i].centroid();
-				Vector_3 n = tiles[i].norm();
-				glNormal3d(n.x(), n.y(), n.z());
-				for (unsigned int j = 0; j < tiles[i].size(); j++)
+			case OUTLINE_DRAW:
+				outline_draw_polygons(multi_tiles[k]);
+				break;
+			case FILL_DRAW:
+				fill_draw_polygons(multi_tiles[k]);
+				break;
+			case TEXTURE_DRAW:
+				if (!textured)
+					outline_draw_polygons(multi_tiles[k]);
+				else
 				{
-					glPoint_3(c);
-					glPoint_3(tiles[i].vertex(j));
-					glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()));
+					texture_lib.clear();
+					texture_lib = multi_texture_libs[k];
+					texture_draw_polygons(multi_tiles[k]);
 				}
-				glEnd();
+				break;
 			}
-			glPopMatrix();
-			glDisable(GL_LIGHTING);
-		}
-		
+		}	
 	}
 	void SPM_Graphics::draw_polygons()
 	{
+		const vector<Packing_object>& tiles = packer->get_tiles();
 		switch (how_to_draw_polygons)
 		{
 		case OUTLINE_DRAW:
-			outline_draw_polygons();
+			outline_draw_polygons(tiles);
 			break;
 		case FILL_DRAW:
-			fill_draw_polygons();
+			fill_draw_polygons(tiles);
 			break;
 		case TEXTURE_DRAW:
 			if (textured)
-				texture_draw_polygons();
+				texture_draw_polygons(tiles);
 			else
-				outline_draw_polygons();
+				outline_draw_polygons(tiles);
 			break;
 		}
 	}
 
-	void SPM_Graphics::outline_draw_polygons()
+	void SPM_Graphics::outline_draw_polygons(const std::vector<Packing_object>& tiles)
 	{
 		static GLfloat pgn_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};
-		const vector<Packing_object>& tiles = packer->get_tiles();
+		//const vector<Packing_object>& tiles = packer->get_tiles();
 		glDisable(GL_LIGHTING);
 		//glColor4fv(pgn_edge);
 		glLineWidth(1.5f);
@@ -216,14 +230,14 @@ namespace Geex
 		glEnable(GL_LIGHTING);
 	}
 
-	void SPM_Graphics::fill_draw_polygons()
+	void SPM_Graphics::fill_draw_polygons(const std::vector<Packing_object>& tiles)
 	{
 		static GLfloat amb_mat[] = {0.19225f, 0.19225f, 0.19225f, 1.0f};
 		static GLfloat diff_mat[] = {0.50754f, 0.50754f, 0.50754f, 1.0f};
 		static GLfloat spec_mat[] = {0.608273f, 0.608273f, 0.608273f, 1.0f};
 		static GLfloat pgn_shininess = 0.4;
 
-		const vector<Packing_object>& tiles = packer->get_tiles();
+		//const vector<Packing_object>& tiles = packer->get_tiles();
 
 		glCullFace(GL_FRONT);
 		glEnable(GL_LIGHTING);
@@ -250,10 +264,10 @@ namespace Geex
 		glDisable(GL_LIGHTING);
 	}
 
-	void SPM_Graphics::texture_draw_polygons()
+	void SPM_Graphics::texture_draw_polygons(const std::vector<Packing_object>& tiles)
 	{
 		static GLfloat mat[] = {0.9f, 0.9f, 0.9f, 1.0f};
-		const std::vector<Packing_object>& tiles = packer->get_tiles();
+		//const std::vector<Packing_object>& tiles = packer->get_tiles();
 		glEnable(GL_TEXTURE_2D);
 		GLboolean old_cull_face_config = glIsEnabled(GL_CULL_FACE);
 		glEnable(GL_CULL_FACE);
@@ -559,25 +573,19 @@ namespace Geex
 		glEnable(GL_LIGHTING);
 	}
 
-	void SPM_Graphics::build_texture_lib()
+	bool SPM_Graphics::build_texture_from_files(std::vector<GLuint>& text_indices, const std::vector<std::string>& text_files)
 	{
-		if (!packer->get_project_ioer().texture_specified())
-			return;
-		std::vector<std::string> texture_files;
-		packer->get_project_ioer().read_texture_files(texture_files);
-		if (texture_files.empty())
-			return;
-		texture_lib.resize(texture_files.size());
-		for (unsigned int i = 0; i < texture_files.size(); i++)
+		text_indices.resize(text_files.size());
+		for (unsigned int i = 0; i < text_files.size(); i++)
 		{
-			cv::Mat m = cv::imread(texture_files[i]);
+			cv::Mat m = cv::imread(text_files[i]);
 			if (!m.data)
 			{
-				std::cout<<"Error: cannot read texture file \""<<texture_files[i]<<"\"\n";
-				return;
+				std::cout<<"Error: cannot read texture file \""<<text_files[i]<<"\"\n";
+				return false;
 			}
-			glGenTextures(1, &texture_lib[i]);
-			glBindTexture(GL_TEXTURE_2D, texture_lib[i]);
+			glGenTextures(1, &text_indices[i]);
+			glBindTexture(GL_TEXTURE_2D, text_indices[i]);
 			int r, c;
 			int e = 0;
 			while ((1<<e) < m.rows)
@@ -600,21 +608,62 @@ namespace Geex
 					*ptr++ = pixel.val[1];
 					*ptr++ = pixel.val[0];
 				}
-			if (gluScaleImage(GL_RGB, m.cols, m.rows, GL_UNSIGNED_BYTE, pixels, c, r, GL_UNSIGNED_BYTE, scaleTexels))
+				if (gluScaleImage(GL_RGB, m.cols, m.rows, GL_UNSIGNED_BYTE, pixels, c, r, GL_UNSIGNED_BYTE, scaleTexels))
+				{
+					std::cout<<"Error: Scale image failed.\n";
+					return;
+				}
+				glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+				glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, c, r, 0, GL_RGB, GL_UNSIGNED_BYTE, scaleTexels);
+				free(scaleTexels);
+				free(pixels);
+		}
+		return true;
+	}
+	void SPM_Graphics::build_texture_lib()
+	{
+		if (!packer->get_project_ioer().texture_specified())
+			return;
+		if (!packer->get_project_ioer().mesh_polygon_coupled())
+		{
+			std::vector<std::string> texture_files;
+			packer->get_project_ioer().read_texture_files(texture_files);
+			if (texture_files.empty())
+				return;
+			if (! build_texture_from_files(texture_lib, texture_files) )
 			{
-				std::cout<<"Error: Scale image failed.\n";
+				clear_all_textures();
 				return;
 			}
-			glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, c, r, 0, GL_RGB, GL_UNSIGNED_BYTE, scaleTexels);
-			free(scaleTexels);
-			free(pixels);
 		}
+		else
+		{
+			std::vector<std::vector<std::string>> multi_file_sets;
+			packer->get_project_ioer().read_texture_files(multi_file_sets);
+			if (multi_file_sets.empty())
+				return;
+			multi_texture_libs.resize(multi_file_sets.size());
+			for (unsigned int i = 0; i < multi_file_sets.size(); i++)
+			{
+				if (! build_texture_from_files(multi_texture_libs[i], multi_file_sets[i]) )
+				{
+					clear_all_textures();
+					return;
+				}
+			}
+		}
+
 		textured = true;
 	}
 
+	void SPM_Graphics::load_next_texture_lib()
+	{
+		texture_lib.clear();
+		texture_lib = multi_texture_libs[sub_pack_id];
+		sub_pack_id++;
+	}
 	void SPM_Graphics::draw_cdt()
 	{
 		glColor3f(1.0f, 0.0f, 0.0f);
