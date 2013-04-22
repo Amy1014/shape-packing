@@ -92,7 +92,8 @@ public:
 	/** computation **/
 	// unsigned area
 	FT area() const ;
-	MyPolygon_3& operator*=(const Transformation_3& t);
+	// scale about centroid
+	MyPolygon_3& operator*=(FT factor);
 	
 
 private:
@@ -136,10 +137,7 @@ MyPolygon_3<Kernel, Container>::MyPolygon_3(const CGAL::Polygon_2<PolygonTraits_
 		FT cos_theta = ln*ex/len, sin_theta = CGAL::sqrt(CGAL::cross_product(ex, ln).squared_length())/len;
 		//Transformation_3 rot(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
 		Transformation_3 rot;
-		//if (ln.y()>=0.0)
-		//	rot = Transformation_3(cos_theta, sin_theta, FT(0), -sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
-		//else
-			rot = Transformation_3(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
+		rot = Transformation_3(cos_theta, -sin_theta, FT(0), sin_theta, cos_theta, FT(0), FT(0), FT(0), FT(1));
 		Transformation_3 to_global(lx.x(), ly.x(), lz.x(), lx.y(), ly.y(), lz.y(), lx.z(), ly.z(), lz.z());
 		Transformation_3 to_local(lx.x(), lx.y(), lx.z(), ly.x(), ly.y(), ly.z(), lz.x(), lz.y(), lz.z());
 		t = (to_pos*to_global)*rot*(to_local*to_org);
@@ -194,11 +192,14 @@ template <class Kernel, class Container> typename MyPolygon_3<Kernel, Container>
 }
 
 template <class Kernel, class Container> 
-MyPolygon_3<Kernel, Container>& MyPolygon_3<Kernel, Container>::operator*=(const Transformation_3& t)
+MyPolygon_3<Kernel, Container>& MyPolygon_3<Kernel, Container>::operator*=(FT factor)
 {
+	Point_3 c = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
+	Transformation_3 to_org(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN));
+	Transformation_3 scale(CGAL::SCALING, factor);
+	Transformation_3 to_cent(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, c));
+	Transformation_3 t = to_cent * (scale * to_org);
 	std::transform(verts.begin(), verts.end(), verts.begin(), t);
-	//cent = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
-	normal = normal.transform(t);
 	return *this;
 }
 

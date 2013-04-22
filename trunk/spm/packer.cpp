@@ -1578,6 +1578,26 @@ namespace Geex
 			cur_area_file << pgn_area << "\t" << cur<<std::endl;
 		}
 	}
+	void Packer::report()
+	{
+		double max_factor = std::numeric_limits<double>::min();
+		double min_factor = std::numeric_limits<double>::max();
+		double mean_factor = 0.0;
+		std::set<unsigned int> lib_indices;
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			max_factor = std::max(max_factor, pack_objects[i].factor);
+			min_factor = std::min(min_factor, pack_objects[i].factor);
+			mean_factor += pack_objects[i].factor;
+			lib_indices.insert(pack_objects[i].lib_idx);
+		}
+		mean_factor /= pack_objects.size();
+		std::cout<<"\t\t-- Maximum factor: "<<max_factor<<std::endl;
+		std::cout<<"\t\t-- Minimum factor: "<<min_factor<<std::endl;
+		std::cout<<"\t\t-- Mean factor: "<<mean_factor<<std::endl;
+		std::cout<<"\t\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
+		std::cout<<"\t\t-- Number of polygon types: "<<lib_indices.size()<<std::endl;
+	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{
 		int  nStatus;

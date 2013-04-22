@@ -18,6 +18,14 @@ namespace Geex
 		Packing_object(const Polygon_2& xoy_polygon, const Vector_3& n, const Point_3& p, double f)
 			: Polygon_3(xoy_polygon, n, p), factor(f) {}
 
+		// scale
+		Packing_object& operator*=(double factor)
+		{
+			Polygon_3::operator*=(factor);
+			this->factor *= factor;
+			return *this;
+		}
+
 	public:
 		double factor; //scaling factor
 		unsigned int lib_idx;
