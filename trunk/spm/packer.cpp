@@ -26,6 +26,10 @@ namespace Geex
 		samp_nb = 20;
 
 		sub_pack_id = 0;
+
+		max_scale = 2.0;
+		min_scale = 0.2;
+		levels = 10;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -107,15 +111,22 @@ namespace Geex
 
 		// compute maximum and average polygon area in the library
 		double max_pgn_area = std::numeric_limits<double>::min(), mean_pgn_area = 0.0;
+		//double *polygon_areas = new double[pgn_lib.size()];
 		for (unsigned int i = 0; i < pgn_lib.size(); i++)
 		{
 			double s = std::fabs(pgn_lib[i].area());
 			max_pgn_area = std::max(max_pgn_area, s);
 			mean_pgn_area += s;
+			//polygon_areas[i] = s;
 		}
 		mean_pgn_area /= pgn_lib.size();
 		std::cout<<"Maximum polygon area: "<<max_pgn_area<<std::endl;
 		std::cout<<"Mean polygon area: "<<mean_pgn_area<<std::endl;
+		// normalize polygon library
+		//for (unsigned int i = 0 ;i < pgn_lib.size(); i++)
+		//	pgn_lib[i].normalize_factor = std::fabs(mean_pgn_area / polygon_areas[i]);
+		//delete polygon_areas;
+
 		if (mesh_segments.size() == 0)
 			rpvd.set_mesh(pio.attribute_value("MeshFile"));
 		else
@@ -220,83 +231,6 @@ namespace Geex
 			pgn_lib_idx++;
 		}
 	}
-
-#if 0
-	void Packer::random_init_tiles(unsigned int nb_init_polygons)
-	{
-		set<int> init_facets; // on which facets the location are
-		if (pio.has_density_input()) // put according to density function
-		{
-			double total_weight = 0.0, res = 0.0;
-			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
-				total_weight += mesh.vertex(i).weight();
-			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
-			{
-				double nf = (2-epsilon)*epsilon*nb_init_polygons*mesh.vertex(i).weight()/total_weight;
-				//int n(nf+res);
-				int n(nf);
-				if ( n < 1)
-					n = int(nf+0.5);
-				//else
-				//	n = int(nf);
-				//int n(nf+0.5);
-				if ( n >= 1 )
-				{
-					res = nf + res - n; // fractional part
-					int nbput = std::min<int>(n, mesh.vertex(i).faces_.size());
-					for (int j = 0; j < nbput; j++)
-					{
-						int idx = mesh.vertex(i).faces_[j];
-						if ( init_facets.find(idx) != init_facets.end() )	continue;
-						init_facets.insert(idx);
-					}
-				}
-				else 
-					res += nf;
-			}
-			// pick up the lost ones
-			while ( init_facets.size() < nb_init_polygons )
-			{
-				int idx = ::rand()%mesh.size();
-				while ( init_facets.find(idx) != init_facets.end() )
-					idx = ::rand()%mesh.size();
-				init_facets.insert(idx);
-			}
-		}
-		else   // if no density specified, uniformly put	
-		{
-			for (unsigned int i = 0; i < nb_init_polygons; i++)
-			{
-				int idx = ::rand()%mesh.size();
-				while ( init_facets.find(idx) != init_facets.end() )
-					idx = ::rand()%mesh.size();
-				init_facets.insert(idx);
-			}
-		}
-		// choose polygons and distribute
-		pack_objects.reserve(nb_init_polygons);
-		unsigned int pgn_lib_idx = 0;
-		for (set<int>::const_iterator it = init_facets.begin(); it != init_facets.end(); ++it)
-		{
-			const Facet& f = mesh[*it];
-			vec3 gx_cent = (f.vertex[0] + f.vertex[1] + f.vertex[2])/3.0;
-			//vec3 gx_normal = mesh[*it].normal();
-			vec3 gx_normal = approx_normal(*it);
-			const Ex_polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
-			// shrink factor
-			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
-			double s = std::min(fa/pa, pa/fa);
-			s = 0.2*std::sqrt(s);
-			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
-			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), to_cgal_pnt(gx_cent), s));
-			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
-			pack_objects.back().facet_idx = *it;
-			pack_objects.back().texture_id = pgn_2.texture_id;
-			pack_objects.back().texture_coord.assign(pgn_2.texture_coords.begin(), pgn_2.texture_coords.end());
-			pgn_lib_idx++;
-		}
-	}
-#endif
 
 	void Packer::compute_clipped_VD()
 	{
@@ -681,21 +615,7 @@ namespace Geex
 	{
 		
 		lloyd(post_action, true);
-
-		// compute area coverage
-#ifdef _CILK_
-		cilk::reducer_opadd<double> sum_pgn_area(0.0);
-		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
-			sum_pgn_area += pack_objects[i].area();
-		std::cout<<"-- Area coverage ratio: "<<sum_pgn_area.get_value()/mesh_area<<std::endl;
-#else
-		double sum_pgn_area = 0.0;
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
-			sum_pgn_area += pack_objects[i].area();
-		std::cout<<"-- Area coverage ratio: "<<sum_pgn_area/mesh_area<<std::endl;
-#endif
-
-		
+		print_area_coverage();	
 		if (post_action != NULL)
 			post_action();
 	}
@@ -1586,17 +1506,65 @@ namespace Geex
 		std::set<unsigned int> lib_indices;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			max_factor = std::max(max_factor, pack_objects[i].factor);
-			min_factor = std::min(min_factor, pack_objects[i].factor);
-			mean_factor += pack_objects[i].factor;
+			//double normalized_factor = pack_objects[i].factor*pgn_lib[pack_objects[i].lib_idx].normalize_factor;
+			double normalized_factor = pack_objects[i].factor;
+			max_factor = std::max(max_factor, normalized_factor);
+			min_factor = std::min(min_factor, normalized_factor);
+			mean_factor += normalized_factor;
 			lib_indices.insert(pack_objects[i].lib_idx);
 		}
 		mean_factor /= pack_objects.size();
-		std::cout<<"\t\t-- Maximum factor: "<<max_factor<<std::endl;
-		std::cout<<"\t\t-- Minimum factor: "<<min_factor<<std::endl;
-		std::cout<<"\t\t-- Mean factor: "<<mean_factor<<std::endl;
-		std::cout<<"\t\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
-		std::cout<<"\t\t-- Number of polygon types: "<<lib_indices.size()<<std::endl;
+		std::cout<<"\t-- Maximum factor: "<<max_factor<<std::endl;
+		std::cout<<"\t-- Minimum factor: "<<min_factor<<std::endl;
+		std::cout<<"\t-- Mean factor: "<<mean_factor<<std::endl;
+		std::cout<<"\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
+		std::cout<<"\t-- Number of polygon types: "<<lib_indices.size()<<std::endl;
+	}
+
+	void Packer::print_area_coverage()
+	{
+		// compute area coverage
+#ifdef _CILK_
+		cilk::reducer_opadd<double> sum_pgn_area(0.0);
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+			sum_pgn_area += pack_objects[i].area();
+		std::cout<<"-- Area coverage ratio: "<<sum_pgn_area.get_value()/mesh_area<<std::endl;
+#else
+		double sum_pgn_area = 0.0;
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+			sum_pgn_area += pack_objects[i].area();
+		std::cout<<"-- Area coverage ratio: "<<sum_pgn_area/mesh_area<<std::endl;
+#endif
+	}
+	void Packer::discretize_tiles()
+	{
+		// compute all scaling levels
+		std::vector<double> discrete_scale(levels+1);
+		std::cout<<"Discretization scales: < ";
+		for (int i = 0; i < levels+1; i++)
+		{
+			discrete_scale[i] = ( (levels-i)*min_scale + i*max_scale ) / levels;
+			std::cout<<discrete_scale[i]<<" ";
+		}
+		std::cout<<'>'<<std::endl;
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			std::vector<double>::iterator closest_scale_it = std::lower_bound(discrete_scale.begin(), discrete_scale.end(), pack_objects[i].factor);
+			double closest_scale = 1.0;
+			if (closest_scale_it == discrete_scale.begin())
+				std::cout<<"====== Too small scale, no discrete scale found! ======\n";
+			else if (*closest_scale_it != pack_objects[i].factor)
+			{
+				closest_scale = *(closest_scale_it - 1) / pack_objects[i].factor;
+				//if (closest_scale > pack_objects[i].factor)
+				//	system("pause");
+				pack_objects[i] *= closest_scale;
+			}
+		}
+		generate_RDT();
+		compute_clipped_VD();
+		stop_update_DT = false;
+		print_area_coverage();
 	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{

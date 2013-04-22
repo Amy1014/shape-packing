@@ -30,10 +30,10 @@ namespace Geex {
 	void TW_CALL tw_con_replace(void *);
 	void TW_CALL tw_pack_next(void*);
 	void TW_CALL tw_report(void*);
+	void TW_CALL tw_discretize_tiles(void*);
 	//void TW_CALL tw_curvature_get_callback(void*, void*);
 	//void TW_CALL tw_curvature_set_callback(const void*, void*);
 	//void TW_CALL tw_dump(void*);
-	//void TW_CALL tw_restore(void*);
 	//void TW_CALL tw_cluster_detect_holes(void*);
 	
     class SPMApp : public GeexApp 
@@ -170,6 +170,12 @@ namespace Geex {
 			spm()->report();
 		}
 
+		void discretize_tiles()
+		{
+			spm()->discretize_tiles();
+			glut_viewer_redraw();
+		}
+
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -206,7 +212,7 @@ namespace Geex {
 			}
 
 			TwBar* function_bar = TwNewBar("Functions");
-			TwDefine("Functions position='16 320' size='200 450' alpha=200");
+			TwDefine("Functions position='16 320' size='200 400' alpha=200");
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l group = 'Optimization' ");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
 			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
@@ -225,11 +231,16 @@ namespace Geex {
 
 			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999 group = 'Optimization' ");
 			if (spm()->contain_multi_packing())
-				TwAddButton(function_bar, "pack next", tw_pack_next, NULL, "group = 'multimesh' ");
+				TwAddButton(function_bar, "pack next", tw_pack_next, NULL, "key=n group = 'multimesh' ");
 			TwAddButton(function_bar, "Report", tw_report, NULL, "group = 'Discretize' ");
+
+			TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->min_scale_factor(), "min=0.01 max=1.0 group = 'Discretize' ");
+			TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->max_scale_factor(), "min=1.0 group = 'Discretize' ");
+			TwAddVarRW(function_bar, "Levels", TW_TYPE_INT32, &spm()->discrete_levels(), "min=1 group = 'Discretize' ");
+			TwAddButton(function_bar, "Discretize Tiles", tw_discretize_tiles, NULL, "key=d group = 'Discretize' ");
 			//TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
-			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
-			TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
+			//TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
+			//TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
 
 			toggle_skybox_CB() ;
             glut_viewer_add_toggle('b', glut_viewer_is_enabled_ptr(GLUT_VIEWER_BACKGROUND), "switch Color/BW") ;
@@ -289,10 +300,11 @@ void TW_CALL tw_ex_replace(void *cientData) { spm_app()->ex_replace(); }
 void TW_CALL tw_con_replace(void * clientData) { spm_app()->con_replace(); }
 void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
 void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
+void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
+
 ////void TW_CALL tw_smooth_normals(void* clientData) { spm_app()->smooth_normals(); }
 //void TW_CALL tw_flip_normals(void* clientData) { spm_app()->flip_normals(); }
 //void TW_CALL tw_dump(void *clientData) { spm_app()->dump(); }
-//void TW_CALL tw_restore(void *clientData) { spm_app()->restore(); }
 //void TW_CALL tw_cluster_detect_holes(void* clientData) { spm_app()->cluster_detect_holes(); }
 //void TW_CALL tw_affine_fill(void* clientData) { spm_app()->affine_fill(); }
 }
