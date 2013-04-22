@@ -39,6 +39,7 @@ namespace Geex
 	{
 		std::vector<Point_2> texture_coords;
 		unsigned int texture_id;
+		//double normalize_factor;
 	};
 
 }

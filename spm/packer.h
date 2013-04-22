@@ -81,6 +81,8 @@ namespace Geex
 		/** miscellaneous **/
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
 
+		void print_area_coverage();
+
 		// hole detection
 		void detect_holes();
 		// hole filling
@@ -94,6 +96,9 @@ namespace Geex
 
 		// discretize
 		void discretize_tiles();
+		double& max_scale_factor() { return max_scale; }
+		double& min_scale_factor() { return min_scale; }
+		int& discrete_levels() { return levels; }
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug
@@ -156,6 +161,7 @@ namespace Geex
 
 		void eliminate_penetration();
 		bool pair_penetration(unsigned int id0, unsigned int id1);
+
 	private:
 
 		static Packer *instance_;
@@ -177,6 +183,12 @@ namespace Geex
 		std::vector<Hole> holes;
 		double frontier_edge_size;
 		double hole_face_size;
+
+		/** discretize **/
+		double max_scale;
+		double min_scale;
+		int levels;
+
 		/** optimization **/
 #ifdef _CILK_
 		std::vector<Containment> containments;
