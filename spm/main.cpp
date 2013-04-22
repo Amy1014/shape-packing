@@ -29,7 +29,7 @@ namespace Geex {
 	void TW_CALL tw_ex_replace(void*);
 	void TW_CALL tw_con_replace(void *);
 	void TW_CALL tw_pack_next(void*);
-	//void TW_CALL tw_save_subresult(void*);
+	void TW_CALL tw_report(void*);
 	//void TW_CALL tw_curvature_get_callback(void*, void*);
 	//void TW_CALL tw_curvature_set_callback(const void*, void*);
 	//void TW_CALL tw_dump(void*);
@@ -160,14 +160,14 @@ namespace Geex {
 		{
 			spm()->start_new_packing();
 		}
-		//void save_subresult()
-		//{
-		//	spm()->write_to_results();
-		//	post_update();
-		//}
 		void save_cur_area()
 		{
 			spm()->save_curvature_and_area();
+		}
+
+		void report()
+		{
+			spm()->report();
 		}
 
         void init_gui() 
@@ -206,7 +206,7 @@ namespace Geex {
 			}
 
 			TwBar* function_bar = TwNewBar("Functions");
-			TwDefine("Functions position='16 320' size='200 350' alpha=200");
+			TwDefine("Functions position='16 320' size='200 450' alpha=200");
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l group = 'Optimization' ");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
 			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
@@ -220,12 +220,13 @@ namespace Geex {
 			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
 			TwAddButton(function_bar, "remove", tw_remove, NULL, "key=R group = 'Replace' ");
-			TwAddButton(function_bar, "ex-replace", tw_ex_replace, NULL, "key=e group = 'Replace' ");
+			//TwAddButton(function_bar, "ex-replace", tw_ex_replace, NULL, "key=e group = 'Replace' ");
 			TwAddButton(function_bar, "ext-replace", tw_con_replace, NULL, "key = x group = 'Replace' ");
 
 			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999 group = 'Optimization' ");
 			if (spm()->contain_multi_packing())
 				TwAddButton(function_bar, "pack next", tw_pack_next, NULL, "group = 'multimesh' ");
+			TwAddButton(function_bar, "Report", tw_report, NULL, "group = 'Discretize' ");
 			//TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
 			TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
 			TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
@@ -287,7 +288,7 @@ void TW_CALL tw_remove(void* clientData) { spm_app()->remove(); }
 void TW_CALL tw_ex_replace(void *cientData) { spm_app()->ex_replace(); }
 void TW_CALL tw_con_replace(void * clientData) { spm_app()->con_replace(); }
 void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
-//void TW_CALL tw_save_subresult(void* clientData) { spm_app()->save_subresult(); }
+void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
 ////void TW_CALL tw_smooth_normals(void* clientData) { spm_app()->smooth_normals(); }
 //void TW_CALL tw_flip_normals(void* clientData) { spm_app()->flip_normals(); }
 //void TW_CALL tw_dump(void *clientData) { spm_app()->dump(); }

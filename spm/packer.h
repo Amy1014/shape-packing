@@ -91,6 +91,9 @@ namespace Geex
 		void remove_polygons();
 		void ex_replace(); // extended replace
 		void con_replace(); 
+
+		// discretize
+		void discretize_tiles();
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug
@@ -99,6 +102,8 @@ namespace Geex
 		void save_curvature_and_area(); 
 		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty);
 		CDT& get_cdt() {  return cdt; }
+
+		void report();
 
 	protected:
 		/** multi meshes **/
@@ -282,7 +287,7 @@ namespace Geex
 		CDT cdt;
 		//std::vector<Local_frame> local_frames;
 		Packing_object backup;
-std::vector<std::vector<Packing_object>> res_pack_objects;
+		std::vector<std::vector<Packing_object>> res_pack_objects;
 	};
 
 
