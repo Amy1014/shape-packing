@@ -27,10 +27,15 @@ namespace Geex
 
 		sub_pack_id = 0;
 
-		max_scale = 2.0;
+		max_scale = 1.2;
 		min_scale = 0.2;
 		levels = 10;
 		discrete_scaling = false;
+
+		discrete_factors.resize(levels+1);
+		for (int i = 0; i < levels+1; i++)
+			discrete_factors[i] = ( (levels-i)*min_scale + i*max_scale ) / levels;
+		current_factor = 0;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -58,8 +63,6 @@ namespace Geex
 				pio>>mesh_segments;
 			}
 		}
-
-		//rpvd.save_triangulation("rdt.obj");
 	}
 
 	void Packer::pack_next_submesh() // start a new packing process
@@ -112,21 +115,15 @@ namespace Geex
 
 		// compute maximum and average polygon area in the library
 		double max_pgn_area = std::numeric_limits<double>::min(), mean_pgn_area = 0.0;
-		//double *polygon_areas = new double[pgn_lib.size()];
 		for (unsigned int i = 0; i < pgn_lib.size(); i++)
 		{
 			double s = std::fabs(pgn_lib[i].area());
 			max_pgn_area = std::max(max_pgn_area, s);
 			mean_pgn_area += s;
-			//polygon_areas[i] = s;
 		}
 		mean_pgn_area /= pgn_lib.size();
 		std::cout<<"Maximum polygon area: "<<max_pgn_area<<std::endl;
 		std::cout<<"Mean polygon area: "<<mean_pgn_area<<std::endl;
-		// normalize polygon library
-		//for (unsigned int i = 0 ;i < pgn_lib.size(); i++)
-		//	pgn_lib[i].normalize_factor = std::fabs(mean_pgn_area / polygon_areas[i]);
-		//delete polygon_areas;
 
 		if (mesh_segments.size() == 0)
 			rpvd.set_mesh(pio.attribute_value("MeshFile"));
@@ -526,16 +523,17 @@ namespace Geex
 	void Packer::lloyd(void (*post_action)(), bool enlarge)
 	{
 		static int times = 0;
-		static double barrier_scale = 0.2;
-		static double step = 0.1;
 		std::vector<Parameter> solutions(pack_objects.size());
 		std::vector<Local_frame> local_frames(pack_objects.size());
+		double barrier_scale;
 		if (!discrete_scaling)
 			barrier_scale = std::numeric_limits<double>::max();
+		else
+			barrier_scale = discrete_factors[current_factor];
+
 		for (unsigned int i = 0; i < 1; i++)
 		{
 			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
-
 
 			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames, barrier_scale);
 
@@ -550,14 +548,17 @@ namespace Geex
 				std::cout<<"Phase barrier achieved.\n";
 				for (unsigned int j = 0; j < pack_objects.size(); j++)
 				{
-					if (pack_objects[j].active && pack_objects[j].factor < barrier_scale)
+					if (pack_objects[j].active && pack_objects[j].factor < discrete_factors[current_factor])
 					{
-						pack_objects[j] *= (barrier_scale - step) / pack_objects[j].factor;
+						if (current_factor == 0)
+							std::cout<<"Tile j is smaller than what specified\n";
+						else
+							pack_objects[j] *= discrete_factors[current_factor-1]/ pack_objects[j].factor;
 						pack_objects[j].active = false;
 					}	
 					remain_active = remain_active || pack_objects[j].active;
 				}
-				barrier_scale += step;
+				current_factor++;
 				if (!remain_active)
 				{
 					std::cout<<"No polygons can be enlarged anymore.\n";
@@ -565,7 +566,11 @@ namespace Geex
 				}
 			}
 			else if ( res == BARRIER_ALL_ACHIEVED )
-				barrier_scale += step;
+				current_factor++;
+			if (current_factor==discrete_factors.size())
+			{
+				std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
+			}
 			if (!stop_update_DT)
 			{
 				std::cout<<"Start iDT updating...\n";
@@ -1341,7 +1346,7 @@ namespace Geex
 		generate_RDT();
 		compute_clipped_VD();
 		stop_update_DT = false;
-		std::for_each(pack_objects.begin(), pack_objects.end(), mem_fun_ref(&Packing_object::activate));
+		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
 	void Packer::ex_replace()

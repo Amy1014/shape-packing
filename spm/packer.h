@@ -192,7 +192,8 @@ namespace Geex
 		double min_scale;
 		int levels;
 		bool discrete_scaling;
-
+		std::vector<double> discrete_factors;
+		unsigned int current_factor;
 		/** optimization **/
 #ifdef _CILK_
 		std::vector<Containment> containments;
