@@ -1,0 +1,9 @@
+< SpMProject >  Sphere Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\sphere.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi417_sphere.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\sphere.txt </ DensityFile >
+
+< TextureImageDir >  ./texture  </ TextureImageDir >

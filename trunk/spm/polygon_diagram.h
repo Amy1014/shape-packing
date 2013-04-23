@@ -81,7 +81,7 @@ public:
 
 	/** geometry **/
 
-	void compute_clipped_VD(std::vector<Plane_3>& clipping_planes);
+	void compute_clipped_VD(std::vector<Plane_3>& clipping_planes, std::vector<Point_3>& ref_pnts);
 
 	void smooth_VD_region();
 
