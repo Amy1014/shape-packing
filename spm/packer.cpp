@@ -237,13 +237,16 @@ namespace Geex
 		std::cout<<"Start computing clipped Voronoi region\n";
 		std::vector<Plane_3> tangent_planes;
 		tangent_planes.reserve(pack_objects.size());
+		std::vector<Point_3> ref_pnts;
+		ref_pnts.reserve(pack_objects.size());
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
 			Point_3 c = pack_objects[i].centroid();
 			Vector_3 n = pack_objects[i].norm();
 			tangent_planes.push_back(Plane_3(c, n));
+			ref_pnts.push_back(c);
 		}
-		rpvd.compute_clipped_VD(tangent_planes);
+		rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
 		std::cout<<"End computing.\n";
 	}
 

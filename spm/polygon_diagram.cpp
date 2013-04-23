@@ -126,7 +126,7 @@ namespace Geex
 		open = false;
 	}
 
-	void RestrictedPolygonVoronoiDiagram::compute_clipped_VD(std::vector<Plane_3>& clipping_planes)
+	void RestrictedPolygonVoronoiDiagram::compute_clipped_VD(std::vector<Plane_3>& clipping_planes, std::vector<Point_3>& ref_pnts)
 	{
 		if (nb_groups == 0)
 			return;
@@ -260,7 +260,8 @@ namespace Geex
 			Vector_3 base1 = pln.base1(), base2 = pln.base2();
 			cgal_vec_normalize(base1);
 			cgal_vec_normalize(base2);
-			Point_3 o = pln.point();
+			//Point_3 o = pln.point();
+			Point_3 o = ref_pnts[i];
 			for (unsigned int k = 0; k < smoothed_VD_regions[i].size(); k++)
 			{
 				Vector_3 v(o, smoothed_VD_regions[i][k]);
@@ -268,7 +269,7 @@ namespace Geex
 			}
 			CGAL::ch_graham_andrew(pnt2d.begin(), pnt2d.end(), std::back_insert_iterator<std::vector<Point_2>>(conhull));
 			smoothed_VD_regions[i].clear();
-			for (unsigned k = 0; k < conhull.size(); k++)
+			for (unsigned int k = 0; k < conhull.size(); k++)
 				smoothed_VD_regions[i].push_back(o + ( conhull[k].x()*base1 + conhull[k].y()*base2 ) );
 		}
 		std::cout<<"Number of lost facets (due to wrong RDT): "<<nb_lost_facets<<std::endl;
