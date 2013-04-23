@@ -18,6 +18,7 @@
 #ifdef _CILK_
 #include <cilk/cilk.h>
 #include <cilk/reducer_opadd.h>
+#include <cilk/reducer_opand.h>
 #endif
 
 #include "project_io.h"
@@ -35,7 +36,7 @@ namespace Geex
 	{
 
 		typedef enum {SUCCESS, FAILED} Optimization_res;
-		typedef enum {MORE_ENLARGEMENT, NO_MORE_ENLARGEMENT} Lloyd_res;
+		typedef enum {MORE_ENLARGEMENT, NO_MORE_ENLARGEMENT, BARRIER_PARTIAL_ACHIEVED, BARRIER_ALL_ACHIEVED} Lloyd_res;
 
 		typedef RestrictedPolygonVoronoiDiagram::Vertex_handle Vertex_handle;
 		typedef RestrictedPolygonVoronoiDiagram::Facet_iterator Facet_iterator;
@@ -99,6 +100,8 @@ namespace Geex
 		double& max_scale_factor() { return max_scale; }
 		double& min_scale_factor() { return min_scale; }
 		int& discrete_levels() { return levels; }
+		bool& discrete_scale() { return discrete_scaling; }
+
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug
@@ -131,7 +134,7 @@ namespace Geex
 
 		/** optimization **/
 		// one Lloyd iteration
-		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
+		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_scale);
 
 		static int callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
 							const double * const x,	const double * const lambda, double * const obj, double * const c,
@@ -188,6 +191,7 @@ namespace Geex
 		double max_scale;
 		double min_scale;
 		int levels;
+		bool discrete_scaling;
 
 		/** optimization **/
 #ifdef _CILK_

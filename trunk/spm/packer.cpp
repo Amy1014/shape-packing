@@ -30,6 +30,7 @@ namespace Geex
 		max_scale = 2.0;
 		min_scale = 0.2;
 		levels = 10;
+		discrete_scaling = false;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -135,10 +136,12 @@ namespace Geex
 
 		// distribute polygons by different strategies
 		// 1. random 
-		unsigned int nb_init_polygons = mesh_area / mean_pgn_area;
+		unsigned int nb_init_polygons = mesh_area / mean_pgn_area * 0.85;
 		std::cout<<nb_init_polygons<<" polygons are expected.\n";
 		random_init_tiles(nb_init_polygons);
 		std::cout<<pack_objects.size()<<" polygons are loaded initially.\n";
+
+		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
 		// 2. multi-class or more (TODO)
 	}
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
@@ -348,14 +351,7 @@ namespace Geex
 					const Point_3& t = bisec_pnts[j+1];
 					Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
 					ctm.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), Segment_2(s2, t2), ref_point));
-					//vr_region.push_back(Segment_2(s2, t2));
 				}
-				//const std::vector<double>& ws = samp_pnts[i]->weights;
-				//for (unsigned int j = 0; j < bisec_pnts.size(); j++)
-				//{
-				//	containments[id].vd_vertices.push_back(lf.to_uv(bisec_pnts[j]));
-				//	containments[id].weights.push_back(ws[j]);
-				//}
 			}
 		else
 			for (unsigned int i = 0; i < pack_objects[id].size(); i++)
@@ -372,21 +368,9 @@ namespace Geex
 						const Point_3& t = bisec_pnts[k+1];
 						Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
 						ctm.const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), Segment_2(s2, t2)));
-						//vr_region.push_back(Segment_2(s2, t2));
 					}
-					//const std::vector<double>& ws = samp_pnts[j]->weights;
-					//for (unsigned int k = 0; k < bisec_pnts.size(); k++)
-					//{
-					//	containments[id].vd_vertices.push_back(lf.to_uv(bisec_pnts[k]));
-					//	containments[id].weights.push_back(ws[k]);
-					//}
 				}
 			}
-		// construct extended objective function
-		//containments[id].region_area = 0.0;
-		//for (unsigned int i = 0; i < vr_region.size(); i++)
-		//	containments[id].region_area += std::fabs(CGAL::area(vr_region[0].source(), vr_region[i].source(), vr_region[i].target()));
-		//containments[id].pgn_cent = lf.to_uv(lf.o);
 
 		const unsigned int try_time_limit = 10;
 		unsigned int try_times = 1;
@@ -407,7 +391,7 @@ namespace Geex
 		}
 	}
 
-	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs)
+	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_scale)
 	{
 		const double min_scalor = 1.05;
 		std::vector<Optimization_res> opti_res(pack_objects.size());
@@ -427,8 +411,10 @@ namespace Geex
 		double mink = std::numeric_limits<double>::max();
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			if (opti_res[i] == SUCCESS)
+			if (opti_res[i] == SUCCESS && pack_objects[i].active)
 				mink = std::min(solutions[i].k, mink);
+			else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
+				solutions[i].k = 1.0;
 			else
 			{
 				solutions[i].k = 1.0;
@@ -438,7 +424,7 @@ namespace Geex
 		if (mink >= min_scalor)
 		{
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
-				if (opti_res[i] == SUCCESS)
+				if (opti_res[i] == SUCCESS && pack_objects[i].active)
 					solutions[i].k = mink;
 		}
 		std::cout<<"Minimum enlargement factor = "<<mink<<std::endl;
@@ -456,72 +442,62 @@ namespace Geex
 		//rpvd.save_triangulation("before_transform.obj");
 		//std::ofstream of("parameters.txt");
 #ifdef _CILK_
+		cilk::reducer_opand<bool> barrier_all_achieved(true);
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
+		bool barrier_all_achieved = true;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{
-			//Parameter constrained_parameter = solutions[i]*min_factors[i];
 			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
+			// restrict scale within the barrier
+			if ( solutions[i].k * pack_objects[i].factor >= barrier_scale && pack_objects[i].active)
+			{
+				solutions[i].k = barrier_scale / pack_objects[i].factor;
+				barrier_all_achieved &= true;
+			}
+			else
+				barrier_all_achieved &= false;
 			transform_one_polygon(i, lfs[i], solutions[i]);
-			//solutions[i] -= constrained_parameter;// residual transformation
 		}
-		//int nb_flipped = 0;
-		//typedef RestrictedPolygonVoronoiDiagram RPVD;
-		//for (RPVD::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
-		//{
-		//	RPVD::Halfedge_handle eh = fit->halfedge();
-		//	Point_3 v0 = eh->vertex()->mp;
-		//	int i0 = eh->vertex()->group_id;
-
-		//	eh = eh->next();
-		//	Point_3 v1 = eh->vertex()->mp;
-		//	int i1 = eh->vertex()->group_id;
-
-		//	eh = eh->next();
-		//	Point_3 v2 = eh->vertex()->mp;
-		//	int i2 = eh->vertex()->group_id;
-		//	Vector_3 v01(v0, v1), v12(v1, v2);
-		//	cgal_vec_normalize(v01);
-		//	cgal_vec_normalize(v12);
-		//	Vector_3 n = CGAL::cross_product(v01, v12);
-		//	double nlen2 = n.squared_length();
-		//	if (nlen2 == 0.0) //degenerate case
-		//	{
-		//		std::cout<<"degenerate at <"<<i0<<", "<<i1<<", "<<i2<<">\n";
-		//		continue;
-		//	}
-		//	cgal_vec_normalize(n);
-		//	double cp = n*fit->n;
-		//	if (Geex::Numeric::is_nan(cp))
-		//		system("pause");
-		//	if (n*fit->n < 0.0)
-		//	{
-		//		nb_flipped++;
-		//	}
-		//}	
-		//std::cout<<"Number of flipped triangles: "<<nb_flipped<<std::endl;
+		// update facet normal
 		for (RestrictedPolygonVoronoiDiagram::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
 		{
 			RestrictedPolygonVoronoiDiagram::Halfedge_handle eh = fit->halfedge();
 			Point_3 v0 = eh->vertex()->mp;
-
 			eh = eh->next();
 			Point_3 v1 = eh->vertex()->mp;
-
 			eh = eh->next();
 			Point_3 v2 = eh->vertex()->mp;
-
 			Vector_3 v01(v0, v1), v12(v1, v2);
 			cgal_vec_normalize(v01);
 			cgal_vec_normalize(v12);
 			fit->n = CGAL::cross_product(v01, v12);
 			fit->n = fit->n / CGAL::sqrt(fit->n.squared_length());
 		}
-		if (enlarge && mink < min_scalor)
-			return NO_MORE_ENLARGEMENT;
+		if (!discrete_scaling)
+		{
+			if (enlarge && mink < min_scalor)
+				return NO_MORE_ENLARGEMENT;
+			else
+				return MORE_ENLARGEMENT;
+		}
 		else
-			return MORE_ENLARGEMENT;
+		{
+			bool baa;
+#ifdef _CILK_
+			baa = barrier_all_achieved.get_value();
+#else
+			baa = barrier_all_achieved;
+#endif
+			if (enlarge && baa)
+				return BARRIER_ALL_ACHIEVED;
+			else if (enlarge && mink < min_scalor && !baa)
+				return BARRIER_PARTIAL_ACHIEVED;
+			else
+				return MORE_ENLARGEMENT;
+		}
+
 	}
 
 	void Packer::transform_one_polygon(unsigned int id, Local_frame& lf, Parameter& param)
@@ -550,63 +526,56 @@ namespace Geex
 	void Packer::lloyd(void (*post_action)(), bool enlarge)
 	{
 		static int times = 0;
-
+		static double barrier_scale = 0.2;
+		static double step = 0.1;
 		std::vector<Parameter> solutions(pack_objects.size());
 		std::vector<Local_frame> local_frames(pack_objects.size());
+		if (!discrete_scaling)
+			barrier_scale = std::numeric_limits<double>::max();
 		for (unsigned int i = 0; i < 1; i++)
 		{
 			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
 
-			//rpvd.save_triangulation("pre_lloyd.obj");
-			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
+
+			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames, barrier_scale);
 
 			if (res == NO_MORE_ENLARGEMENT)
 			{
 				stop_update_DT = true;
 				std::cout<<"Caution: Stopped updating iDT\n";
 			}
+			else if ( res == BARRIER_PARTIAL_ACHIEVED ) // go to the next barrier
+			{
+				bool remain_active = false;
+				std::cout<<"Phase barrier achieved.\n";
+				for (unsigned int j = 0; j < pack_objects.size(); j++)
+				{
+					if (pack_objects[j].active && pack_objects[j].factor < barrier_scale)
+					{
+						pack_objects[j] *= (barrier_scale - step) / pack_objects[j].factor;
+						pack_objects[j].active = false;
+					}	
+					remain_active = remain_active || pack_objects[j].active;
+				}
+				barrier_scale += step;
+				if (!remain_active)
+				{
+					std::cout<<"No polygons can be enlarged anymore.\n";
+					stop_update_DT = true;
+				}
+			}
+			else if ( res == BARRIER_ALL_ACHIEVED )
+				barrier_scale += step;
 			if (!stop_update_DT)
 			{
 				std::cout<<"Start iDT updating...\n";
-
-				//std::ostringstream pre_fn(std::ostringstream::ate);
-				//pre_fn.str("../imme_data/");
-				//pre_fn<<"pre_rdt_"<<times<<".obj";
-				//rpvd.save_triangulation(pre_fn.str());
-
 				CGAL::Timer t;
 				t.start();
-				//rpvd.save_triangulation("pre_idt.obj");
 				rpvd.iDT_update();
-				//rpvd.save_triangulation("idt.obj");
-				//generate_RDT();
 				t.stop();
 				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
 				std::cout<<"End iDT updating\n";	
-				// compensate for the constrained transformation in the last step
-				//std::cout<<"Compensate for lost transformation...\n";
-				//std::vector<double> min_factors(solutions.size());
-				//for (unsigned int comp_times = 0; comp_times < 0; comp_times++)
-				//{
-				//	constraint_transformation(solutions, local_frames, min_factors);
-				//	for (unsigned int j = 0; j < pack_objects.size(); j++)
-				//	{
-				//		Parameter constrained_param = solutions[j]*min_factors[j];
-				//		transform_one_polygon(j, local_frames[j], constrained_param);
-				//		solutions[j] -= constrained_param;
-				//	}
-				//	//rpvd.save_triangulation("pre_idt.obj");
-				//	rpvd.iDT_update();
-				//	//rpvd.save_triangulation("idt.obj");
-				//	glut_viewer_redraw();
-				//}
 				compute_clipped_VD();
-				//std::cout<<"End compensating.\n";
-
-				//std::ostringstream fn(std::ostringstream::ate);
-				//fn.str("../imme_data/");
-				//fn<<"rdt_"<<times<<".obj";
-				//rpvd.save_triangulation(fn.str());
 			}
 
 			if (post_action != NULL)
@@ -1284,31 +1253,6 @@ namespace Geex
 			std::cout<<"assertion on number relationship failed!\n";
 			std::cout<<"number of vertices in cdt: "<<cdt.number_of_vertices()<<std::endl;
 			std::cout<<"number of vertices in polygons: "<<region.size() + nb_polygon_samp<<std::endl;
-			//std::cout<<"now shrink relevant polygons...\n";
-			//if (cdt.number_of_vertices() > (region.size() + nb_polygon_samp)) // constraint intersection
-			//{
-			//	std::set<unsigned int> pene_pgn_id;
-			//	for (unsigned int k = 0; k < region.size(); k++)
-			//		for (unsigned int l = k+1; l < region.size(); l++)
-			//		{
-			//			Segment_2 ek(hole_bd_pnts[region[k].first]->point(), hole_bd_pnts[region[k].second]->point());
-			//			Segment_2 el(hole_bd_pnts[region[l].first]->point(), hole_bd_pnts[region[l].second]->point());
-			//			if (CGAL::do_intersect(ek, el))
-			//			{
-			//				pene_pgn_id.insert(region[k].first->group_id);
-			//				pene_pgn_id.insert(region[k].second->group_id);
-			//				pene_pgn_id.insert(region[l].first>group_id);
-			//				pene_pgn_id.insert(region[l].second->group_id);
-			//			}
-			//		}
-			//	// shrink the relevant polygons
-			//	Parameter shrink_trans(0.95, 0.0, 0.0, 0.0);
-			//	for (std::set<unsigned int>::const_iterator it = pene_pgn_id.begin(); it != pene_pgn_id.end(); ++it)
-			//	{
-			//		Local_frame lf = compute_local_frame(pack_objects[*it]);
-			//		transform_one_polygon(*it, lf, shrink_trans);
-			//	}
-			//}
 			return false;
 			//system("pause");
 			//exit(0);
@@ -1330,6 +1274,7 @@ namespace Geex
 		replace_timer.start();
 
 #ifdef _CILK_
+		//__cilkrts_set_param("nworkers", "24");
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -1350,10 +1295,6 @@ namespace Geex
 				region2d.push_back(Segment_2(s, t));
 			}
 			Polygon_matcher pm(region2d, 200);
-			//double region_area = pm.get_model_area();
-			//double tile_area = pack_objects[i].area();
-			//if (tile_area/region_area < 0.84)
-			//{
 			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
 			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
 				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
@@ -1400,6 +1341,7 @@ namespace Geex
 		generate_RDT();
 		compute_clipped_VD();
 		stop_update_DT = false;
+		std::for_each(pack_objects.begin(), pack_objects.end(), mem_fun_ref(&Packing_object::activate));
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
 	void Packer::ex_replace()

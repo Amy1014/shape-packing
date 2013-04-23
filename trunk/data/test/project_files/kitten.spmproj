@@ -2,7 +2,9 @@
 
 < MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile >    
             
-< polygonfile >      ..\..\polygons\voronoi417_kitten.poly      </ PolygonFile >
+< polygonfile >      ..\..\polygons\voronoi417_kitten_normalized.poly      </ PolygonFile >
+
+< gamma > 1.5 </ gamma >
 
 < DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
 
