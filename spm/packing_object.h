@@ -26,12 +26,15 @@ namespace Geex
 			return *this;
 		}
 
+		inline void activate() { active = true; }
+
 	public:
 		double factor; //scaling factor
 		unsigned int lib_idx;
 		int facet_idx; // index of triangle on which this object lies on
 		std::vector<Point_2> texture_coord;
 		unsigned int texture_id;
+		bool active;
 		//int group_id;
 	};
 
