@@ -27,8 +27,8 @@ namespace Geex
 
 		sub_pack_id = 0;
 
-		max_scale = 1.2;
-		min_scale = 0.2;
+		max_scale = 1.1;
+		min_scale = 0.7;
 		levels = 10;
 		discrete_scaling = false;
 
@@ -1053,20 +1053,22 @@ namespace Geex
 			Match_info_item<unsigned int> matcher = match_res.top();
 			if (discrete_scaling)
 			{
-				Match_info_item<unsigned int> best_backup = matcher;
-				while ( matcher.scale*shrink_factor > discrete_factors.back() )
-				{
-					match_res.pop();
-					if (match_res.empty())
-						break;
-					matcher = match_res.top();
-				}	
-				if (match_res.empty())
-				{
-					std::cout<<"No suitable matcher!\n";
-					shrink_factor = discrete_factors.back() / best_backup.scale;
-					matcher = best_backup;
-				}
+				//Match_info_item<unsigned int> best_backup = matcher;
+				//while ( matcher.scale*shrink_factor > discrete_factors.back() )
+				//{
+				//	match_res.pop();
+				//	if (match_res.empty())
+				//		break;
+				//	matcher = match_res.top();
+				//}	
+				//if (match_res.empty())
+				//{
+				//	std::cout<<"No suitable matcher!\n";
+				//	shrink_factor = discrete_factors.back() / best_backup.scale;
+				//	matcher = best_backup;
+				//}
+				if ( matcher.scale * shrink_factor > discrete_factors.back() )
+					shrink_factor = discrete_factors.back() / matcher.scale;
 			}
 			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
 			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
@@ -1107,26 +1109,26 @@ namespace Geex
 		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
 		if (discrete_scaling)
 		{
-			current_factor = 0;
+			current_factor = discrete_factors.size();
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
 				std::vector<double>::iterator closest_it = std::lower_bound(discrete_factors.begin(), discrete_factors.end(), pack_objects[i].factor);
 				if (closest_it == discrete_factors.end())
 					--closest_it;
-				current_factor = std::max<unsigned int>(current_factor, (closest_it - discrete_factors.begin()));
+				current_factor = std::min<unsigned int>(current_factor, (closest_it - discrete_factors.begin()));
 			}
-			for (unsigned int i = 0; i < pack_objects.size(); i++)
-			{
-				std::vector<double>::iterator closest_it = std::lower_bound(discrete_factors.begin(), discrete_factors.end(), pack_objects[i].factor);
-				if (closest_it == discrete_factors.end())
-					pack_objects[i].active = false;
-				else
-				{
-					unsigned int closest_factor = closest_it - discrete_factors.begin();
-					if (closest_factor < current_factor)
-						pack_objects[i].active = false;
-				}
-			}
+			//for (unsigned int i = 0; i < pack_objects.size(); i++)
+			//{
+			//	std::vector<double>::iterator closest_it = std::lower_bound(discrete_factors.begin(), discrete_factors.end(), pack_objects[i].factor);
+			//	if (closest_it == discrete_factors.end())
+			//		pack_objects[i].active = false;
+			//	//else
+			//	//{
+			//	//	unsigned int closest_factor = closest_it - discrete_factors.begin();
+			//	//	if (closest_factor < current_factor)
+			//	//		pack_objects[i].active = false;
+			//	//}
+			//}
 		}
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
