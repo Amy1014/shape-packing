@@ -388,7 +388,7 @@ namespace Geex
 		}
 	}
 
-	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_scale)
+	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs)
 	{
 		const double min_scalor = 1.05;
 		std::vector<Optimization_res> opti_res(pack_objects.size());
@@ -439,22 +439,12 @@ namespace Geex
 		//rpvd.save_triangulation("before_transform.obj");
 		//std::ofstream of("parameters.txt");
 #ifdef _CILK_
-		cilk::reducer_opand<bool> barrier_all_achieved(true);
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
-		bool barrier_all_achieved = true;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{
 			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
-			// restrict scale within the barrier
-			if ( solutions[i].k * pack_objects[i].factor >= barrier_scale && pack_objects[i].active)
-			{
-				solutions[i].k = barrier_scale / pack_objects[i].factor;
-				barrier_all_achieved &= true;
-			}
-			else
-				barrier_all_achieved &= false;
 			transform_one_polygon(i, lfs[i], solutions[i]);
 		}
 		// update facet normal
@@ -472,29 +462,10 @@ namespace Geex
 			fit->n = CGAL::cross_product(v01, v12);
 			fit->n = fit->n / CGAL::sqrt(fit->n.squared_length());
 		}
-		if (!discrete_scaling)
-		{
-			if (enlarge && mink < min_scalor)
-				return NO_MORE_ENLARGEMENT;
-			else
-				return MORE_ENLARGEMENT;
-		}
+		if (enlarge && mink < min_scalor)
+			return NO_MORE_ENLARGEMENT;
 		else
-		{
-			bool baa;
-#ifdef _CILK_
-			baa = barrier_all_achieved.get_value();
-#else
-			baa = barrier_all_achieved;
-#endif
-			if (enlarge && baa)
-				return BARRIER_ALL_ACHIEVED;
-			else if (enlarge && mink < min_scalor && !baa)
-				return BARRIER_PARTIAL_ACHIEVED;
-			else
-				return MORE_ENLARGEMENT;
-		}
-
+			return MORE_ENLARGEMENT;
 	}
 
 	void Packer::transform_one_polygon(unsigned int id, Local_frame& lf, Parameter& param)
@@ -525,52 +496,85 @@ namespace Geex
 		static int times = 0;
 		std::vector<Parameter> solutions(pack_objects.size());
 		std::vector<Local_frame> local_frames(pack_objects.size());
-		double barrier_scale;
-		if (!discrete_scaling)
-			barrier_scale = std::numeric_limits<double>::max();
-		else
-			barrier_scale = discrete_factors[current_factor];
 
 		for (unsigned int i = 0; i < 1; i++)
 		{
 			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
 
-			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames, barrier_scale);
+			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
 
-			if (res == NO_MORE_ENLARGEMENT)
+			if (discrete_scaling) 
 			{
-				stop_update_DT = true;
-				std::cout<<"Caution: Stopped updating iDT\n";
-			}
-			else if ( res == BARRIER_PARTIAL_ACHIEVED ) // go to the next barrier
-			{
-				bool remain_active = false;
-				std::cout<<"Phase barrier achieved.\n";
+				std::vector<bool> barrier_reached(pack_objects.size(), false);
 				for (unsigned int j = 0; j < pack_objects.size(); j++)
 				{
-					if (pack_objects[j].active && pack_objects[j].factor < discrete_factors[current_factor])
+					if (pack_objects[j].active && pack_objects[j].factor >= discrete_factors[current_factor])
 					{
-						if (current_factor == 0)
-							std::cout<<"Tile j is smaller than what specified\n";
-						else
-							pack_objects[j] *= discrete_factors[current_factor-1]/ pack_objects[j].factor;
-						pack_objects[j].active = false;
-					}	
-					remain_active = remain_active || pack_objects[j].active;
+						Parameter p(discrete_factors[current_factor] / pack_objects[j].factor, 0.0, 0.0, 0.0);
+						Local_frame lf = compute_local_frame(pack_objects[j]);
+						transform_one_polygon(j, lf, p);
+						barrier_reached[j] = true;
+					}
+					else if (pack_objects[j].active && pack_objects[j].factor < discrete_factors[current_factor])
+						barrier_reached[j] = false;
 				}
-				current_factor++;
-				if (!remain_active)
+				if (res == NO_MORE_ENLARGEMENT)
 				{
-					std::cout<<"No polygons can be enlarged anymore.\n";
-					stop_update_DT = true;
+					bool any_barrier_reached = false; // if any tile reaches current barrier
+					for (unsigned int j = 0; j < pack_objects.size(); j++)
+						if (pack_objects[j].active)
+						{
+							any_barrier_reached = any_barrier_reached || barrier_reached[j];
+							if (!barrier_reached[j])
+							{
+								pack_objects[j].active = false;
+								if (current_factor == 0)
+									std::cout<<"Tile j is smaller than what specified\n";
+								else
+								{
+									Parameter p(discrete_factors[current_factor-1] / pack_objects[j].factor, 0.0, 0.0, 0.0);
+									Local_frame lf = compute_local_frame(pack_objects[j]);
+									transform_one_polygon(j, lf, p);
+								}
+							}
+						}
+					if (!any_barrier_reached)
+					{
+						std::cout<<"No polygons can be enlarged anymore.\n";
+						stop_update_DT = true;
+					}
+					else
+					{
+						std::cout<<"New barrier scale!\n";
+						current_factor++;
+					}
+					if (current_factor == discrete_factors.size())
+						std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
+				}
+				else
+				{
+					bool all_barrier_reached = true; // if all tiles reached current barrier
+					for (unsigned int j = 0; j < pack_objects.size(); j++)
+						if (pack_objects[j].active)
+							all_barrier_reached = all_barrier_reached && barrier_reached[j];
+					if (all_barrier_reached)
+					{
+						std::cout<<"New barrier scale!\n";
+						current_factor++;
+					}
+					if (current_factor == discrete_factors.size())
+						std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
 				}
 			}
-			else if ( res == BARRIER_ALL_ACHIEVED )
-				current_factor++;
-			if (current_factor==discrete_factors.size())
+			else
 			{
-				std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
+				if (res == NO_MORE_ENLARGEMENT)
+				{
+					stop_update_DT = true;
+					std::cout<<"Caution: Stopped updating iDT\n";
+				}
 			}
+
 			if (!stop_update_DT)
 			{
 				std::cout<<"Start iDT updating...\n";
@@ -582,7 +586,7 @@ namespace Geex
 				std::cout<<"End iDT updating\n";	
 				compute_clipped_VD();
 			}
-
+			
 			if (post_action != NULL)
 				post_action();
 		}
@@ -895,21 +899,6 @@ namespace Geex
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
 
-	void Packer::enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty)
-	{
-		// choose a local frame
-		Local_frame lf;
-		lf.o = pack_objects[id].centroid();
-		lf.w = pack_objects[id].norm(); // assume this vector has already been normalized
-		Vector_3 u(lf.o, pack_objects[id].vertex(0));
-		lf.u = u/CGAL::sqrt(u.squared_length());
-		lf.v = CGAL::cross_product(lf.w, lf.u);
-
-		Parameter p(f, theta, tx, ty);
-
-		transform_one_polygon(id, lf, p);
-	}
-
 	void Packer::curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id)
 	{
 		// approximate curvature at the facet
@@ -917,22 +906,15 @@ namespace Geex
 		double v0_cur = mesh.curvature_at_vertex(f.vertex_index[0]),
 				v1_cur = mesh.curvature_at_vertex(f.vertex_index[1]),
 				v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
-		//std::cout<<v0_cur<<", "<<v1_cur<<", "<<v2_cur<<std::endl;
-		//system("pause");
 		double avg_cur = (v0_cur + v1_cur + v2_cur) / 3.0 /*std::max(v0_cur, v1_cur)*/;
-		//avg_cur = std::max(avg_cur, v2_cur);
 		if (avg_cur == 0.0)
-		{
-			//system("pause");
 			return;
-		}
 		double r = 1.0 / avg_cur;
 		double squared_translation = para.tx * para.tx + para.ty * para.ty;
 		double threshold = (2.0 - epsilon) * epsilon;
 		if (squared_translation > threshold * r * r)
 		{
 			double temp = std::sqrt(threshold)*r/std::sqrt(squared_translation);
-			//std::cout<<"scaler = "<<temp<<std::endl;
 			para.tx *= temp;
 			para.ty *= temp;
 		}
@@ -1032,246 +1014,6 @@ namespace Geex
 		filler.texture_id = match_pgn.texture_id;	
 	}
 
-	void Packer::remove_one_polygon(unsigned int id, Hole& hole, std::set<Facet_handle>& removed_facets)
-	{
-		// build the hole after removing the polygon
-		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
-		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
-		hole.clear();
-		//std::list<Halfedge_handle> halfedge_bd;
-		for (unsigned int i = 0; i < samp_pnts.size(); i++)
-		{
-			Edge_circulator start_edge = samp_pnts[i]->vertex_begin();
-			Edge_circulator current_edge = start_edge;
-			//bool penetration = true;
-			do 
-			{
-				Vertex_handle v_adj = current_edge->opposite()->vertex();
-				if (v_adj->group_id == samp_pnts[i]->group_id)
-				{
-					//penetration = false;
-					break;
-				}
-				++current_edge;
-			} while (current_edge != start_edge);
-			//if (penetration)
-				//std::cout<<"Caution: penetration may happened.! Polygon id: "<<id<<std::endl;
-			start_edge = current_edge;
-			do 
-			{
-				if (current_edge->facet() != Facet_handle() )
-				{
-					//Halfedge_handle opposite_edge = current_edge->prev();
-					//Vertex_handle v0 = opposite_edge->vertex(), v1 = opposite_edge->opposite()->vertex();
-					Vertex_handle v0 = current_edge->prev()->vertex(), v1 = current_edge->next()->vertex();
-					if (v0->group_id != samp_pnts[i]->group_id && v1->group_id != samp_pnts[i]->group_id)
-					{
-						//halfedge_bd.push_back(opposite_edge);
-						//Point_3 src = opposite_edge->vertex()->mp, tgt = opposite_edge->opposite()->vertex()->mp;
-						//Vertex_handle src = opposite_edge->vertex(), tgt = opposite_edge->opposite()->vertex();
-						hole.push_back(std::make_pair(v0, v1));
-					}
-				}
-				++current_edge;
-			} while (current_edge != start_edge);
-		}
-
-		// remove the corresponding triangulation
-		//std::set<Facet_handle> removed_facets;
-		for (unsigned int i = 0; i < samp_pnts.size(); i++)
-		{
-			Edge_circulator start_edge = samp_pnts[i]->vertex_begin();
-			Edge_circulator current_edge = start_edge;	
-			bool border_break = false;
-			do 
-			{
-				if (current_edge->is_border() || current_edge->opposite()->is_border())
-				{
-					border_break = true;
-					break;
-				}
-				Facet_handle f = current_edge->facet();
-				removed_facets.insert(f);
-				++current_edge;
-			} while (current_edge != start_edge);
-			if (border_break)
-			{
-				//std::cout<<"border broken\n";
-				current_edge = start_edge;
-				do 
-				{
-					--current_edge;
-					if (current_edge->is_border() || current_edge->opposite()->is_border())
-					{
-						border_break = true;
-						break;
-					}
-					Facet_handle f = current_edge->facet();
-					removed_facets.insert(f);			
-				} while (current_edge != start_edge);
-			}
-		}
-		//for (std::set<Facet_handle>::iterator it = removed_facets.begin(); it != removed_facets.end(); ++it)
-		//	rpvd.erase_facet((*it)->halfedge());
-		//rpvd.delete_point_group(id);
-	}
-
-	void Packer::remove_polygons()
-	{
-		static unsigned int id = 0;
-		//for (unsigned int id = 0; id < pack_objects.size(); id++) 
-		{
-			holes.push_back(Hole());
-			std::set<Facet_handle> removed_facets;
-			remove_one_polygon(id, holes.back(), removed_facets);
-		}
-
-		id++;
-	}
-
-	bool Packer::replace_one_polygon(unsigned int id, Hole& region, std::set<Facet_handle>& removed_facets)
-	{
-		fill_one_hole(region, pack_objects[id]);
-
-
-		// place the replacing polygon at a better place through optimization
-		Local_frame lf = compute_local_frame(pack_objects[id]);
-		Polygon_2 pgn2d;
-		Plane_3 pln(lf.o, lf.w);
-#if 0
-		for (unsigned int i = 0; i < pack_objects[id].size(); i++)
-			pgn2d.push_back(lf.to_uv(pack_objects[id].vertex(i)));
-		std::vector<Segment_2> hole2d;
-		hole2d.reserve(region.size());
-		for (unsigned int i = 0; i < region.size(); i++)
-		{
-			Point_3 tan_src = pln.projection(region[i].first->mp);
-			Point_3 tan_tgt = pln.projection(region[i].second->mp);
-			hole2d.push_back(Segment_2(lf.to_uv(tan_src), lf.to_uv(tan_tgt)));
-		}
-#ifdef	_CILK_
-		Containment& ctm = containments[id];
-#else
-		Containment& ctm = containment;
-#endif
-		ctm.load_polygons(pgn2d, hole2d);
-		const unsigned int try_time_limit = 10;
-		unsigned int try_times = 1;
-		int knitro_res;
-		Parameter solution;
-		while ( (knitro_res = KTR_optimize(&solution.k, &solution.theta, &solution.tx, &solution.ty, id)) && try_times < try_time_limit )
-		{
-			double r = Numeric::random_float64();
-			solution = Parameter(1.0, (rot_upper_bd-rot_lower_bd)*r+rot_lower_bd, 0.0, 0.0);
-			try_times++;
-		}
-
-		if (try_times != try_time_limit)
-		{
-			transform_one_polygon(id, lf, solution);
-		}
-		lf = compute_local_frame(pack_objects[id]);
-		pln = Plane_3(lf.o, lf.w);
-#endif
-
-		// re-triangulate the region nearby
-		// triangulate the polygon first	
-		//CDT cdt;
-		cdt.clear();
-		// sample the polygon
-		double perimeter = 0.0;
-		std::vector<double> edge_len(pack_objects[id].size());
-		unsigned int nb_polygon_samp = 0; // for debug
-		for ( unsigned int i = 0; i < pack_objects[id].size(); i++ )
-		{
-			Segment_3 e = pack_objects[id].edge(i);
-			edge_len[i] = CGAL::sqrt(e.squared_length());
-			perimeter += edge_len[i];
-		}
-		for ( unsigned int i = 0; i < pack_objects[id].size(); i++ )
-		{
-			Segment_3 e = pack_objects[id].edge(i);
-			unsigned int n = edge_len[i] / perimeter * samp_nb;
-			Point_3 src = e.source(), tgt = e.target();
-			for ( unsigned int j = 0; j < n+1; j++ )
-			{
-				Point_3 p = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) )/(n+1);
-				//p = e.supporting_line().projection(p);
-				vec3 dv;
-				vec3 pp = mesh.project_to_mesh(to_geex_pnt(p), dv);
-				CDT::Vertex_handle vh = cdt.insert(lf.to_uv(pln.projection(p)));
-				vh->geo_info = MyPoint(p, to_cgal_pnt(pp), id);
-				vh->already_exist_in_rdt = false;
-				nb_polygon_samp++;
-			}
-		}
-		// hole boundary segments as constraints
-		std::map<Vertex_handle, CDT::Vertex_handle> hole_bd_pnts;
-		for (unsigned int i = 0; i < region.size(); i++)
-		{
-			Vertex_handle s = region[i].first, t = region[i].second;
-
-			if ( hole_bd_pnts.find(s) == hole_bd_pnts.end() )
-			{
-				CDT::Vertex_handle vh = cdt.insert(lf.to_uv(pln.projection(s->point())));
-				vh->geo_info = MyPoint(s->point(),s->mp, s->group_id);
-				vh->already_exist_in_rdt = true;
-				vh->rdt_handle = s;
-				hole_bd_pnts.insert(std::make_pair(s, vh));
-			}
-			if ( hole_bd_pnts.find(t) == hole_bd_pnts.end() )
-			{
-				CDT::Vertex_handle vh = cdt.insert(lf.to_uv(pln.projection(t->point())));
-				vh->geo_info = MyPoint(t->point(), t->mp, t->group_id);
-				vh->already_exist_in_rdt = true;
-				vh->rdt_handle = t;
-				hole_bd_pnts.insert(std::make_pair(t, vh));
-			}
-		}
-		// add constraints
-		std::vector<Segment_2> hole_edges;
-		hole_edges.reserve(region.size());
-		for (unsigned int i = 0;i < region.size(); i++)
-		{
-			CDT::Vertex_handle sh = hole_bd_pnts[region[i].first];
-			CDT::Vertex_handle th = hole_bd_pnts[region[i].second];
-			hole_edges.push_back(Segment_2(sh->point(), th->point()));
-			cdt.insert_constraint(sh, th);
-		}
-		
-		for (CDT::All_faces_iterator fit = cdt.all_faces_begin(); fit != cdt.all_faces_end(); ++fit)
-		{
-			if (cdt.is_infinite(fit))
-			{
-				fit->inside_hole = false;
-				continue;
-			}
-			CDT::Vertex_handle v[] = {fit->vertex(0), fit->vertex(1), fit->vertex(2)};
-			Point_2 c = CGAL::centroid(v[0]->point(), v[1]->point(), v[2]->point());
-			if (inside_polygon(c, hole_edges))
-				fit->inside_hole = true;
-			else
-				fit->inside_hole = false;
-		}
-		if (cdt.number_of_vertices() != (region.size() + nb_polygon_samp))
-		{
-			std::cout<<"assertion on number relationship failed!\n";
-			std::cout<<"number of vertices in cdt: "<<cdt.number_of_vertices()<<std::endl;
-			std::cout<<"number of vertices in polygons: "<<region.size() + nb_polygon_samp<<std::endl;
-			return false;
-			//system("pause");
-			//exit(0);
-		}
-		else
-		{
-			for (std::set<Facet_handle>::iterator it = removed_facets.begin(); it != removed_facets.end(); ++it)
-				rpvd.erase_facet((*it)->halfedge());
-			rpvd.delete_point_group(id);
-			rpvd.delegate(CDTtoRDT(cdt, mesh, hole_bd_pnts));
-			return true;
-		}
-	}
-
 	void Packer::con_replace()
 	{
 		std::cout<<"Start replacing...\n";
@@ -1305,8 +1047,26 @@ namespace Geex
 				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
 
 			// choose the result with the smallest match error now
-			Match_info_item<unsigned int> matcher = match_res.top();
+			double shrink_factor = 0.6;
 
+			Match_info_item<unsigned int> matcher = match_res.top();
+			if (discrete_scaling)
+			{
+				Match_info_item<unsigned int> best_backup = matcher;
+				while ( matcher.scale*shrink_factor > discrete_factors.back() )
+				{
+					match_res.pop();
+					if (match_res.empty())
+						break;
+					matcher = match_res.top();
+				}	
+				if (match_res.empty())
+				{
+					std::cout<<"No suitable matcher!\n";
+					shrink_factor = discrete_factors.back() / best_backup.scale;
+					matcher = best_backup;
+				}
+			}
 			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
 			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
 
@@ -1326,9 +1086,6 @@ namespace Geex
 			v = approx_normal(fid);
 			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
 
-			double shrink_factor;
-			shrink_factor = 0.6;
-
 			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
 				( Transformation_3(CGAL::SCALING, shrink_factor) *
 				Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
@@ -1347,106 +1104,30 @@ namespace Geex
 		compute_clipped_VD();
 		stop_update_DT = false;
 		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
+		if (discrete_scaling)
+		{
+			current_factor = 0;
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				std::vector<double>::iterator closest_it = std::lower_bound(discrete_factors.begin(), discrete_factors.end(), pack_objects[i].factor);
+				if (closest_it == discrete_factors.end())
+					--closest_it;
+				current_factor = std::max<unsigned int>(current_factor, (closest_it - discrete_factors.begin()));
+			}
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				std::vector<double>::iterator closest_it = std::lower_bound(discrete_factors.begin(), discrete_factors.end(), pack_objects[i].factor);
+				if (closest_it == discrete_factors.end())
+					pack_objects[i].active = false;
+				else
+				{
+					unsigned int closest_factor = closest_it - discrete_factors.begin();
+					if (closest_factor < current_factor)
+						pack_objects[i].active = false;
+				}
+			}
+		}
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
-	}
-	void Packer::ex_replace()
-	{
-		//static unsigned int id = 0;
-		//replace_one_polygon(id, holes.back());
-		//id++;
-		//generate_RDT();
-		//eliminate_penetration();
-		unsigned int id;
-		for ( id = 0; id < pack_objects.size(); id++)
-		{
-			holes.push_back(Hole());
-			backup = pack_objects[id];
-			std::set<Facet_handle> removed_facets;
-			remove_one_polygon(id, holes.back(), removed_facets);
-			if (!replace_one_polygon(id, holes.back(), removed_facets))
-				break;
-		}
-		if (id < pack_objects.size())
-		{
-			pack_objects[id] = backup;
-		}
-	}
-	void Packer::eliminate_penetration()
-	{
-		std::cout<<"Start eliminating penetration\n";
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
-		{
-			// collect neighboring polygons
-			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
-			std::set<unsigned int> nid;
-			for (unsigned int j = 0; j < samp_pnts.size(); j++)
-			{
-				Halfedge_handle e = samp_pnts[j]->halfedge();
-				Halfedge_handle end = e;
-				do
-				{
-					nid.insert(e->opposite()->vertex()->group_id);
-					e = e->next()->opposite();
-				} while ( e != end);
-			}
-			bool penetration_detected = true;
-			while (penetration_detected)
-			{
-				penetration_detected = false;
-				for (std::set<unsigned int>::const_iterator it = nid.begin(); it != nid.end(); ++it)
-					if ( *it != i)
-					{
-						if (pair_penetration(i, *it))
-						{
-							std::cout<<"Penetration or overlap detected!\n";
-							penetration_detected = true;
-							break;
-						}
-					}
-				if (penetration_detected)
-				{
-					Local_frame lf = compute_local_frame(pack_objects[i]);
-					Parameter shrink(0.90, 0.0, 0.0, 0.0);
-					transform_one_polygon(i, lf, shrink);
-					rpvd.iDT_update();
-				}				
-			}
-		}
-		std::cout<<"Eliminating penetration ends.\n";
-	}
-
-	bool Packer::pair_penetration(unsigned int id0, unsigned int id1)
-	{
-		Local_frame lf = compute_local_frame(pack_objects[id0]);
-		Polygon_2 pgn0_2d;
-		std::vector<Point_2> pgn1_2d;
-		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id1);
-		pgn1_2d.reserve(samp_pnts.size());
-		for (unsigned int i = 0; i < pack_objects[id0].size(); i++)
-			pgn0_2d.push_back(lf.to_uv(pack_objects[id0].vertex(i)));
-		Plane_3 pln(lf.o, lf.w);
-		for (unsigned int i = 0; i < samp_pnts.size(); i++)
-			pgn1_2d.push_back(lf.to_uv(pln.projection(samp_pnts[i]->point())));
-		// check whether id1 overlaps with id0
-		for (unsigned int i = 0; i < pgn1_2d.size(); i++)
-		{
-			if (!pgn0_2d.has_on_unbounded_side(pgn1_2d[i]))
-				return true;
-		}
-		return false;
-	}
-	void Packer::save_curvature_and_area()
-	{
-		std::ofstream cur_area_file("cur_area.txt");
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
-		{
-			double pgn_area = pack_objects[i].area();
-			int fid = pack_objects[i].facet_idx;
-			double cur = (mesh.curvature_at_vertex(mesh[fid].vertex_index[0])
-						+ mesh.curvature_at_vertex(mesh[fid].vertex_index[1])
-						+ mesh.curvature_at_vertex(mesh[fid].vertex_index[2]) ) / 3.0;
-			cur_area_file << pgn_area << "\t" << cur<<std::endl;
-		}
 	}
 	void Packer::report()
 	{

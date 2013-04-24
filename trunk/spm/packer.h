@@ -91,8 +91,8 @@ namespace Geex
 
 		// replace
 		void replace();
-		void remove_polygons();
-		void ex_replace(); // extended replace
+		void remove_polygons();// deleted for simplicity, see revision 67
+		void ex_replace(); // extended replace, deleted for simplicity, see revision 67
 		void con_replace(); 
 
 		// discretize
@@ -107,8 +107,8 @@ namespace Geex
 		// debug
 		void rpack(void (*post_action)() = NULL);
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
-		void save_curvature_and_area(); 
-		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty);
+		void save_curvature_and_area(); // deleted for simplicity, see revision 67
+		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty); // deleted for simplicity, see revision 67
 		CDT& get_cdt() {  return cdt; }
 
 		void report();
@@ -134,7 +134,7 @@ namespace Geex
 
 		/** optimization **/
 		// one Lloyd iteration
-		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_scale);
+		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
 
 		static int callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
 							const double * const x,	const double * const lambda, double * const obj, double * const c,
@@ -156,14 +156,15 @@ namespace Geex
 
 		/** replace and hole filling**/
 		// remove one polygon and leave a hole
-		void remove_one_polygon(unsigned int id, Hole& hole, std::set<Facet_handle>& removed_facets);
+		void remove_one_polygon(unsigned int id, Hole& hole, std::set<Facet_handle>& removed_facets); // deleted for simplicity, see revision 67
 		// fill one hole
-		void fill_one_hole(Hole& hl, Packing_object& filler);
+		void fill_one_hole(Hole& hl, Packing_object& filler); 
 
-		bool replace_one_polygon(unsigned int id, Hole& region, std::set<Facet_handle>& removed_facets); 
+		bool replace_one_polygon(unsigned int id, Hole& region, std::set<Facet_handle>& removed_facets); // deleted for simplicity, see revision 67
 
-		void eliminate_penetration();
-		bool pair_penetration(unsigned int id0, unsigned int id1);
+		void eliminate_penetration(); // deleted for simplicity, see revision 67
+
+		bool pair_penetration(unsigned int id0, unsigned int id1); // deleted for simplicity, see revision 67
 
 	private:
 
