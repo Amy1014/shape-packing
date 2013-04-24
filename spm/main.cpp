@@ -21,20 +21,16 @@ namespace Geex {
 	void TW_CALL tw_front_len_get_callback(void*, void*);
 	void TW_CALL tw_front_len_set_callback(const void*, void*);
 	void TW_CALL tw_replace(void*);
-	void TW_CALL tw_enlarge(void*);
+	//void TW_CALL tw_enlarge(void*);
 	void TW_CALL tw_save_triangulation(void*);
-	void TW_CALL tw_save_cur_area(void*);
+	//void TW_CALL tw_save_cur_area(void*);
 	void TW_CALL tw_fill(void*);
-	void TW_CALL tw_remove(void*);
-	void TW_CALL tw_ex_replace(void*);
+	//void TW_CALL tw_remove(void*);
+	//void TW_CALL tw_ex_replace(void*);
 	void TW_CALL tw_con_replace(void *);
 	void TW_CALL tw_pack_next(void*);
 	void TW_CALL tw_report(void*);
 	void TW_CALL tw_discretize_tiles(void*);
-	//void TW_CALL tw_curvature_get_callback(void*, void*);
-	//void TW_CALL tw_curvature_set_callback(const void*, void*);
-	//void TW_CALL tw_dump(void*);
-	//void TW_CALL tw_cluster_detect_holes(void*);
 	
     class SPMApp : public GeexApp 
 	{
@@ -64,13 +60,7 @@ namespace Geex {
 		/** optimization **/
 		void lloyd()
 		{
-			//spm()->lloyd();
-			//spm()->redraw_triangulation();
-			//spm()->redraw_voronoi_cell();
-			//glut_viewer_redraw();
 			spm()->lloyd(&update, false);
-			//spm()->redraw_voronoi_cell();
-			//spm()->redraw_triangulation();
 			glut_viewer_redraw();
 		}
 
@@ -130,28 +120,28 @@ namespace Geex {
 			spm()->replace();
 			post_update();
 		}
-		void remove()
-		{
-			spm()->remove_polygons();
-			spm()->redraw_triangulation();
-		}
-		void ex_replace()
-		{
-			spm()->ex_replace();
-			spm()->redraw_triangulation();
-			glut_viewer_redraw();
-		}
+		//void remove()
+		//{
+		//	spm()->remove_polygons();
+		//	spm()->redraw_triangulation();
+		//}
+		//void ex_replace()
+		//{
+		//	spm()->ex_replace();
+		//	spm()->redraw_triangulation();
+		//	glut_viewer_redraw();
+		//}
 		void con_replace()
 		{
 			spm()->con_replace();
 			post_update();
 		}
-		void enlarge_polygon()
-		{
-			if (enlarge_id >= 0 && enlarge_factor >= 1.0)
-				spm()->enlarge_one_polygon(enlarge_id, enlarge_factor, enlarge_theta, enlarge_tx, enlarge_ty);
-			post_update();
-		}
+		//void enlarge_polygon()
+		//{
+		//	if (enlarge_id >= 0 && enlarge_factor >= 1.0)
+		//		spm()->enlarge_one_polygon(enlarge_id, enlarge_factor, enlarge_theta, enlarge_tx, enlarge_ty);
+		//	post_update();
+		//}
 		void save_triangulation()
 		{
 			spm()->rpvd.save_triangulation("enforced_enlarge.obj");
@@ -160,10 +150,10 @@ namespace Geex {
 		{
 			spm()->start_new_packing();
 		}
-		void save_cur_area()
-		{
-			spm()->save_curvature_and_area();
-		}
+		//void save_cur_area()
+		//{
+		//	spm()->save_curvature_and_area();
+		//}
 
 		void report()
 		{
@@ -225,7 +215,7 @@ namespace Geex {
 
 			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
-			TwAddButton(function_bar, "remove", tw_remove, NULL, "key=R group = 'Replace' ");
+			//TwAddButton(function_bar, "remove", tw_remove, NULL, "key=R group = 'Replace' ");
 			//TwAddButton(function_bar, "ex-replace", tw_ex_replace, NULL, "key=e group = 'Replace' ");
 			TwAddButton(function_bar, "ext-replace", tw_con_replace, NULL, "key = x group = 'Replace' ");
 
@@ -286,28 +276,22 @@ void TW_CALL tw_front_len_get_callback(void *size, void *clientData)
 {
 	spm_app()->front_len_get_callback((double*)size);
 }
-void TW_CALL tw_enlarge(void* clientData)
-{
-	spm_app()->enlarge_polygon();
-}
+//void TW_CALL tw_enlarge(void* clientData)
+//{
+//	spm_app()->enlarge_polygon();
+//}
 void TW_CALL tw_save_triangulation(void* clientData)
 {
 	spm_app()->save_triangulation();
 }
-void TW_CALL tw_save_cur_area( void *clientData ) { spm_app()->save_cur_area(); }
+//void TW_CALL tw_save_cur_area( void *clientData ) { spm_app()->save_cur_area(); }
 void TW_CALL tw_fill( void *clientData ) { spm_app()->fill_holes(); }
-void TW_CALL tw_remove(void* clientData) { spm_app()->remove(); }
-void TW_CALL tw_ex_replace(void *cientData) { spm_app()->ex_replace(); }
+//void TW_CALL tw_remove(void* clientData) { spm_app()->remove(); }
+//void TW_CALL tw_ex_replace(void *cientData) { spm_app()->ex_replace(); }
 void TW_CALL tw_con_replace(void * clientData) { spm_app()->con_replace(); }
 void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
 void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
 void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
-
-////void TW_CALL tw_smooth_normals(void* clientData) { spm_app()->smooth_normals(); }
-//void TW_CALL tw_flip_normals(void* clientData) { spm_app()->flip_normals(); }
-//void TW_CALL tw_dump(void *clientData) { spm_app()->dump(); }
-//void TW_CALL tw_cluster_detect_holes(void* clientData) { spm_app()->cluster_detect_holes(); }
-//void TW_CALL tw_affine_fill(void* clientData) { spm_app()->affine_fill(); }
 }
 
 int main(int argc, char** argv) 
