@@ -494,11 +494,12 @@ namespace Geex
 	void Packer::lloyd(void (*post_action)(), bool enlarge)
 	{
 		static int times = 0;
-		std::vector<Parameter> solutions(pack_objects.size());
-		std::vector<Local_frame> local_frames(pack_objects.size());
 
 		for (unsigned int i = 0; i < 1; i++)
 		{
+			std::vector<Parameter> solutions(pack_objects.size());
+			std::vector<Local_frame> local_frames(pack_objects.size());
+
 			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
 
 			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
@@ -566,7 +567,7 @@ namespace Geex
 						std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
 				}
 			}
-			else
+			else // if no discretization of scale
 			{
 				if (res == NO_MORE_ENLARGEMENT)
 				{

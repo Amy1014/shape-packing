@@ -105,7 +105,6 @@ namespace Geex
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug
-		void rpack(void (*post_action)() = NULL);
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
 		void save_curvature_and_area(); // deleted for simplicity, see revision 67
 		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty); // deleted for simplicity, see revision 67
