@@ -61,7 +61,7 @@ namespace Geex {
 		/** optimization **/
 		void lloyd()
 		{
-			spm()->lloyd(&update, false);
+			spm()->interface_lloyd(&update);
 			glut_viewer_redraw();
 		}
 
