@@ -44,6 +44,8 @@ namespace Geex
 		typedef RestrictedPolygonVoronoiDiagram::Halfedge_handle Halfedge_handle;
 		typedef RestrictedPolygonVoronoiDiagram::Halfedge_iterator Halfedge_iterator;
 
+		class Discrete_barries;
+
 	public:
 
 		typedef std::vector<std::pair<Vertex_handle, Vertex_handle>> Hole; // representing a hole, consisting of non-border edges
@@ -73,10 +75,7 @@ namespace Geex
 
 		static Packer* instance() { return instance_; }
 
-		/** optimization **/
-		void lloyd(void (*post_action)() = NULL, bool enlarge = false);
-
-		void discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
+		void interface_lloyd(void (*post_action)() = NULL);
 
 		/** miscellaneous **/
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
@@ -133,6 +132,11 @@ namespace Geex
 		Local_frame compute_local_frame(const Packing_object& tile);
 
 		/** optimization **/
+		
+		/** optimization **/
+		void lloyd(void (*post_action)() = NULL, bool enlarge = false);
+
+		void discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
 		// one Lloyd iteration
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
 
@@ -164,10 +168,6 @@ namespace Geex
 
 		bool replace_one_polygon(unsigned int id, Hole& region, std::set<Facet_handle>& removed_facets); // deleted for simplicity, see revision 67
 
-		void eliminate_penetration(); // deleted for simplicity, see revision 67
-
-		bool pair_penetration(unsigned int id0, unsigned int id1); // deleted for simplicity, see revision 67
-
 	private:
 
 		static Packer *instance_;
@@ -197,6 +197,7 @@ namespace Geex
 		bool discrete_scaling;
 		std::vector<double> discrete_factors;
 		unsigned int current_factor;
+
 		/** optimization **/
 #ifdef _CILK_
 		std::vector<Containment> containments;
@@ -218,35 +219,41 @@ namespace Geex
 		class Discrete_barriers
 		{
 		public:
-			Discrete_barriers(double min_factor, double max_factor, int levles)
+			Discrete_barriers(double min_factor, double max_factor, int levels) 
 			{
-				discrete_factors.resize(levels+1);
+				grades.resize(levels+1);
 				for (int i = 0; i < levels+1; i++)
-					discrete_factors[i] = ( (levels-i)*min_factor + i*max_factor ) / levels;
-				current_barrier = discrete_factors.begin();
+					grades[i] = ( (levels-i)*min_factor + i*max_factor ) / levels;
+				current_barrier = grades.begin();
 			}
-			bool beyond_range() { return current_barrier == discrete_factors.end(); }
+			bool beyond_range() { return current_barrier == grades.end(); }
 			bool get_current_barrier(double& res)
 			{
 				if (beyond_range())
 					return false;
 				res = *current_barrier;
-				++current_barrier;
+				return true;
+			}
+			void go_to_next_barrier()
+			{
+				if (!beyond_range())
+					++current_barrier;
 			}
 			bool get_prev_barrier(double& res)
 			{
-				if (current_barrier == discrete_factors.begin())
+				if (current_barrier == grades.begin())
 					return false;
 				res = *(current_barrier-1);
+				return true;
 			}
 			void set_current_barrier(double lower_val)
 			{
-				current_barrier = std::lower_bound(discrete_factors.begin(), discrete_factors.end(), lower_val);
+				current_barrier = std::lower_bound(grades.begin(), grades.end(), lower_val);
 			}
 		private:
-			std::vector<double> discrete_factors;
+			std::vector<double> grades;
 			std::vector<double>::iterator current_barrier;
-		};
+		} disc_barr;
 
 		// apply a 2D transformation to a 3D polygon inside the plane where the polygon is embedded
 		struct Apply_transformation

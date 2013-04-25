@@ -55,11 +55,7 @@ namespace Geex
 		inline Parameter operator*(double f)
 		{
 			//return Packer::Parameter(1.0 + (k - 1.0)*f, f*theta, f*tx, f*ty);
-			return Packer::Parameter(k, f*theta, f*tx, f*ty);
-		}
-		inline bool is_identity() const 
-		{
-			return /*k == 1.0 && */theta == 0.0 && tx == 0.0 && ty == 0.0;
+			return Parameter(k, f*theta, f*tx, f*ty);
 		}
 	};
 
@@ -91,6 +87,7 @@ namespace Geex
 		std::vector<Point_2> texture_coord;
 		unsigned int texture_id;
 		bool active;
+		bool reach_barrier;
 		//int group_id;
 	};
 
