@@ -27,9 +27,9 @@ namespace Geex
 
 		sub_pack_id = 0;
 
-		max_scale = 1.1;
-		min_scale = 0.7;
-		levels = 5;
+		max_scale = 1.2;
+		min_scale = 0.3;
+		levels = 10;
 		discrete_scaling = false;
 
 		discrete_factors.resize(levels+1);
@@ -232,9 +232,9 @@ namespace Geex
 		}
 	}
 
-	void Packer::compute_clipped_VD()
+	void Packer::compute_clipped_VD(bool approx)
 	{
-		std::cout<<"Start computing clipped Voronoi region\n";
+		//std::cout<<"Start computing clipped Voronoi region\n";
 		std::vector<Plane_3> tangent_planes;
 		tangent_planes.reserve(pack_objects.size());
 		std::vector<Point_3> ref_pnts;
@@ -246,8 +246,11 @@ namespace Geex
 			tangent_planes.push_back(Plane_3(c, n));
 			ref_pnts.push_back(c);
 		}
-		rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
-		std::cout<<"End computing.\n";
+		if (approx)
+			rpvd.compute_approx_VD(tangent_planes, ref_pnts);
+		else
+			rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
+		//std::cout<<"End computing.\n";
 	}
 
 	void Packer::generate_RDT()
@@ -392,9 +395,9 @@ namespace Geex
 	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs)
 	{
 		double min_scalor;
-		if (discrete_scaling)
-			min_scalor = 1.01;
-		else
+		//if (discrete_scaling)
+		//	min_scalor = 1.01;
+		//else
 			min_scalor = 1.05;
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
@@ -440,6 +443,8 @@ namespace Geex
 			//	constraint_transformation(solutions, lfs, true);
 			//else
 				constraint_transformation(solutions, lfs, false);
+				//if (discrete_scaling)
+				//	constraint_transformation(solutions, lfs, true);
 		//}
 		//rpvd.save_triangulation("before_transform.obj");
 		//std::ofstream of("parameters.txt");
@@ -473,6 +478,70 @@ namespace Geex
 			return MORE_ENLARGEMENT;
 	}
 
+	bool Packer::discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_factor)
+	{
+		std::vector<Optimization_res> opti_res(pack_objects.size());
+#ifdef _CILK_
+		containments.resize(pack_objects.size());
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+#endif
+		{
+			opti_res[i] = optimize_one_polygon(i, lfs[i], solutions[i]);
+			if (!enlarge)
+				solutions[i].k = 1.0;
+		}
+
+		// suppress the inactive and optimization failure ones
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			if (opti_res[i] == SUCCESS && !pack_objects[i].active)
+				solutions[i].k = 1.0;
+			else if (opti_res[i] != SUCCESS)
+			{
+				solutions[i].k = 1.0;
+				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
+			}
+		}
+		constraint_transformation(solutions, lfs, false);
+		double min_factor = 1.01; // to determine convergence
+		std::vector<bool> has_growth_room(pack_objects.size());
+		// check state of each tile
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			if (pack_objects[i].active && pack_objects[i].factor*solutions[i].k > barrier_factor)
+			{
+				solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
+				has_growth_room[i] = false;
+			}
+			else if (pack_objects[i].active() && solutions[k].k < min_factor)
+				has_growth_room[i] = false;
+			else if (pack_objects[i].active() && solutions[k].k >= min_factor)
+				has_growth_room[i] = true;
+			else 
+				has_growth_room[i] = false;
+		}
+#ifdef _CILK_
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+#endif
+		{
+			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
+			transform_one_polygon(i, lfs[i], solutions[i]);
+		}
+
+		bool stay_at_this_barrier = false;
+		for (unsigned int i = 0; i < has_growth_room.size(); i++)
+			stay_at_this_barrier = stay_at_this_barrier || has_growth_room[i];
+
+		if (!enlarge)
+			return false;
+		else
+			return stay_at_this_barrier;
+
+	}
 	void Packer::transform_one_polygon(unsigned int id, Local_frame& lf, Parameter& param)
 	{
 		Apply_transformation t(param, lf);
@@ -511,6 +580,8 @@ namespace Geex
 
 			if (discrete_scaling) 
 			{
+				bool use_appox_VD = false;
+
 				std::vector<bool> barrier_reached(pack_objects.size(), false);
 				for (unsigned int j = 0; j < pack_objects.size(); j++)
 				{
@@ -544,7 +615,7 @@ namespace Geex
 								}
 							}
 						}
-					stop_update_DT = true;
+					//stop_update_DT = true;
 					if (!any_barrier_reached)
 					{
 						std::cout<<"No polygons can be enlarged anymore.\n";
@@ -557,6 +628,7 @@ namespace Geex
 					}
 					if (current_factor == discrete_factors.size())
 						std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
+					use_appox_VD = true;
 				}
 				else
 				{
@@ -572,6 +644,18 @@ namespace Geex
 					if (current_factor == discrete_factors.size())
 						std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
 				}
+				// update idt
+				std::cout<<"Start iDT updating...\n";
+				CGAL::Timer t;
+				t.start();
+				rpvd.iDT_update();
+				t.stop();
+				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
+				std::cout<<"End iDT updating\n";	
+				if (!use_appox_VD)
+					compute_clipped_VD(false);
+				else 
+					compute_clipped_VD(true);
 			}
 			else // if no discretization of scale
 			{
@@ -580,20 +664,114 @@ namespace Geex
 					stop_update_DT = true;
 					std::cout<<"Caution: Stopped updating iDT\n";
 				}
-			}
-
-			if (!stop_update_DT)
-			{
-				std::cout<<"Start iDT updating...\n";
-				CGAL::Timer t;
-				t.start();
-				rpvd.iDT_update();
-				t.stop();
-				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
-				std::cout<<"End iDT updating\n";	
-				compute_clipped_VD();
+				if (!stop_update_DT)
+				{
+					std::cout<<"Start iDT updating...\n";
+					CGAL::Timer t;
+					t.start();
+					rpvd.iDT_update();
+					t.stop();
+					std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
+					std::cout<<"End iDT updating\n";	
+					compute_clipped_VD();
+				}
 			}
 			
+			if (post_action != NULL)
+				post_action();
+		}
+	}
+
+	void Packer::discrete_lloyd(void (*post_action)() = NULL, bool enlarge)
+	{
+		static int times = 0;
+
+		for (unsigned int i = 0; i < 1; i++)
+		{
+			std::vector<Parameter> solutions(pack_objects.size());
+			std::vector<Local_frame> local_frames(pack_objects.size());
+
+			std::cout<<"============ discrete lloyd iteration "<<times++<<" ============\n";
+
+			bool stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames);
+
+			bool use_appox_VD = false;
+
+			std::vector<bool> barrier_reached(pack_objects.size(), false);
+			for (unsigned int j = 0; j < pack_objects.size(); j++)
+			{
+				if (pack_objects[j].active && pack_objects[j].factor >= discrete_factors[current_factor])
+				{
+					Parameter p(discrete_factors[current_factor] / pack_objects[j].factor, 0.0, 0.0, 0.0);
+					Local_frame lf = compute_local_frame(pack_objects[j]);
+					transform_one_polygon(j, lf, p);
+					barrier_reached[j] = true;
+				}
+				else if (pack_objects[j].active && pack_objects[j].factor < discrete_factors[current_factor])
+					barrier_reached[j] = false;
+			}
+			if (res == NO_MORE_ENLARGEMENT)
+			{
+				bool any_barrier_reached = false; // if any tile reaches current barrier
+				for (unsigned int j = 0; j < pack_objects.size(); j++)
+					if (pack_objects[j].active)
+					{
+						any_barrier_reached = any_barrier_reached || barrier_reached[j];
+						if (!barrier_reached[j])
+						{
+							pack_objects[j].active = false;
+							if (current_factor == 0)
+								std::cout<<"Tile j is smaller than what specified\n";
+							else
+							{
+								Parameter p(discrete_factors[current_factor-1] / pack_objects[j].factor, 0.0, 0.0, 0.0);
+								Local_frame lf = compute_local_frame(pack_objects[j]);
+								transform_one_polygon(j, lf, p);
+							}
+						}
+					}
+					//stop_update_DT = true;
+					if (!any_barrier_reached)
+					{
+						std::cout<<"No polygons can be enlarged anymore.\n";
+
+					}
+					else
+					{
+						std::cout<<"New barrier scale!\n";
+						current_factor++;
+					}
+					if (current_factor == discrete_factors.size())
+						std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
+					use_appox_VD = true;
+			}
+			else
+			{
+				bool all_barrier_reached = true; // if all tiles reached current barrier
+				for (unsigned int j = 0; j < pack_objects.size(); j++)
+					if (pack_objects[j].active)
+						all_barrier_reached = all_barrier_reached && barrier_reached[j];
+				if (all_barrier_reached)
+				{
+					std::cout<<"New barrier scale!\n";
+					current_factor++;
+				}
+				if (current_factor == discrete_factors.size())
+					std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
+			}
+			// update idt
+			std::cout<<"Start iDT updating...\n";
+			CGAL::Timer t;
+			t.start();
+			rpvd.iDT_update();
+			t.stop();
+			std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
+			std::cout<<"End iDT updating\n";	
+			if (!use_appox_VD)
+				compute_clipped_VD(false);
+			else 
+				compute_clipped_VD(true);
+
 			if (post_action != NULL)
 				post_action();
 		}
@@ -1054,7 +1232,7 @@ namespace Geex
 				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
 
 			// choose the result with the smallest match error now
-			double shrink_factor = 0.6;
+			double shrink_factor = 0.8;
 
 			Match_info_item<unsigned int> matcher = match_res.top();
 			if (discrete_scaling)
@@ -1205,6 +1383,35 @@ namespace Geex
 		compute_clipped_VD();
 		stop_update_DT = false;
 		print_area_coverage();
+	}
+
+	void Packer::save_tiles()
+	{
+		std::ofstream ofile("packed_tiles.obj");
+		unsigned int vtx_idx = 1;
+		std::vector<std::vector<unsigned int>> global_vtx_idx;
+		global_vtx_idx.reserve(pack_objects.size());
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			global_vtx_idx.push_back(std::vector<unsigned int>());
+			global_vtx_idx.back().reserve(pack_objects[i].size());
+			for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+			{
+				Point_3 v = pack_objects[i].vertex(j);
+				ofile<<"v "<<v.x()<<' '<<v.y()<<' '<<v.z()<<std::endl;
+				global_vtx_idx.back().push_back(vtx_idx);
+				vtx_idx++;
+			}
+		}
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			//ofile<<"f ";
+			//for (std::list<unsigned int>::const_iterator it = global_vtx_idx[i].begin(); it != global_vtx_idx[i].end(); ++it)
+			//	ofile<<*it<<' ';
+			for (unsigned int j = 1; j < pack_objects[i].size()-1; j++)
+				ofile<<"f "<<global_vtx_idx[i][0]<<' '<<global_vtx_idx[i][j]<<' '<<global_vtx_idx[i][j+1]<<std::endl;
+			ofile<<std::endl;
+		}
 	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
 	{

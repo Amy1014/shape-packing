@@ -31,6 +31,7 @@ namespace Geex {
 	void TW_CALL tw_pack_next(void*);
 	void TW_CALL tw_report(void*);
 	void TW_CALL tw_discretize_tiles(void*);
+	void TW_CALL tw_save_tiles(void *);
 	
     class SPMApp : public GeexApp 
 	{
@@ -166,6 +167,11 @@ namespace Geex {
 			glut_viewer_redraw();
 		}
 
+		void save_tiles()
+		{
+			spm()->save_tiles();
+		}
+
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -232,7 +238,8 @@ namespace Geex {
 			//TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
 			//TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
 			//TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
-
+			
+			TwAddButton(function_bar, "save tiles", tw_save_tiles, NULL, "key=S group='File'");
 			toggle_skybox_CB() ;
             glut_viewer_add_toggle('b', glut_viewer_is_enabled_ptr(GLUT_VIEWER_BACKGROUND), "switch Color/BW") ;
             glut_viewer_add_toggle('T', &viewer_properties_->visible(), "viewer properties") ;
@@ -286,12 +293,11 @@ void TW_CALL tw_save_triangulation(void* clientData)
 }
 //void TW_CALL tw_save_cur_area( void *clientData ) { spm_app()->save_cur_area(); }
 void TW_CALL tw_fill( void *clientData ) { spm_app()->fill_holes(); }
-//void TW_CALL tw_remove(void* clientData) { spm_app()->remove(); }
-//void TW_CALL tw_ex_replace(void *cientData) { spm_app()->ex_replace(); }
 void TW_CALL tw_con_replace(void * clientData) { spm_app()->con_replace(); }
 void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
 void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
 void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
+void TW_CALL tw_save_tiles(void* clientData) { spm_app()->save_tiles(); }
 }
 
 int main(int argc, char** argv) 
