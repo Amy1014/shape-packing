@@ -44,9 +44,6 @@ namespace Geex
 		typedef RestrictedPolygonVoronoiDiagram::Halfedge_handle Halfedge_handle;
 		typedef RestrictedPolygonVoronoiDiagram::Halfedge_iterator Halfedge_iterator;
 
-		struct Local_frame;
-		struct Parameter;
-		
 	public:
 
 		typedef std::vector<std::pair<Vertex_handle, Vertex_handle>> Hole; // representing a hole, consisting of non-border edges
@@ -79,10 +76,14 @@ namespace Geex
 		/** optimization **/
 		void lloyd(void (*post_action)() = NULL, bool enlarge = false);
 
+		void discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
+
 		/** miscellaneous **/
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
 
 		void print_area_coverage();
+
+		void save_tiles();
 
 		// hole detection
 		void detect_holes();
@@ -125,7 +126,7 @@ namespace Geex
 		/** geometry **/
 		void generate_RDT();
 
-		void compute_clipped_VD();
+		void compute_clipped_VD(bool approx = false);
 
 		vec3 approx_normal(unsigned int facet_idx);
 		
@@ -134,6 +135,8 @@ namespace Geex
 		/** optimization **/
 		// one Lloyd iteration
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
+
+		bool discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_factor);
 
 		static int callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
 							const double * const x,	const double * const lambda, double * const obj, double * const c,
@@ -211,60 +214,38 @@ namespace Geex
 
 		/** helper classes **/
 	private:
-		struct Local_frame // represent a local frame for which a transformation is effective
-		{
-			Vector_3 u;
-			Vector_3 v;
-			Vector_3 w;
-			Point_3 o;
-			inline Point_2 to_uv(const Point_3& p) const
-			{
-				Vector_3 op(o, p);
-				return Point_2(op*u, op*v);
-			}
-			inline Segment_2 to_uv(const Segment_3& s) const 
-			{
-				return Segment_2(to_uv(s.source()), to_uv(s.target()));
-			}
-			inline Point_3 to_xy(const Point_2& p) const
-			{
-				return o + ( p.x()*u + p.y()*v );
-			}
-		};
 
-		struct Parameter // represent a 2D transformation parameter
+		class Discrete_barriers
 		{
-			double k;
-			double theta;
-			double tx;
-			double ty;
-			Parameter(void): k(1.0), theta(0.0), tx(0.0), ty(0.0) {}
-			Parameter(double _k, double _theta, double _tx, double _ty) : k(_k), theta(_theta), tx(_tx), ty(_ty) {}
-			Parameter& operator*=(double f)
+		public:
+			Discrete_barriers(double min_factor, double max_factor, int levles)
 			{
-				//k = std::max(f*k, 1.0); 
-				//k = 1.0 + (k - 1.0)*f;
-				theta *= f;	tx *= f; ty *= f;
-				return *this;
+				discrete_factors.resize(levels+1);
+				for (int i = 0; i < levels+1; i++)
+					discrete_factors[i] = ( (levels-i)*min_factor + i*max_factor ) / levels;
+				current_barrier = discrete_factors.begin();
 			}
-			// compute the remaining transformation after applying transformation p
-			Parameter& operator-=(const Parameter& p)
+			bool beyond_range() { return current_barrier == discrete_factors.end(); }
+			bool get_current_barrier(double& res)
 			{
-				k /= p.k;
-				theta -= p.theta;
-				tx -= p.tx;
-				ty -= p.ty;
-				return *this;
+				if (beyond_range())
+					return false;
+				res = *current_barrier;
+				++current_barrier;
 			}
-			inline Parameter operator*(double f)
+			bool get_prev_barrier(double& res)
 			{
-				//return Packer::Parameter(1.0 + (k - 1.0)*f, f*theta, f*tx, f*ty);
-				return Packer::Parameter(k, f*theta, f*tx, f*ty);
+				if (current_barrier == discrete_factors.begin())
+					return false;
+				res = *(current_barrier-1);
 			}
-			inline bool is_identity() const 
+			void set_current_barrier(double lower_val)
 			{
-				return /*k == 1.0 && */theta == 0.0 && tx == 0.0 && ty == 0.0;
+				current_barrier = std::lower_bound(discrete_factors.begin(), discrete_factors.end(), lower_val);
 			}
+		private:
+			std::vector<double> discrete_factors;
+			std::vector<double>::iterator current_barrier;
 		};
 
 		// apply a 2D transformation to a 3D polygon inside the plane where the polygon is embedded
@@ -303,7 +284,7 @@ namespace Geex
 		RestrictedPolygonVoronoiDiagram rpvd;
 		CDT cdt;
 		//std::vector<Local_frame> local_frames;
-		Packing_object backup;
+		//Packing_object backup;
 		std::vector<std::vector<Packing_object>> res_pack_objects;
 	};
 

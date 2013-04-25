@@ -428,7 +428,7 @@ namespace Geex
 		glDisable(GL_LIGHTING);
 		//glColor3f(0.0f, 0.0f, 1.0f);
 		
-		for (unsigned int i = holes.size()-1; i < holes.size(); i++)
+		for (unsigned int i = 0; i < holes.size(); i++)
 		{
 			Packer::Hole h = holes[i];
 			//gl_table_color(i);
