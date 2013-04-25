@@ -29,7 +29,7 @@ namespace Geex
 
 		max_scale = 1.1;
 		min_scale = 0.7;
-		levels = 10;
+		levels = 5;
 		discrete_scaling = false;
 
 		discrete_factors.resize(levels+1);
@@ -367,7 +367,8 @@ namespace Geex
 						ctm.const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), Segment_2(s2, t2)));
 					}
 				}
-			}
+			}	
+	
 
 		const unsigned int try_time_limit = 10;
 		unsigned int try_times = 1;
@@ -390,7 +391,11 @@ namespace Geex
 
 	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs)
 	{
-		const double min_scalor = 1.05;
+		double min_scalor;
+		if (discrete_scaling)
+			min_scalor = 1.01;
+		else
+			min_scalor = 1.05;
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
 		containments.resize(pack_objects.size());
@@ -539,10 +544,11 @@ namespace Geex
 								}
 							}
 						}
+					stop_update_DT = true;
 					if (!any_barrier_reached)
 					{
 						std::cout<<"No polygons can be enlarged anymore.\n";
-						stop_update_DT = true;
+						
 					}
 					else
 					{
