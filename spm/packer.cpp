@@ -6,7 +6,7 @@ namespace Geex
 
 	double Packer::PI = 3.141592653589793;
 
-	Packer::Packer() : phy_disc_barr(0.93, 1.05, 10), opt_disc_barr(0.8, 1.0 , 10), disc_barr(phy_disc_barr, opt_disc_barr)
+	Packer::Packer() /*: phy_disc_barr(0.3, 1.2, 10), opt_disc_barr(0.2, 1.1 , 10), disc_barr(phy_disc_barr, opt_disc_barr)*/
 	{
 		assert( instance_ == nil );
 		instance_ = this;
@@ -29,20 +29,16 @@ namespace Geex
 
 		//max_scale = 1.2;
 		//min_scale = 0.3;
-		max_scale = disc_barr.get_max();
-		min_scale = disc_barr.get_min();
-		levels = 20;
+
 		discrete_scaling = false;
 
-		discrete_factors.resize(levels+1);
-		for (int i = 0; i < levels+1; i++)
-			discrete_factors[i] = ( (levels-i)*min_scale + i*max_scale ) / levels;
-		current_factor = 0;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
 	{
+		std::cout<<"loading project...\n";
 		pio.load_project(prj_config_file);
+		std::cout<<"project loaded.\n";
 		if (pio.mesh_polygon_coupled())
 		{
 			std::cout<<"reading pairs of polygons and meshes...\n";
@@ -65,6 +61,20 @@ namespace Geex
 				pio>>mesh_segments;
 			}
 		}
+		double min_val, max_val;
+		int nb_levels;
+		pio.read_physical_scales(min_val, max_val, nb_levels);
+		phy_disc_barr.set(min_val, max_val, nb_levels);
+		std::cout<<"Physical: < "<<min_val<<", "<<max_val<<", "<<nb_levels<<'>'<<std::endl;
+		pio.read_optimize_scales(min_val, max_val, nb_levels);
+		opt_disc_barr.set(min_val, max_val, nb_levels);
+		std::cout<<"Optimization: < "<<min_val<<", "<<max_val<<", "<<nb_levels<<'>'<<std::endl;
+
+		disc_barr.set(phy_disc_barr, opt_disc_barr);
+
+		max_scale = disc_barr.get_max();
+		min_scale = disc_barr.get_min();
+		levels = disc_barr.nb_levels();
 	}
 
 	void Packer::pack_next_submesh() // start a new packing process
@@ -574,6 +584,149 @@ namespace Geex
 			return stay_at_this_barrier;
 
 	}
+
+	void Packer::split_large_tiles()
+	{
+		std::set<unsigned int> indices_to_split;
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			if ( disc_barr.beyond_range() && pack_objects[i].reach_barrier )
+				indices_to_split.insert(i);
+		}
+		split(indices_to_split);
+	}
+	void Packer::split(std::set<unsigned int>& tile_indices)
+	{
+		std::cout<<"Start splitting...\n";
+		if (tile_indices.size() == 0)
+		{
+			std::cout<<"Nothing to split.\n";
+			return;
+		}
+		std::vector<Packing_object> new_tile_set;
+		new_tile_set.reserve(tile_indices.size()*2 + pack_objects.size());
+		unsigned int split_nb = 0;
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			if (tile_indices.find(i) != tile_indices.end()) // this tile needs splitting
+			{
+				split_nb++;
+				std::vector<Point_3>& smoothed_vd_region = rpvd.get_smoothed_voronoi_regions().at(i);
+				Point_3 c = CGAL::centroid(smoothed_vd_region.begin(), smoothed_vd_region.end(), CGAL::Dimension_tag<0>());
+				Local_frame lf = compute_local_frame(pack_objects[i]);
+				std::vector<Point_2> vd_region_2d(smoothed_vd_region.size());
+				for (unsigned int j = 0; j < smoothed_vd_region.size(); j++)
+					vd_region_2d[j] = lf.to_uv(smoothed_vd_region[j]);
+				Point_2 c_2d = lf.to_uv(c);
+				unsigned int min_idx;
+				double min_dist = std::numeric_limits<double>::max();
+				for (unsigned int j = 0; j < vd_region_2d.size(); j++)
+				{
+					Point_2 midp = CGAL::midpoint(vd_region_2d[j], vd_region_2d[(j+1)%vd_region_2d.size()]);
+					double dist = CGAL::squared_distance(midp, c_2d);
+					if (dist < min_dist)
+					{
+						min_idx = j;
+						min_dist = dist;
+					}
+				}
+				Point_2 end_pnt0 = CGAL::midpoint(vd_region_2d[min_idx], vd_region_2d[(min_idx+1)%vd_region_2d.size()]), end_pnt1(1.0e20, 1.0e20);
+				Line_2 sep_ln(c_2d, end_pnt0);
+				for (unsigned int j = 0; j < vd_region_2d.size(); j++)
+				{
+					if (j == min_idx)
+						continue;
+					Segment_2 edge(vd_region_2d[j], vd_region_2d[(j+1)%vd_region_2d.size()]);
+					if (CGAL::do_intersect(sep_ln, edge))
+					{
+						CGAL::Object o = CGAL::intersection(sep_ln, edge);
+						if ( const Point_2 *inter_pnt = CGAL::object_cast<Point_2>(&o))
+							end_pnt1 = *inter_pnt;
+					}
+				}
+				if (end_pnt1 == Point_2(1.0e20, 1.0e20))
+					prompt_and_exit("No intersection with the opposite edge.");
+
+				std::vector<Point_2> sep_pnts[2];
+				for (unsigned int j = 0; j < vd_region_2d.size(); j++)
+				{
+					if (sep_ln.has_on_negative_side(vd_region_2d[j]))
+						sep_pnts[0].push_back(vd_region_2d[j]);
+					else
+						sep_pnts[1].push_back(vd_region_2d[j]);
+				}
+				sep_pnts[0].push_back(end_pnt0);
+				sep_pnts[0].push_back(end_pnt1);
+				sep_pnts[1].push_back(end_pnt0);
+				sep_pnts[1].push_back(end_pnt1);
+				for (int k = 0; k < 2; k++)
+				{
+					std::vector<Point_2> con_region_pnts;
+					CGAL::ch_graham_andrew(sep_pnts[k].begin(), sep_pnts[k].end(), std::back_insert_iterator<std::vector<Point_2>>(con_region_pnts));
+					// fill the left
+					std::vector<Segment_2> closed_region;
+					closed_region.reserve(con_region_pnts.size());
+					for (unsigned int j = 0; j < con_region_pnts.size(); j++)
+						closed_region.push_back(Segment_2(con_region_pnts[j], con_region_pnts[(j+1)%con_region_pnts.size()]));
+					Polygon_matcher pm(closed_region, 200);
+					std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
+					for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+						match_res.push(pm.affine_match(pgn_lib[idx], idx, 0.0));
+
+					double shrink_factor = 0.6;
+					Match_info_item<unsigned int> matcher = match_res.top();
+					if ( matcher.scale * shrink_factor > disc_barr.get_max() )
+						shrink_factor = disc_barr.get_max() / matcher.scale;
+					const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
+					Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
+
+					Packing_object new_tile;
+
+					for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+					{
+						Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+						new_tile.push_back(p);
+					}
+
+					Point_3 new_c = new_tile.centroid();
+					vec3 v;
+					int fid;
+					vec3 prjp = mesh.project_to_mesh(to_geex_pnt(new_c), v, fid);
+
+					v = approx_normal(fid);
+					new_tile.align(to_cgal_vec(v), to_cgal_pnt(prjp));
+
+					Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
+																( Transformation_3(CGAL::SCALING, shrink_factor) *
+																	Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
+
+					std::transform(new_tile.vertices_begin(), new_tile.vertices_end(), new_tile.vertices_begin(), rescalor);
+					//
+					new_tile.lib_idx = matcher.val;
+					new_tile.factor = matcher.scale*shrink_factor;
+					new_tile.facet_idx = fid;
+					new_tile.texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
+					new_tile.texture_id = match_pgn.texture_id;
+					new_tile_set.push_back(new_tile);
+				}
+			}
+			else
+				new_tile_set.push_back(pack_objects[i]);
+		}
+		pack_objects.clear();
+		pack_objects.reserve(new_tile_set.size());
+		std::copy(new_tile_set.begin(), new_tile_set.end(), std::back_insert_iterator<std::vector<Packing_object>>(pack_objects));
+		generate_RDT();
+		compute_clipped_VD();
+		stop_update_DT = false;
+		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
+		double min_size = std::numeric_limits<double>::max();
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+			min_size = std::min(pack_objects[i].factor, min_size);
+		disc_barr.set_current_barrier(min_size);
+		std::cout<<"End splitting."<<split_nb<<" tiles are split.\n";
+	}
+
 	void Packer::transform_one_polygon(unsigned int id, Local_frame& lf, Parameter& param)
 	{
 		Apply_transformation t(param, lf);
@@ -609,74 +762,13 @@ namespace Geex
 			std::cout<<"============ lloyd iteration "<<times++<<" ============\n";
 
 			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
-
-			if (discrete_scaling) 
+			if (res == NO_MORE_ENLARGEMENT)
 			{
-				bool use_appox_VD = false;
-
-				std::vector<bool> barrier_reached(pack_objects.size(), false);
-				for (unsigned int j = 0; j < pack_objects.size(); j++)
-				{
-					if (pack_objects[j].active && pack_objects[j].factor >= discrete_factors[current_factor])
-					{
-						Parameter p(discrete_factors[current_factor] / pack_objects[j].factor, 0.0, 0.0, 0.0);
-						Local_frame lf = compute_local_frame(pack_objects[j]);
-						transform_one_polygon(j, lf, p);
-						barrier_reached[j] = true;
-					}
-					else if (pack_objects[j].active && pack_objects[j].factor < discrete_factors[current_factor])
-						barrier_reached[j] = false;
-				}
-				if (res == NO_MORE_ENLARGEMENT)
-				{
-					bool any_barrier_reached = false; // if any tile reaches current barrier
-					for (unsigned int j = 0; j < pack_objects.size(); j++)
-						if (pack_objects[j].active)
-						{
-							any_barrier_reached = any_barrier_reached || barrier_reached[j];
-							if (!barrier_reached[j])
-							{
-								pack_objects[j].active = false;
-								if (current_factor == 0)
-									std::cout<<"Tile j is smaller than what specified\n";
-								else
-								{
-									Parameter p(discrete_factors[current_factor-1] / pack_objects[j].factor, 0.0, 0.0, 0.0);
-									Local_frame lf = compute_local_frame(pack_objects[j]);
-									transform_one_polygon(j, lf, p);
-								}
-							}
-						}
-					//stop_update_DT = true;
-					if (!any_barrier_reached)
-					{
-						std::cout<<"No polygons can be enlarged anymore.\n";
-						
-					}
-					else
-					{
-						std::cout<<"New barrier scale!\n";
-						current_factor++;
-					}
-					if (current_factor == discrete_factors.size())
-						std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
-					use_appox_VD = true;
-				}
-				else
-				{
-					bool all_barrier_reached = true; // if all tiles reached current barrier
-					for (unsigned int j = 0; j < pack_objects.size(); j++)
-						if (pack_objects[j].active)
-							all_barrier_reached = all_barrier_reached && barrier_reached[j];
-					if (all_barrier_reached)
-					{
-						std::cout<<"New barrier scale!\n";
-						current_factor++;
-					}
-					if (current_factor == discrete_factors.size())
-						std::cout<<"!!!!!! Maximum discrete factor achieved! Polygons cannot be enlarged.\n";
-				}
-				// update idt
+				stop_update_DT = true;
+				std::cout<<"Caution: Stopped updating iDT\n";
+			}
+			if (!stop_update_DT)
+			{
 				std::cout<<"Start iDT updating...\n";
 				CGAL::Timer t;
 				t.start();
@@ -684,31 +776,10 @@ namespace Geex
 				t.stop();
 				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
 				std::cout<<"End iDT updating\n";	
-				if (!use_appox_VD)
-					compute_clipped_VD(false);
-				else 
-					compute_clipped_VD(true);
-			}
-			else // if no discretization of scale
-			{
-				if (res == NO_MORE_ENLARGEMENT)
-				{
-					stop_update_DT = true;
-					std::cout<<"Caution: Stopped updating iDT\n";
-				}
-				if (!stop_update_DT)
-				{
-					std::cout<<"Start iDT updating...\n";
-					CGAL::Timer t;
-					t.start();
-					rpvd.iDT_update();
-					t.stop();
-					std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
-					std::cout<<"End iDT updating\n";	
-					compute_clipped_VD();
-				}
+				compute_clipped_VD();
 			}
 			
+		
 			if (post_action != NULL)
 				post_action();
 		}
@@ -1259,8 +1330,8 @@ namespace Geex
 				//	shrink_factor = discrete_factors.back() / best_backup.scale;
 				//	matcher = best_backup;
 				//}
-				if ( matcher.scale * shrink_factor > discrete_factors.back() )
-					shrink_factor = discrete_factors.back() / matcher.scale;
+				if ( matcher.scale * shrink_factor > disc_barr.get_max() )
+					shrink_factor = disc_barr.get_max() / matcher.scale;
 			}
 			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
 			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);

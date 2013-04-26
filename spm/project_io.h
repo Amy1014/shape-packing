@@ -65,6 +65,9 @@ public:
 	// read all texture files in one single directory
 	void read_texture_files(std::vector<std::string>& texture_files);
 	void read_texture_files(std::vector<std::vector<std::string>>& texture_files_set);
+
+	bool read_physical_scales(double& min_scale, double& max_scale, int& levels);
+	bool read_optimize_scales(double& min_scale, double& max_scale, int& levels);
 	// read triangle mesh
 	ProjectIO& operator>>(TriMesh& mesh);
 	ProjectIO& operator>>(std::vector<TriMesh>& multimesh);

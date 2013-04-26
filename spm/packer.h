@@ -101,7 +101,7 @@ namespace Geex
 		double& min_scale_factor() { return min_scale; }
 		int& discrete_levels() { return levels; }
 		bool& discrete_scale() { return discrete_scaling; }
-
+		void split_large_tiles();
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug
@@ -137,6 +137,9 @@ namespace Geex
 		void lloyd(void (*post_action)() = NULL, bool enlarge = false);
 
 		void discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
+
+		void split(std::set<unsigned int>& indices);
+
 		// one Lloyd iteration
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
 
@@ -195,8 +198,6 @@ namespace Geex
 		double min_scale;
 		int levels;
 		bool discrete_scaling;
-		std::vector<double> discrete_factors;
-		unsigned int current_factor;
 
 		/** optimization **/
 #ifdef _CILK_
@@ -219,17 +220,26 @@ namespace Geex
 		class Discrete_barriers
 		{
 		public:
+			Discrete_barriers() {}
 			Discrete_barriers(double min_factor, double max_factor, int levels) 
+			{
+				set(min_factor, max_factor, levels);
+			}
+			Discrete_barriers(const Discrete_barriers& barriers0, const Discrete_barriers& barriers1)
+			{
+				set(barriers0, barriers1);
+			}
+			void set(double min_factor, double max_factor, int levels)
 			{
 				grades.resize(levels+1);
 				for (int i = 0; i < levels+1; i++)
 					grades[i] = ( (levels-i)*min_factor + i*max_factor ) / levels;
 				current_barrier = grades.begin();
 			}
-			Discrete_barriers(const Discrete_barriers& barriers0, const Discrete_barriers& barriers1)
+			void set(const Discrete_barriers& barriers0, const Discrete_barriers& barriers1)
 			{
 				std::merge(barriers0.grades.begin(), barriers0.grades.end(), barriers1.grades.begin(), barriers1.grades.end(), 
-						std::back_insert_iterator<std::vector<double>>(this->grades));
+					std::back_insert_iterator<std::vector<double>>(this->grades));
 				std::vector<double>::iterator it = std::unique(this->grades.begin(), this->grades.end());
 				this->grades.resize(std::distance(this->grades.begin(), it));
 				current_barrier = this->grades.begin();
@@ -260,6 +270,7 @@ namespace Geex
 			}
 			inline double get_min() const { return grades.front(); }
 			inline double get_max() const { return grades.back(); }
+			inline unsigned int nb_levels() const { return grades.size(); }
 		private:
 			std::vector<double> grades;
 			std::vector<double>::iterator current_barrier;

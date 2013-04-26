@@ -32,6 +32,7 @@ namespace Geex {
 	void TW_CALL tw_report(void*);
 	void TW_CALL tw_discretize_tiles(void*);
 	void TW_CALL tw_save_tiles(void *);
+	void TW_CALL tw_split(void*);
 	
     class SPMApp : public GeexApp 
 	{
@@ -48,6 +49,9 @@ namespace Geex {
 			enlarge_theta = 0.0;
 			enlarge_tx = 0.0;
 			enlarge_ty = 0.0;
+
+			lloyd_iter_times = 1;
+			pack_iter_times = 1;
        }
 
         SPM* spm() { return static_cast<SPM*>(scene()) ; }
@@ -61,8 +65,12 @@ namespace Geex {
 		/** optimization **/
 		void lloyd()
 		{
-			spm()->interface_lloyd(&update);
-			glut_viewer_redraw();
+			for (int i = 0; i < lloyd_iter_times; i++)
+			{
+				spm()->interface_lloyd(&update);
+				glut_viewer_redraw();
+			}
+
 		}
 
 		void post_update()
@@ -75,7 +83,8 @@ namespace Geex {
 		void pack()
 		{
 			//spm()->pack(&update);
-			spm()->pack(&update);
+			for (int i = 0; i < pack_iter_times; i++)
+				spm()->pack(&update);
 		}
 
 		void idt_update()
@@ -172,6 +181,12 @@ namespace Geex {
 			spm()->save_tiles();
 		}
 
+		void split()
+		{
+			spm()->split_large_tiles();
+			post_update();
+			glut_viewer_redraw();
+		}
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -198,7 +213,7 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Local frame", TW_TYPE_BOOL8, &spm()->show_local_frame(), "group = 'Debug' ");
 			TwAddVarRW(graphics_bar, "CDT", TW_TYPE_BOOL8, &spm()->show_cdt(), "group = 'Debug' ");
 
-			TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "group = 'Geometry' ");
+			//TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Holes", TW_TYPE_BOOL8, &spm()->show_holes(), "group = 'Geometry' ");
 			
 			if (spm()->contain_multi_packing())
@@ -209,7 +224,9 @@ namespace Geex {
 
 			TwBar* function_bar = TwNewBar("Functions");
 			TwDefine("Functions position='16 320' size='200 400' alpha=200");
+			TwAddVarRW(function_bar, "Lloyd Iter", TW_TYPE_INT32, &lloyd_iter_times, "min=1 group = 'Optimization' ");
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l group = 'Optimization' ");
+			TwAddVarRW(function_bar, "Pack Iter", TW_TYPE_INT32, &pack_iter_times, "min=1 group = 'Optimization'");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
 			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
 			TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
@@ -235,6 +252,7 @@ namespace Geex {
 			TwAddVarRW(function_bar, "Levels", TW_TYPE_INT32, &spm()->discrete_levels(), "min=1 group = 'Discretize' ");
 			TwAddButton(function_bar, "Discretize Tiles", tw_discretize_tiles, NULL, "key=d group = 'Discretize' ");
 			TwAddVarRW(function_bar, "Discrete Scale", TW_TYPE_BOOL8, &spm()->discrete_scale(), "group = 'Discretize'");
+			TwAddButton(function_bar, "Split", tw_split, NULL, "key=s group = 'Discretize' ");
 			//TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
 			//TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
 			//TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
@@ -247,7 +265,8 @@ namespace Geex {
 
     private:
 		std::string prj_config_file;
-
+		int lloyd_iter_times;
+		int pack_iter_times;
 		//debug
 		int enlarge_id;
 		double enlarge_factor;
@@ -298,6 +317,7 @@ void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
 void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
 void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
 void TW_CALL tw_save_tiles(void* clientData) { spm_app()->save_tiles(); }
+void TW_CALL tw_split(void *clietData) { spm_app()->split(); }
 }
 
 int main(int argc, char** argv) 
