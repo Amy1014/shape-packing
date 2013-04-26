@@ -356,6 +356,128 @@ namespace Geex
 		}
 		std::cout<<"Number of lost facets (due to wrong RDT): "<<nb_lost_facets<<std::endl;
 	}
+
+	void RestrictedPolygonVoronoiDiagram::compute_mixed_VD(std::vector<Plane_3>& clipping_planes, std::vector<Point_3>& ref_pnts, std::vector<bool>& use_approx)
+	{
+		if (nb_groups == 0)
+			return;
+		assert(clipping_planes.size() == nb_groups);
+		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != rdt_ds.vertices_end(); ++vit)
+		{
+			vit->vd_vertices.clear();
+			vit->contain_non_delaunay_facet = false;
+			vit->penetration = true;
+		}
+		int nb_lost_facets = 0;
+		smoothed_VD_regions.resize(nb_groups);
+		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
+		for (unsigned int i = 0; i < nb_groups; i++)
+		{
+			const VertGroup& vg = samp_pnts[i];
+			const Plane_3& pln = clipping_planes[i];
+			smoothed_VD_regions[i].clear();
+
+			for (unsigned int j = 0; j < vg.size(); j++)
+			{
+				std::vector<bool> is_triple_pnt;
+				Edge_circulator start_edge = vg[j]->vertex_begin();
+				Edge_circulator current_edge = start_edge;
+				do 
+				{
+					Vertex_handle v_pre = current_edge->prev()->vertex();
+					if ( v_pre->group_id == vg[j]->group_id)
+					{
+						vg[j]->penetration = false;
+						break;
+					}
+					++current_edge;
+				} while (current_edge != start_edge);
+				Edge_circulator end = current_edge;
+				do 
+				{
+					Vertex_handle v_pre = current_edge->prev()->vertex();
+					Vertex_handle v_nxt = current_edge->next()->vertex();
+					if ( v_pre->group_id != vg[j]->group_id || v_nxt->group_id != vg[j]->group_id)
+					{	
+						Point_3 c;
+						if (current_edge->facet() == Facet_handle())
+							nb_lost_facets++;
+						else if (use_approx[i] || !current_edge->facet()->is_delaunay)
+						{
+							Point_3 c = CGAL::centroid(v_pre->mp, v_nxt->mp, vg[j]->mp);
+							if (v_nxt->group_id < 0 && v_pre->group_id < 0)
+								vg[j]->vd_vertices.push_back( v_nxt->mp );
+							else if (v_nxt->group_id < 0 && v_pre->group_id >= 0)
+							{
+								vg[j]->vd_vertices.push_back(v_nxt->mp);
+							}
+							else if (v_nxt->group_id >= 0 && v_pre->group_id < 0)
+							{
+								if (vg[j]->group_id != v_nxt->group_id)
+									vg[j]->vd_vertices.push_back(c);								
+							}
+							else
+								vg[j]->vd_vertices.push_back( c );
+							vg[j]->contain_non_delaunay_facet = true;
+							if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id
+								|| v_pre->group_id < 0 && v_nxt->group_id < 0)
+								is_triple_pnt.push_back(true);
+							else
+								is_triple_pnt.push_back(false);
+						}	
+						else
+						{
+							Point_3 c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
+							if (v_nxt->group_id < 0 && v_pre->group_id < 0)
+								vg[j]->vd_vertices.push_back( v_nxt->mp );
+							else if (v_nxt->group_id < 0 && v_pre->group_id >= 0)
+							{
+								vg[j]->vd_vertices.push_back(v_nxt->mp);
+							}
+							else if (v_nxt->group_id >= 0 && v_pre->group_id < 0)
+							{
+								if (vg[j]->group_id != v_nxt->group_id)
+									vg[j]->vd_vertices.push_back(c);
+							}
+							else
+								vg[j]->vd_vertices.push_back( c );
+							if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id
+								|| v_pre->group_id < 0 && v_nxt->group_id < 0 )
+								is_triple_pnt.push_back(true);
+							else
+								is_triple_pnt.push_back(false);
+						}
+					}
+					++current_edge;
+				} while (current_edge != end);
+				std::vector<Point_3>& vd_vertices = vg[j]->vd_vertices;
+				for (unsigned int k = 0; k < vd_vertices.size(); k++)
+				{
+					vd_vertices[k] = pln.projection(vd_vertices[k]);
+					if (is_triple_pnt[k])
+						smoothed_VD_regions[i].push_back(vd_vertices[k]);
+				}
+			}
+			std::vector<Point_2> conhull;
+			std::vector<Point_2> pnt2d;
+			pnt2d.reserve(smoothed_VD_regions[i].size());
+			Vector_3 base1 = pln.base1(), base2 = pln.base2();
+			cgal_vec_normalize(base1);
+			cgal_vec_normalize(base2);
+			Point_3 o = ref_pnts[i];
+			for (unsigned int k = 0; k < smoothed_VD_regions[i].size(); k++)
+			{
+				Vector_3 v(o, smoothed_VD_regions[i][k]);
+				pnt2d.push_back(Point_2(v*base1, v*base2));
+			}
+			CGAL::ch_graham_andrew(pnt2d.begin(), pnt2d.end(), std::back_insert_iterator<std::vector<Point_2>>(conhull));
+			smoothed_VD_regions[i].clear();
+			smoothed_VD_regions[i].reserve(conhull.size());
+			for (unsigned int k = 0; k < conhull.size(); k++)
+				smoothed_VD_regions[i].push_back(o + ( conhull[k].x()*base1 + conhull[k].y()*base2 ) );
+		}
+		std::cout<<"Number of lost facets (due to wrong RDT): "<<nb_lost_facets<<std::endl;
+	}
 	bool RestrictedPolygonVoronoiDiagram::is_delaunay_edge(Halfedge_handle e)
 	{
 		Vertex_handle vi = e->next()->vertex(), vi_cw = e->vertex(), vi_ccw = e->prev()->vertex();
@@ -435,21 +557,20 @@ namespace Geex
 				Vertex_handle u = e->opposite()->next()->vertex();
 				if (e->vertex()->group_id == e->opposite()->vertex()->group_id 
 					&& std::abs(e->vertex()->idx - e->opposite()->vertex()->idx) == 1)
-					e->facet()->is_delaunay = e->opposite()->facet()->is_delaunay = false;
+					continue;
+					//e->facet()->is_delaunay = e->opposite()->facet()->is_delaunay = false;
 				if (vpedges.find(Edge(u, v)) != vpedges.end())
 				{
 					//std::cout<<"Unflippable edge!\n";
 					nb_unflippable_edges++;
-					e->facet()->is_delaunay = oe->facet()->is_delaunay = false;
+					//e->facet()->is_delaunay = oe->facet()->is_delaunay = false;
+					continue;
 				}
 
-				if (!e->facet()->is_delaunay && !oe->facet()->is_delaunay)
-					continue;
+				//if (!e->facet()->is_delaunay && !oe->facet()->is_delaunay)
+				//	continue;
 
 				/** test validity of pointers after split and joint **/
-				Halfedge_handle pre_e2 = oe->prev(), pre_e3 = e->next();
-				Halfedge_handle pre_e0 = e->prev(), pre_e1 = oe->next();
-				//std::cout<<&(*pre_e0)<<", "<<&(*pre_e1)<<", "<<&(*pre_e2)<<", "<<&(*pre_e3)<<std::endl;
 				vpedges.erase(Edge(e->vertex(), e->opposite()->vertex()));
 				vpedges.erase(Edge(e->opposite()->vertex(), e->vertex()));
 				Halfedge_handle fe = rdt_ds.join_facet(e);
@@ -470,18 +591,40 @@ namespace Geex
 				add_quadrilateral_edge(e1, q, visited_edges);
 				add_quadrilateral_edge(e2, q, visited_edges);
 				add_quadrilateral_edge(e3, q, visited_edges);
-				if (e0 != pre_e0 || e1 != pre_e1 || e2 != pre_e2 || e3 != pre_e3)
-					system("pause");
-				fe->facet()->is_delaunay = fe->opposite()->facet()->is_delaunay = true;
+
+				//fe->facet()->is_delaunay = fe->opposite()->facet()->is_delaunay = true;
 			}
 			else
 			{
-				e->facet()->is_delaunay = true;
-				oe->facet()->is_delaunay = true;
+				//e->facet()->is_delaunay = true;
+				//oe->facet()->is_delaunay = true;
 			}
 
 		}
 		std::cout<<"Number of unflippable edges: "<<nb_unflippable_edges<<std::endl;
+		// found out non-delaunay facets
+		for (Facet_iterator fit = rdt_ds.facets_begin(); fit != rdt_ds.facets_end(); ++fit)
+		{
+			Halfedge_handle e = fit->halfedge();
+			if (!is_delaunay_edge(e))
+			{
+				fit->is_delaunay = false;
+				continue;
+			}
+			e = e->next();
+			if (!is_delaunay_edge(e))
+			{
+				fit->is_delaunay = false;
+				continue;
+			}
+			e = e->next();
+			if (!is_delaunay_edge(e))
+			{
+				fit->is_delaunay = false;
+				continue;
+			}
+			fit->is_delaunay = true;
+		}
 	}
 
 	void RestrictedPolygonVoronoiDiagram::save_triangulation(const std::string fn)
@@ -504,15 +647,4 @@ namespace Geex
 		}
 	}
 
-	//void RestrictedPolygonVoronoiDiagram::smooth_VD_region()
-	//{
-	//	for (unsigned int i = 0; i < nb_groups; i++)
-	//	{
-	//		VertGroup& vg = samp_pnts[i];
-	//		for (unsigned int j = 0; j < vg.size(); j++)
-	//		{
-	//			std::vector<Point_3>& vd_vertices
-	//		}
-	//	}
-	//}
 }

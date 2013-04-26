@@ -80,6 +80,17 @@ namespace Geex
 
 		inline void activate() { active = true; }
 
+		Local_frame local_frame() const
+		{
+			Local_frame lf;
+			lf.o = centroid();
+			lf.w = norm(); // assume this vector has already been normalized
+			Vector_3 u(lf.o, vertex(0));
+			lf.u = u/CGAL::sqrt(u.squared_length());
+			lf.v = CGAL::cross_product(lf.w, lf.u);
+			return lf;
+		}
+
 	public:
 		double factor; //scaling factor
 		unsigned int lib_idx;

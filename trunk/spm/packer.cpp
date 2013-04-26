@@ -36,9 +36,8 @@ namespace Geex
 
 	void Packer::load_project(const std::string& prj_config_file)
 	{
-		std::cout<<"loading project...\n";
 		pio.load_project(prj_config_file);
-		std::cout<<"project loaded.\n";
+		std::cout<<"\""<<pio.attribute_value("SPMProject")<<"\" project loaded.\n";
 		if (pio.mesh_polygon_coupled())
 		{
 			std::cout<<"reading pairs of polygons and meshes...\n";
@@ -63,18 +62,30 @@ namespace Geex
 		}
 		double min_val, max_val;
 		int nb_levels;
-		pio.read_physical_scales(min_val, max_val, nb_levels);
-		phy_disc_barr.set(min_val, max_val, nb_levels);
-		std::cout<<"Physical: < "<<min_val<<", "<<max_val<<", "<<nb_levels<<'>'<<std::endl;
-		pio.read_optimize_scales(min_val, max_val, nb_levels);
-		opt_disc_barr.set(min_val, max_val, nb_levels);
-		std::cout<<"Optimization: < "<<min_val<<", "<<max_val<<", "<<nb_levels<<'>'<<std::endl;
+		if (pio.read_physical_scales(min_val, max_val, nb_levels))
+		{
+			phy_disc_barr.set(min_val, max_val, nb_levels);
+			std::cout<<"Physical: < "<<min_val<<", "<<max_val<<", "<<nb_levels<<'>'<<std::endl;
+		}
+		if (pio.read_optimize_scales(min_val, max_val, nb_levels))
+		{
+			opt_disc_barr.set(min_val, max_val, nb_levels);
+			std::cout<<"Optimization: < "<<min_val<<", "<<max_val<<", "<<nb_levels<<'>'<<std::endl;
+		}
 
-		disc_barr.set(phy_disc_barr, opt_disc_barr);
-
-		max_scale = disc_barr.get_max();
-		min_scale = disc_barr.get_min();
-		levels = disc_barr.nb_levels();
+		if (phy_disc_barr.nb_levels() != 0 && opt_disc_barr.nb_levels() != 0)
+		{
+			disc_barr.set(phy_disc_barr, opt_disc_barr);
+			max_scale = disc_barr.get_max();
+			min_scale = disc_barr.get_min();
+			levels = disc_barr.nb_levels();
+		}
+		else
+		{
+			max_scale = std::numeric_limits<double>::max();
+			min_scale = std::numeric_limits<double>::min();
+			levels = 0;
+		}
 	}
 
 	void Packer::pack_next_submesh() // start a new packing process
@@ -265,6 +276,21 @@ namespace Geex
 		//std::cout<<"End computing.\n";
 	}
 
+	void Packer::compute_clipped_VD(std::vector<bool> use_approx)
+	{
+		std::vector<Plane_3> tangent_planes;
+		tangent_planes.reserve(pack_objects.size());
+		std::vector<Point_3> ref_pnts;
+		ref_pnts.reserve(pack_objects.size());
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			Point_3 c = pack_objects[i].centroid();
+			Vector_3 n = pack_objects[i].norm();
+			tangent_planes.push_back(Plane_3(c, n));
+			ref_pnts.push_back(c);
+		}
+		rpvd.compute_mixed_VD(tangent_planes, ref_pnts, use_approx);
+	}
 	void Packer::generate_RDT()
 	{
 		rpvd.begin_insert();
@@ -324,20 +350,10 @@ namespace Geex
 		return avg_norm;
 	}
 
-	Local_frame Packer::compute_local_frame(const Packing_object& tile)
-	{
-		Local_frame lf;
-		lf.o = tile.centroid();
-		lf.w = tile.norm(); // assume this vector has already been normalized
-		Vector_3 u(lf.o, tile.vertex(0));
-		lf.u = u/CGAL::sqrt(u.squared_length());
-		lf.v = CGAL::cross_product(lf.w, lf.u);
-		return lf;
-	}
 	Packer::Optimization_res Packer::optimize_one_polygon(unsigned int id, Local_frame& lf, Parameter& solution)
 	{
 		// choose a local frame
-		lf = compute_local_frame(pack_objects[id]);
+		lf = pack_objects[id].local_frame();
 
 		// voronoi region
 		std::vector<Segment_2> vr_region;
@@ -490,8 +506,10 @@ namespace Geex
 			return MORE_ENLARGEMENT;
 	}
 
-	bool Packer::discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_factor)
+	bool Packer::discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_factor, std::vector<bool>& approx_vd)
 	{
+		double min_factor = 1.05; // to determine convergence
+
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
 		containments.resize(pack_objects.size());
@@ -501,9 +519,19 @@ namespace Geex
 #endif
 		{
 			opti_res[i] = optimize_one_polygon(i, lfs[i], solutions[i]);
+		}
+		// check whether the tile has already been close to its voronoi region
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			if (opti_res[i] == SUCCESS && solutions[i].k >= 1.1)
+				approx_vd[i] = false;
+			else
+				approx_vd[i] = true;
+
 			if (!enlarge)
 				solutions[i].k = 1.0;
 		}
+	
 		double mink = std::numeric_limits<double>::max();
 		// suppress the inactive and optimization failure ones
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -518,7 +546,7 @@ namespace Geex
 				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
 			}
 		}
-		double min_factor = 1.05; // to determine convergence
+		
 		if (mink >= min_factor)
 		{
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -613,7 +641,7 @@ namespace Geex
 				split_nb++;
 				std::vector<Point_3>& smoothed_vd_region = rpvd.get_smoothed_voronoi_regions().at(i);
 				Point_3 c = CGAL::centroid(smoothed_vd_region.begin(), smoothed_vd_region.end(), CGAL::Dimension_tag<0>());
-				Local_frame lf = compute_local_frame(pack_objects[i]);
+				Local_frame lf = pack_objects[i].local_frame();
 				std::vector<Point_2> vd_region_2d(smoothed_vd_region.size());
 				for (unsigned int j = 0; j < smoothed_vd_region.size(); j++)
 					vd_region_2d[j] = lf.to_uv(smoothed_vd_region[j]);
@@ -799,10 +827,11 @@ namespace Geex
 			}
 			std::vector<Parameter> solutions(pack_objects.size());
 			std::vector<Local_frame> local_frames(pack_objects.size());
+			std::vector<bool> approx_vd(pack_objects.size());
 
 			std::cout<<"============ discrete lloyd iteration "<<times++<<" ============\n";
 
-			bool stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier);
+			bool stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, approx_vd);
 			
 			if (!stay_at_this_barrier)  // go to the next barrier
 			{
@@ -819,7 +848,7 @@ namespace Geex
 							continue;
 						}
 						Parameter p(closest_phy_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
-						Local_frame lf = compute_local_frame(pack_objects[j]);
+						Local_frame lf = pack_objects[j].local_frame();
 						transform_one_polygon(j, lf, p);
 						pack_objects[j].active = false;
 					}
@@ -829,19 +858,21 @@ namespace Geex
 			}
 
 			// check whether to use approximate voronoi region
-			bool use_appox_VD = false;
-			double min_factor = std::numeric_limits<double>::max();
-			for (unsigned int j = 0; j < solutions.size(); j++)
-				if (solutions[j].k > 1.0)
-					min_factor = std::min(solutions[j].k, min_factor);		
-			use_appox_VD = enlarge && (min_factor < 1.01);	
+			//bool use_appox_VD = false;
+			//double min_factor = std::numeric_limits<double>::max();
+			//for (unsigned int j = 0; j < solutions.size(); j++)
+			//	if (solutions[j].k > 1.0)
+			//		min_factor = std::min(solutions[j].k, min_factor);		
+			//use_appox_VD = enlarge && (min_factor < 1.01);
+
 			// update idt
 			rpvd.iDT_update();
+			compute_clipped_VD(approx_vd);
 
-			if (!use_appox_VD)
-				compute_clipped_VD(false);
-			else 
-				compute_clipped_VD(true);
+			//if (!use_appox_VD)
+			//	compute_clipped_VD(false);
+			//else 
+			//	compute_clipped_VD(true);
 
 			if (post_action != NULL)
 				post_action();
@@ -1084,7 +1115,7 @@ namespace Geex
 		{
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
 
-			Local_frame lf = compute_local_frame(pack_objects[i]);
+			Local_frame lf = pack_objects[i].local_frame();
 
 			std::vector<Segment_2> region2d;
 
@@ -1295,7 +1326,7 @@ namespace Geex
 
 			const std::vector<Point_3>& smoothed_region = rpvd.get_smoothed_voronoi_regions().at(i);
 
-			Local_frame lf = compute_local_frame(pack_objects[i]);
+			Local_frame lf = pack_objects[i].local_frame();
 
 			std::vector<Segment_2> region2d;
 			
@@ -1375,13 +1406,7 @@ namespace Geex
 			double min_size = std::numeric_limits<double>::max();
 			//current_factor = discrete_factors.size();
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
-			{
-				//std::vector<double>::iterator closest_it = std::lower_bound(discrete_factors.begin(), discrete_factors.end(), pack_objects[i].factor);
-				//if (closest_it == discrete_factors.end())
-				//	--closest_it;
-				//current_factor = std::min<unsigned int>(current_factor, (closest_it - discrete_factors.begin()));
 				min_size = std::min(pack_objects[i].factor, min_size);
-			}
 			disc_barr.set_current_barrier(min_size);
 		}
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
@@ -1475,9 +1500,6 @@ namespace Geex
 		}
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			//ofile<<"f ";
-			//for (std::list<unsigned int>::const_iterator it = global_vtx_idx[i].begin(); it != global_vtx_idx[i].end(); ++it)
-			//	ofile<<*it<<' ';
 			for (unsigned int j = 1; j < pack_objects[i].size()-1; j++)
 				ofile<<"f "<<global_vtx_idx[i][0]<<' '<<global_vtx_idx[i][j]<<' '<<global_vtx_idx[i][j+1]<<std::endl;
 			ofile<<std::endl;
