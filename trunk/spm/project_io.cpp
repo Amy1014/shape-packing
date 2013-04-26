@@ -387,4 +387,30 @@ namespace Geex
 		else
 			return it->second;
 	}
+
+	bool ProjectIO::read_physical_scales(double& min_scale, double& max_scale, int& levels)
+	{
+		TagLookupTable::const_iterator it = attr_val.find("PhysicalScales");
+		if (it == attr_val.end())
+			return false;
+		std::istringstream is;
+		is.str(it->second);
+		is >> min_scale;
+		is >> max_scale;
+		is >> levels;
+		return true;
+	}
+
+	bool ProjectIO::read_optimize_scales(double& min_scale, double& max_scale, int& levels)
+	{
+		TagLookupTable::const_iterator it = attr_val.find("OptimizationScales");
+		if (it == attr_val.end())
+			return false;
+		std::istringstream is;
+		is.str(it->second);
+		is >> min_scale;
+		is >> max_scale;
+		is >> levels;
+		return true;
+	}
 }

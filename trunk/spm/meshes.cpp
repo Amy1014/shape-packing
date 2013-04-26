@@ -257,7 +257,7 @@ namespace Geex {
 	{
 		if (is_on_boundary(idx))
 			return true;
-		std::vector<int>& adj_faces = vertices_[idx].faces_;
+		const std::vector<int>& adj_faces = vertices_[idx].faces_;
 		for (unsigned int i = 0; i < adj_faces.size(); i++)
 		{
 			const Facet& f = operator[](adj_faces[i]);
@@ -301,7 +301,7 @@ namespace Geex {
 
 	double TriMesh::surrounding_region_area(int idx) const
 	{
-		std::vector<int>& nf = vertices_[idx].faces_;
+		const std::vector<int>& nf = vertices_[idx].faces_;
 		double sum_area = 0.0;
 		for (unsigned int i = 0; i < nf.size(); i++)
 			sum_area += std::fabs(operator[](nf[i]).area());
