@@ -8,6 +8,6 @@
 
 < PhysicalScales > 0.93 1.05 10 </ PhysicalScales >
 
-< OptimizationScales > 0.8 1.0 10 </ OptimizationScales >
+< OptimizationScales > 0.4 1.0 10 </ OptimizationScales >
 
 < TextureImageDir >  ./texture  </ TextureImageDir >
