@@ -29,7 +29,7 @@ namespace Geex
 
 	public:
 
-		typedef enum {OUTLINE_DRAW, FILL_DRAW, TEXTURE_DRAW} Polygon_draw_type;
+		typedef enum {OUTLINE_DRAW, FILL_DRAW, TEXTURE_DRAW, DISCRETE_SCALE_DRAWE} Polygon_draw_type;
 
 		SPM_Graphics(Packer *_packer);
 
@@ -87,6 +87,7 @@ namespace Geex
 		void outline_draw_polygons(const std::vector<Packing_object>& tiles);
 		void fill_draw_polygons(const std::vector<Packing_object>& tiles);
 		void texture_draw_polygons(const std::vector<Packing_object>& tiles);
+		void discrete_draw_polygons(const std::vector<Packing_object>& tiles);
 
 		void draw_mesh();
 		void draw_multi_submeshes(); 
