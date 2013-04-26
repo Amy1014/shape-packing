@@ -6,6 +6,10 @@
 
 < gamma > 1.5 </ gamma >
 
+< PhysicalScales > 0.3 1.2 10 </ PhysicalScales >
+
+< OptimizationScales > 0.2 1.1 10 </ OptimizationScales >
+
 < DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
 
 < TextureImageDir >  ./texture  </ TextureImageDir >

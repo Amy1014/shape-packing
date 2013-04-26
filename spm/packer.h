@@ -127,9 +127,11 @@ namespace Geex
 
 		void compute_clipped_VD(bool approx = false);
 
+		void compute_clipped_VD(std::vector<bool> use_approx); // mixed computation of clipped voronoi diagram
+
 		vec3 approx_normal(unsigned int facet_idx);
 		
-		Local_frame compute_local_frame(const Packing_object& tile);
+		//Local_frame compute_local_frame(const Packing_object& tile);
 
 		/** optimization **/
 		
@@ -143,7 +145,7 @@ namespace Geex
 		// one Lloyd iteration
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
 
-		bool discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_factor);
+		bool discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_factor, std::vector<bool>& approx_vd);
 
 		static int callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
 							const double * const x,	const double * const lambda, double * const obj, double * const c,

@@ -85,6 +85,8 @@ public:
 
 	void compute_approx_VD(std::vector<Plane_3>& clipping_planes, std::vector<Point_3>& ref_pnts);
 
+	void compute_mixed_VD(std::vector<Plane_3>& clipping_planes, std::vector<Point_3>& ref_pnts, std::vector<bool>& use_approx);
+
 	void smooth_VD_region();
 
 	void iDT_update(); // edge flip to preserve intrinsic Delaunay structure
