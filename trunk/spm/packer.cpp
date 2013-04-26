@@ -813,17 +813,17 @@ namespace Geex
 		}
 	}
 
-	void Packer::discrete_lloyd(void (*post_action)(), bool enlarge)
+	bool Packer::discrete_lloyd(void (*post_action)(), bool enlarge)
 	{
 		static int times = 0;
-		
+		bool stay_at_this_barrier;
 		for (unsigned int i = 0; i < 1; i++)
 		{
 			double current_barrier;
 			if ( !disc_barr.get_current_barrier(current_barrier))
 			{
 				std::cout<<"The maximum barrier factor achieved. Do nothing.\n";
-				return;
+				return false;
 			}
 			std::vector<Parameter> solutions(pack_objects.size());
 			std::vector<Local_frame> local_frames(pack_objects.size());
@@ -831,7 +831,7 @@ namespace Geex
 
 			std::cout<<"============ discrete lloyd iteration "<<times++<<" ============\n";
 
-			bool stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, approx_vd);
+			stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, approx_vd);
 			
 			if (!stay_at_this_barrier)  // go to the next barrier
 			{
@@ -877,6 +877,7 @@ namespace Geex
 			if (post_action != NULL)
 				post_action();
 		}
+		return !stay_at_this_barrier;
 	}
 	
 	void Packer::interface_lloyd(void (*post_action)())
@@ -892,7 +893,13 @@ namespace Geex
 		if (!discrete_scaling)
 			lloyd(post_action, true);
 		else
-			discrete_lloyd(post_action, true);
+		{
+			if (discrete_lloyd(post_action, true))
+			{
+				//for (int i = 0; i < 1; i++)
+					//discrete_lloyd(post_action, false);
+			}
+		}
 		print_area_coverage();	
 	}
 

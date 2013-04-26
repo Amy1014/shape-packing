@@ -138,7 +138,7 @@ namespace Geex
 		/** optimization **/
 		void lloyd(void (*post_action)() = NULL, bool enlarge = false);
 
-		void discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
+		bool discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
 
 		void split(std::set<unsigned int>& indices);
 
