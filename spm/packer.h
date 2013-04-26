@@ -226,6 +226,14 @@ namespace Geex
 					grades[i] = ( (levels-i)*min_factor + i*max_factor ) / levels;
 				current_barrier = grades.begin();
 			}
+			Discrete_barriers(const Discrete_barriers& barriers0, const Discrete_barriers& barriers1)
+			{
+				std::merge(barriers0.grades.begin(), barriers0.grades.end(), barriers1.grades.begin(), barriers1.grades.end(), 
+						std::back_insert_iterator<std::vector<double>>(this->grades));
+				std::vector<double>::iterator it = std::unique(this->grades.begin(), this->grades.end());
+				this->grades.resize(std::distance(this->grades.begin(), it));
+				current_barrier = this->grades.begin();
+			}
 			bool beyond_range() { return current_barrier == grades.end(); }
 			bool get_current_barrier(double& res)
 			{
@@ -250,10 +258,12 @@ namespace Geex
 			{
 				current_barrier = std::lower_bound(grades.begin(), grades.end(), lower_val);
 			}
+			inline double get_min() const { return grades.front(); }
+			inline double get_max() const { return grades.back(); }
 		private:
 			std::vector<double> grades;
 			std::vector<double>::iterator current_barrier;
-		} disc_barr;
+		} phy_disc_barr, opt_disc_barr, disc_barr;
 
 		// apply a 2D transformation to a 3D polygon inside the plane where the polygon is embedded
 		struct Apply_transformation

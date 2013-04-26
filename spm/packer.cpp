@@ -6,7 +6,7 @@ namespace Geex
 
 	double Packer::PI = 3.141592653589793;
 
-	Packer::Packer() : disc_barr(0.9, 1.05, 10)
+	Packer::Packer() : phy_disc_barr(0.93, 1.05, 10), opt_disc_barr(0.8, 1.0 , 10), disc_barr(phy_disc_barr, opt_disc_barr)
 	{
 		assert( instance_ == nil );
 		instance_ = this;
@@ -27,9 +27,11 @@ namespace Geex
 
 		sub_pack_id = 0;
 
-		max_scale = 1.2;
-		min_scale = 0.3;
-		levels = 10;
+		//max_scale = 1.2;
+		//min_scale = 0.3;
+		max_scale = disc_barr.get_max();
+		min_scale = disc_barr.get_min();
+		levels = 20;
 		discrete_scaling = false;
 
 		discrete_factors.resize(levels+1);
@@ -515,7 +517,8 @@ namespace Geex
 		}
 		constraint_transformation(solutions, lfs, false);
 
-		if (mink <= 1.1)
+		std::cout<<"Minimum scale is "<<mink<<std::endl;
+		if (mink <= 1.5)
 			constraint_transformation(solutions, lfs, true);
 		
 		std::vector<bool> has_growth_room(pack_objects.size());
@@ -737,13 +740,14 @@ namespace Geex
 				{
 					if (pack_objects[j].active && !pack_objects[j].reach_barrier)
 					{
-						double prev_barrier;
-						if (!disc_barr.get_prev_barrier(prev_barrier))
+						double closest_phy_barrier;
+						phy_disc_barr.set_current_barrier(pack_objects[j].factor);
+						if (!phy_disc_barr.get_prev_barrier(closest_phy_barrier))
 						{
-							std::cout<<"Tile "<<j<<" is even smaller than the smallest barrier.\n";
+							//std::cout<<"Tile "<<j<<" is even smaller than the smallest barrier.\n";
 							continue;
 						}
-						Parameter p(prev_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
+						Parameter p(closest_phy_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
 						Local_frame lf = compute_local_frame(pack_objects[j]);
 						transform_one_polygon(j, lf, p);
 						pack_objects[j].active = false;
@@ -1236,7 +1240,7 @@ namespace Geex
 				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
 
 			// choose the result with the smallest match error now
-			double shrink_factor = 0.8;
+			double shrink_factor = 0.6;
 
 			Match_info_item<unsigned int> matcher = match_res.top();
 			if (discrete_scaling)
