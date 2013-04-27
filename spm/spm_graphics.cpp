@@ -14,7 +14,7 @@ namespace Geex
 		{c1, c3, c1}, {c1, c1, c3},	{c1, c2, c3}, {c1, c3, c2}, 
 		{c2, c1, c3}, {c2, c3, c1}, {c3, c1, c2}, {c3, c2, c1}
 	};
-	GLfloat SPM_Graphics::surf_diff[4] = {0.3922f, 0.5843f, 0.9294f, 1.0f};
+	GLfloat SPM_Graphics::surf_diff[4] = {0.3922f, 0.5843f, 0.9294f, 0.5f};
 	GLfloat SPM_Graphics::surf_spec[4] = {0.9f, 0.9f, 0.9f, 1.0f} ;
 	GLfloat SPM_Graphics::surf_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};
 	//GLfloat SPM_Graphics::pgn_edge[4] = {0.1f, 0.1f, 0.1f, 1.0f};
@@ -435,10 +435,10 @@ namespace Geex
 
 	void SPM_Graphics::draw_voronoi_cell()
 	{
-		if (!glIsList(vc_displist))
-		{
-			vc_displist = glGenLists(1);
-			glNewList(vc_displist, GL_COMPILE);
+		//if (!glIsList(vc_displist))
+		//{
+		//	vc_displist = glGenLists(1);
+		//	glNewList(vc_displist, GL_COMPILE);
 			glDisable(GL_LIGHTING);
 			const RPVD& rpvd = packer->get_rpvd();
 			const std::vector<Packing_object>& po = packer->get_tiles();
@@ -467,9 +467,9 @@ namespace Geex
 				}
 			}
 			glEnable(GL_LIGHTING);
-			glEndList();
-		}
-		glCallList(vc_displist);
+		//	glEndList();
+		//}
+		//glCallList(vc_displist);
 	}
 
 	void SPM_Graphics::draw_hole_triangles()
