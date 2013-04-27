@@ -37,6 +37,7 @@ namespace Geex
 		highlighted_group = -1;
 		show_multi_tiles_ = false;
 		show_multi_submeshes_ = false;
+		show_inactive_ = true;
 		sub_pack_id = 0;
 	}
 
@@ -356,7 +357,15 @@ namespace Geex
 		for (unsigned int i = 0; i < tiles.size(); i++)
 		{
 			double scale = tiles[i].factor;
-			cur_color_map(scale, min_scale, max_scale, r, g, b);
+			if (show_inactive_ && !tiles[i].active)
+			{
+				r = 0.6f;
+				g = 0.6f;
+				b = 0.6f;
+			}
+			else
+				cur_color_map(scale, min_scale, max_scale, r, g, b);
+
 			glColor3f(r, g, b);
 			unsigned int nb_verts = tiles[i].size();
 			Point_3 c = tiles[i].centroid();
@@ -550,7 +559,19 @@ namespace Geex
 		else
 		{
 			double mean = (min_cur + max_cur)/2.0;
-			if (cur <= mean)
+			if (cur < min_cur)
+			{
+				r = 0.0f;
+				g = 0.0f;
+				b = 1.0f;
+			}
+			else if ( cur > max_cur )
+			{
+				r = 1.0f;
+				g = 0.0f;
+				b = 0.0f;
+			}
+			else if (cur <= mean)
 			{
 				r = 0.0f ;
 				b = ( mean - cur ) / ( mean - min_cur );

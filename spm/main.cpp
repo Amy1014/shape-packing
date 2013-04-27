@@ -203,6 +203,7 @@ namespace Geex {
 			TwType tw_draw_polygon_mode = TwDefineEnum("DrawPolygonMode", draw_polygon_mode, 4);
 			TwAddVarRW(graphics_bar, "Draw Switch", TW_TYPE_BOOL8, &spm()->show_polygons(), "group = 'Polygon' ");
 			TwAddVarRW(graphics_bar, "Draw Mode", tw_draw_polygon_mode, &spm()->get_polygon_draw_type(), "group = 'Polygon' ");
+			TwAddVarRW(graphics_bar, "In/Active", TW_TYPE_BOOL8, &spm()->show_inactive(), "group = 'Polygon' ");
 		
 			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "group = 'Geometry' ");
@@ -228,13 +229,15 @@ namespace Geex {
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Pack Iter", TW_TYPE_INT32, &pack_iter_times, "min=1 group = 'Optimization'");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
-			TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
-			TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
-			TwAddButton(function_bar, "Fill holes", tw_fill, NULL, "key=f group = 'Hole' ");
-			TwAddVarCB(function_bar, "Hole Size", TW_TYPE_DOUBLE, tw_hole_size_set_callback,
-						tw_hole_size_get_callback, NULL, "min=0.0 step=0.001 group = 'Hole' ");
-			TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,
-						tw_front_len_get_callback, NULL, "min=0.0 step=0.001 group = 'Hole' ");
+			TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_opt, "group = 'Optimization' ");
+
+			//TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
+			//TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
+			//TwAddButton(function_bar, "Fill holes", tw_fill, NULL, "key=f group = 'Hole' ");
+			//TwAddVarCB(function_bar, "Hole Size", TW_TYPE_DOUBLE, tw_hole_size_set_callback,
+			//			tw_hole_size_get_callback, NULL, "min=0.0 step=0.001 group = 'Hole' ");
+			//TwAddVarCB(function_bar, "Front Edge", TW_TYPE_DOUBLE, tw_front_len_set_callback,
+			//			tw_front_len_get_callback, NULL, "min=0.0 step=0.001 group = 'Hole' ");
 
 			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
 			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
@@ -250,7 +253,7 @@ namespace Geex {
 			TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->min_scale_factor(), "min=0.01 max=1.0 group = 'Discretize' ");
 			TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->max_scale_factor(), "min=1.0 group = 'Discretize' ");
 			TwAddVarRW(function_bar, "Levels", TW_TYPE_INT32, &spm()->discrete_levels(), "min=1 group = 'Discretize' ");
-			TwAddButton(function_bar, "Discretize Tiles", tw_discretize_tiles, NULL, "key=d group = 'Discretize' ");
+			//TwAddButton(function_bar, "Discretize Tiles", tw_discretize_tiles, NULL, "key=d group = 'Discretize' ");
 			TwAddVarRW(function_bar, "Discrete Scale", TW_TYPE_BOOL8, &spm()->discrete_scale(), "group = 'Discretize'");
 			TwAddButton(function_bar, "Split", tw_split, NULL, "key=s group = 'Discretize' ");
 			//TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
