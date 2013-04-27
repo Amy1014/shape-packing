@@ -525,7 +525,7 @@ namespace Geex
 		// check whether the tile has already been close to its voronoi region
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			if (opti_res[i] == SUCCESS && solutions[i].k >= 1.07)
+			if (opti_res[i] == SUCCESS && solutions[i].k >= 1.065)
 				approx_vd[i] = false;
 			else
 				approx_vd[i] = true;
@@ -558,7 +558,7 @@ namespace Geex
 		constraint_transformation(solutions, lfs, false);
 
 		std::cout<<"Minimum scale is "<<mink<<std::endl;
-		if (mink <= 1.1)
+		if (mink <= 1.01)
 			constraint_transformation(solutions, lfs, true);
 
 //#ifdef _CILK_
@@ -898,7 +898,7 @@ namespace Geex
 			compute_clipped_VD(approx_vd);
 
 			//if (!use_appox_VD)
-			//	compute_clipped_VD(false);
+				//compute_clipped_VD(false);
 			//else 
 			//	compute_clipped_VD(true);
 
