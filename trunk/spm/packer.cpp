@@ -270,10 +270,11 @@ namespace Geex
 			tangent_planes.push_back(Plane_3(c, n));
 			ref_pnts.push_back(c);
 		}
-		if (approx)
-			rpvd.compute_approx_VD(tangent_planes, ref_pnts);
-		else
-			rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
+		//if (approx)
+		//	rpvd.compute_approx_VD(tangent_planes, ref_pnts);
+		//else
+		//	rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
+		rpvd.compute_midpoint_VD(tangent_planes, ref_pnts);
 		//std::cout<<"End computing.\n";
 	}
 
