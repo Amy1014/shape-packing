@@ -30,8 +30,9 @@ namespace Geex
 		//max_scale = 1.2;
 		//min_scale = 0.3;
 
-		discrete_scaling = false;
-
+		discrete_scaling = true;
+		sync_opt = false;
+		phony_upper_scale = 100.0;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -70,7 +71,7 @@ namespace Geex
 		if (pio.read_optimize_scales(min_val, max_val, nb_levels))
 		{
 			opt_disc_barr.set(min_val, max_val, nb_levels);
-			std::cout<<"Optimization: < "<<min_val<<", "<<max_val<<", "<<nb_levels<<'>'<<std::endl;
+			std::cout<<"Auxiliary: < "<<min_val<<", "<<max_val<<", "<<nb_levels<<'>'<<std::endl;
 		}
 
 		if (phy_disc_barr.nb_levels() != 0 && opt_disc_barr.nb_levels() != 0)
@@ -506,9 +507,10 @@ namespace Geex
 			return MORE_ENLARGEMENT;
 	}
 
-	bool Packer::discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_factor, std::vector<bool>& approx_vd)
+	bool Packer::discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, 
+									double barrier_factor, double nxt_barrier, std::vector<bool>& approx_vd)
 	{
-		double min_factor = 1.05; // to determine convergence
+		double min_factor = 1.02; // to determine convergence
 
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
@@ -523,7 +525,7 @@ namespace Geex
 		// check whether the tile has already been close to its voronoi region
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			if (opti_res[i] == SUCCESS && solutions[i].k >= 1.1)
+			if (opti_res[i] == SUCCESS && solutions[i].k >= 1.07)
 				approx_vd[i] = false;
 			else
 				approx_vd[i] = true;
@@ -556,18 +558,28 @@ namespace Geex
 		constraint_transformation(solutions, lfs, false);
 
 		std::cout<<"Minimum scale is "<<mink<<std::endl;
-		if (mink <= 1.5)
+		if (mink <= 1.1)
 			constraint_transformation(solutions, lfs, true);
-		
-		std::vector<bool> has_growth_room(pack_objects.size());
+
+//#ifdef _CILK_
+//		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+//			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
+//#else
+//		for (unsigned int i = 0; i < pack_objects.size(); i++)
+//			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
+//#endif
 		// check state of each tile
+		std::vector<bool> has_growth_room(pack_objects.size());
 		if (enlarge)
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
 				pack_objects[i].reach_barrier = false;
 				if (pack_objects[i].active && pack_objects[i].factor*solutions[i].k > barrier_factor)
 				{
-					solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
+					if (pack_objects[i].factor < nxt_barrier)
+						solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
+					else
+						solutions[i].k = 1.0;
 					has_growth_room[i] = false;
 					pack_objects[i].reach_barrier = true;
 				}
@@ -577,16 +589,19 @@ namespace Geex
 					has_growth_room[i] = true;
 				else 
 					has_growth_room[i] = false;
-			}
+			}		
+
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
-		{
+		{	
 			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
 			transform_one_polygon(i, lfs[i], solutions[i]);
 		}
+		
+
 		// update facet normal
 		for (RestrictedPolygonVoronoiDiagram::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
 		{
@@ -830,28 +845,41 @@ namespace Geex
 			std::vector<bool> approx_vd(pack_objects.size());
 
 			std::cout<<"============ discrete lloyd iteration "<<times++<<" ============\n";
-
-			stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, approx_vd);
+			
+			double nxt_barrier;
+			if (!disc_barr.get_next_barrier(nxt_barrier))
+				nxt_barrier = 1.0e20;
+			stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, nxt_barrier, approx_vd);
 			
 			if (!stay_at_this_barrier)  // go to the next barrier
 			{
 				// roll back to previous barrier for tiles that do not reach current barrier
-				for (unsigned int j = 0; j < pack_objects.size(); j++)
-				{
-					if (pack_objects[j].active && !pack_objects[j].reach_barrier)
+				if (!sync_opt)
+					for (unsigned int j = 0; j < pack_objects.size(); j++)
 					{
-						double closest_phy_barrier;
-						phy_disc_barr.set_current_barrier(pack_objects[j].factor);
-						if (!phy_disc_barr.get_prev_barrier(closest_phy_barrier))
+						if (pack_objects[j].active && !pack_objects[j].reach_barrier)
 						{
-							//std::cout<<"Tile "<<j<<" is even smaller than the smallest barrier.\n";
-							continue;
+							pack_objects[j].active = false;
+							double closest_phy_barrier;
+							phy_disc_barr.set_current_barrier(pack_objects[j].factor);
+							if (!phy_disc_barr.get_prev_barrier(closest_phy_barrier))
+							{
+								//std::cout<<"Tile "<<j<<" is even smaller than the smallest barrier.\n";
+								continue;
+							}
+							Parameter p(closest_phy_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
+							Local_frame lf = pack_objects[j].local_frame();
+							transform_one_polygon(j, lf, p);
 						}
-						Parameter p(closest_phy_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
-						Local_frame lf = pack_objects[j].local_frame();
-						transform_one_polygon(j, lf, p);
-						pack_objects[j].active = false;
 					}
+				else
+				{
+					// check whether any chance to be larger
+					bool all_reach_barrier = true;
+					for (unsigned int j = 0; j < pack_objects.size(); j++)
+						all_reach_barrier = all_reach_barrier && pack_objects[j].reach_barrier;
+					if (all_reach_barrier)
+						std::cout<<"Synchronized optimization should stop.\n";
 				}
 				disc_barr.go_to_next_barrier();
 				std::cout<<"go to next barrier\n";
@@ -894,6 +922,8 @@ namespace Geex
 			lloyd(post_action, true);
 		else
 		{
+			if (sync_opt && disc_barr.get_max() != phony_upper_scale)
+				disc_barr.append(phony_upper_scale);
 			if (discrete_lloyd(post_action, true))
 			{
 				//for (int i = 0; i < 1; i++)
@@ -1349,7 +1379,7 @@ namespace Geex
 				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
 
 			// choose the result with the smallest match error now
-			double shrink_factor = 0.6;
+			double shrink_factor = 0.8;
 
 			Match_info_item<unsigned int> matcher = match_res.top();
 			if (discrete_scaling)

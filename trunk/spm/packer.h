@@ -145,7 +145,8 @@ namespace Geex
 		// one Lloyd iteration
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
 
-		bool discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, double barrier_factor, std::vector<bool>& approx_vd);
+		bool discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, 
+								double barrier_factor,	double nxt_barrier, std::vector<bool>& approx_vd);
 
 		static int callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
 							const double * const x,	const double * const lambda, double * const obj, double * const c,
@@ -259,6 +260,14 @@ namespace Geex
 				if (!beyond_range())
 					++current_barrier;
 			}
+			bool get_next_barrier(double& res)
+			{
+				std::vector<double>::iterator tmp = current_barrier;
+				if (tmp == grades.end() || (++tmp) == grades.end() )
+					return false;
+				res = *tmp;
+				return true;
+			}
 			bool get_prev_barrier(double& res)
 			{
 				if (current_barrier == grades.begin())
@@ -273,6 +282,7 @@ namespace Geex
 			inline double get_min() const { return grades.front(); }
 			inline double get_max() const { return grades.back(); }
 			inline unsigned int nb_levels() const { return grades.size(); }
+			inline void append(double val) { grades.push_back(val); }
 		private:
 			std::vector<double> grades;
 			std::vector<double>::iterator current_barrier;
@@ -316,6 +326,8 @@ namespace Geex
 		//std::vector<Local_frame> local_frames;
 		//Packing_object backup;
 		std::vector<std::vector<Packing_object>> res_pack_objects;
+		bool sync_opt;
+		double phony_upper_scale;
 	};
 
 

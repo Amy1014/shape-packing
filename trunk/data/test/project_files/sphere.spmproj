@@ -6,8 +6,8 @@
 
 < DensityFile >      ..\..\surfaces\sphere.txt </ DensityFile >
 
-< PhysicalScales > 0.93 1.05 10 </ PhysicalScales >
+< PhysicalScales > 0.9 1.05 10 </ PhysicalScales >
 
-< OptimizationScales > 0.4 1.0 10 </ OptimizationScales >
+< OptimizationScales > 0.4 1.0 20 </ OptimizationScales >
 
 < TextureImageDir >  ./texture  </ TextureImageDir >

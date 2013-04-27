@@ -125,7 +125,7 @@ MyPolygon_3<Kernel, Container>::MyPolygon_3(const CGAL::Polygon_2<PolygonTraits_
 	Vector_3 lz = CGAL::cross_product(z, n);
 	Transformation_3 t(CGAL::IDENTITY);
 	FT lz_len2 = lz.squared_length();
-	if (lz_len2 != FT(0))
+	if (lz_len2 > FT(0))
 	{
 		lz = lz / CGAL::sqrt(lz_len2);
 		Vector_3 lx = z;
@@ -214,7 +214,7 @@ MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>:
 	Vector_3 v = v_ / CGAL::sqrt(v_.squared_length());
 	Vector_3 lz = CGAL::cross_product(normal, v);
 	FT lz_len = CGAL::sqrt(lz.squared_length());
-	if (lz_len != FT(0))
+	if (lz_len >= FT(1.0e-10))
 	{
 		//lz = lz / CGAL::sqrt(lz_len2);
 		lz = lz / lz_len;

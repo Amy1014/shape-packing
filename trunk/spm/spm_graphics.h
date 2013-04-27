@@ -44,6 +44,7 @@ namespace Geex
 		GLboolean& show_multi_tiles() { return show_multi_tiles_; }
 
 		GLboolean& show_polygons()	{ return show_polygons_; }
+		GLboolean& show_inactive() { return show_inactive_; }
 
 		GLboolean& show_voronoi_cell() { return show_voronoi_cell_; }
 		GLboolean& show_smoothed_voronoi_cell() { return show_smoothed_voronoi_cell_; }
@@ -136,6 +137,8 @@ namespace Geex
 		GLboolean show_hole_triangles_;
 		GLboolean show_holes_;
 		GLboolean show_curvatures_;
+
+		GLboolean show_inactive_;
 
 		GLboolean textured;
 		std::vector<GLuint> texture_lib;
