@@ -101,7 +101,6 @@ namespace Geex
 		double& max_scale_factor() { return max_scale; }
 		double& min_scale_factor() { return min_scale; }
 		int& discrete_levels() { return levels; }
-		bool& discrete_scale() { return discrete_scaling; }
 		void split_large_tiles();
 		// driver
 		void pack(void (*post_action)() = NULL); 
@@ -201,7 +200,6 @@ namespace Geex
 		double max_scale;
 		double min_scale;
 		int levels;
-		bool discrete_scaling;
 
 		/** optimization **/
 #ifdef _CILK_

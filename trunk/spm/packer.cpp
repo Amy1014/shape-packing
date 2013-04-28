@@ -27,7 +27,6 @@ namespace Geex
 
 		sub_pack_id = 0;
 
-		discrete_scaling = true;
 		sync_opt = true;
 		phony_upper_scale = 100.0;
 		use_voronoi_cell_ = true;
@@ -943,7 +942,7 @@ namespace Geex
 	
 	void Packer::interface_lloyd(void (*post_action)())
 	{
-		if (!discrete_scaling)
+		if (!sync_opt)
 			lloyd(post_action, false);
 		else
 			discrete_lloyd(post_action, false);
@@ -951,7 +950,7 @@ namespace Geex
 	void Packer::pack(void (*post_action)())
 	{
 		
-		if (!discrete_scaling)
+		if (!sync_opt)
 			lloyd(post_action, true);
 		else
 		{
@@ -1420,7 +1419,7 @@ namespace Geex
 			double shrink_factor = 0.6;
 
 			Match_info_item<unsigned int> matcher = match_res.top();
-			if (discrete_scaling)
+			if (sync_opt)
 			{
 				//Match_info_item<unsigned int> best_backup = matcher;
 				//while ( matcher.scale*shrink_factor > discrete_factors.back() )
@@ -1477,7 +1476,7 @@ namespace Geex
 		stop_update_DT = false;
 		use_voronoi_cell_ = true;
 		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
-		if (discrete_scaling)
+		if (sync_opt)
 		{
 			double min_size = std::numeric_limits<double>::max();
 			//current_factor = discrete_factors.size();

@@ -255,7 +255,7 @@ namespace Geex {
 			TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->max_scale_factor(), "min=1.0 group = 'Discretize' ");
 			TwAddVarRW(function_bar, "Levels", TW_TYPE_INT32, &spm()->discrete_levels(), "min=1 group = 'Discretize' ");
 			//TwAddButton(function_bar, "Discretize Tiles", tw_discretize_tiles, NULL, "key=d group = 'Discretize' ");
-			TwAddVarRW(function_bar, "Discrete Scale", TW_TYPE_BOOL8, &spm()->discrete_scale(), "group = 'Discretize'");
+			//TwAddVarRW(function_bar, "Discrete Scale", TW_TYPE_BOOL8, &spm()->discrete_scale(), "group = 'Discretize'");
 			TwAddButton(function_bar, "Split", tw_split, NULL, "key=s group = 'Discretize' ");
 			//TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
 			//TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
