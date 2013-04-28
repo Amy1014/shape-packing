@@ -27,12 +27,10 @@ namespace Geex
 
 		sub_pack_id = 0;
 
-		//max_scale = 1.2;
-		//min_scale = 0.3;
-
 		discrete_scaling = true;
-		sync_opt = false;
+		sync_opt = true;
 		phony_upper_scale = 100.0;
+		use_voronoi_cell_ = true;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -274,6 +272,7 @@ namespace Geex
 		//	rpvd.compute_approx_VD(tangent_planes, ref_pnts);
 		//else
 		//	rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
+		rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
 		rpvd.compute_midpoint_VD(tangent_planes, ref_pnts);
 		//std::cout<<"End computing.\n";
 	}
@@ -367,40 +366,73 @@ namespace Geex
 		// formulate optimization 
 		ctm.clear();
 		const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(id);
-		if (!stop_update_DT)
-			for (unsigned int i = 0; i < samp_pnts.size(); i++)
-			{
-				const vector<Point_3>& bisec_pnts = samp_pnts[i]->vd_vertices;
-				Point_2 ref_point = lf.to_uv(samp_pnts[i]->point());
-				if (bisec_pnts.size() == 0)
-					continue;
-				assert(bisec_pnts.size() != 1);
-				for (unsigned int j = 0; j < bisec_pnts.size()-1; j++)
+		if (use_voronoi_cell_)
+		{
+			if (!stop_update_DT)
+				for (unsigned int i = 0; i < samp_pnts.size(); i++)
 				{
-					const Point_3& s = bisec_pnts[j];
-					const Point_3& t = bisec_pnts[j+1];
-					Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
-					ctm.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), Segment_2(s2, t2), ref_point));
-				}
-			}
-		else
-			for (unsigned int i = 0; i < pack_objects[id].size(); i++)
-			{
-				for (unsigned int j = 0; j < samp_pnts.size(); j++)
-				{
-					const vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
+					const vector<Point_3>& bisec_pnts = samp_pnts[i]->vd_vertices;
+					Point_2 ref_point = lf.to_uv(samp_pnts[i]->point());
 					if (bisec_pnts.size() == 0)
 						continue;
 					assert(bisec_pnts.size() != 1);
-					for (unsigned int k = 0; k < bisec_pnts.size()-1; k++)
+					for (unsigned int j = 0; j < bisec_pnts.size()-1; j++)
 					{
-						const Point_3& s = bisec_pnts[k];
-						const Point_3& t = bisec_pnts[k+1];
+						const Point_3& s = bisec_pnts[j];
+						const Point_3& t = bisec_pnts[j+1];
 						Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
-						ctm.const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), Segment_2(s2, t2)));
+						ctm.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), Segment_2(s2, t2), ref_point));
 					}
 				}
-			}	
+			else
+				for (unsigned int i = 0; i < pack_objects[id].size(); i++)
+				{
+					for (unsigned int j = 0; j < samp_pnts.size(); j++)
+					{
+						const vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
+						if (bisec_pnts.size() == 0)
+							continue;
+						assert(bisec_pnts.size() != 1);
+						for (unsigned int k = 0; k < bisec_pnts.size()-1; k++)
+						{
+							const Point_3& s = bisec_pnts[k];
+							const Point_3& t = bisec_pnts[k+1];
+							Point_2 s2 = lf.to_uv(s), t2 = lf.to_uv(t);
+							ctm.const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), Segment_2(s2, t2)));
+						}
+					}
+				}	
+		}
+		else
+		{
+			for (unsigned int i = 0; i < samp_pnts.size(); i++)
+			{
+				const vector<Segment_3>& med_segs = samp_pnts[i]->med_segs;
+				Point_2 ref_point = lf.to_uv(samp_pnts[i]->point());
+				if (med_segs.size() == 0)
+					continue;
+				assert(bisec_pnts.size() != 1);
+				for (unsigned int j = 0; j < med_segs.size(); j++)
+				{
+					Segment_2 s2d(lf.to_uv(med_segs[j]));
+					ctm.const_list_.push_back(Constraint(lf.to_uv(samp_pnts[i]->point()), s2d, ref_point));
+				}
+			}
+/*			for (unsigned int i = 0; i < pack_objects[id].size(); i++)
+			{
+				for (unsigned int j = 0; j < samp_pnts.size(); j++)
+				{
+					const vector<Segment_3>& med_segs = samp_pnts[j]->med_segs;
+					if (med_segs.size() == 0)
+						continue;
+					assert(bisec_pnts.size() != 1);
+					for (unsigned int k = 0; k < med_segs.size(); k++)
+					{
+						ctm.const_list_.push_back(Constraint(lf.to_uv(pack_objects[id].vertex(i)), lf.to_uv(med_segs[k])));
+					}
+				}
+			}*/	
+		}
 	
 
 		const unsigned int try_time_limit = 10;
@@ -559,7 +591,7 @@ namespace Geex
 		constraint_transformation(solutions, lfs, false);
 
 		std::cout<<"Minimum scale is "<<mink<<std::endl;
-		if (mink <= 1.01)
+		if (mink <= 1.1)
 			constraint_transformation(solutions, lfs, true);
 
 //#ifdef _CILK_
@@ -808,11 +840,11 @@ namespace Geex
 			Lloyd_res res = one_lloyd(enlarge, solutions, local_frames);
 			if (res == NO_MORE_ENLARGEMENT)
 			{
-				stop_update_DT = true;
+			//	stop_update_DT = true;
 				std::cout<<"Caution: Stopped updating iDT\n";
 			}
-			if (!stop_update_DT)
-			{
+			//if (!stop_update_DT)
+			//{
 				std::cout<<"Start iDT updating...\n";
 				CGAL::Timer t;
 				t.start();
@@ -821,7 +853,7 @@ namespace Geex
 				std::cout<<"Time spent in iDT: "<<t.time()<<" seconds.\n";
 				std::cout<<"End iDT updating\n";	
 				compute_clipped_VD();
-			}
+			//}
 			
 		
 			if (post_action != NULL)
@@ -888,18 +920,18 @@ namespace Geex
 
 			// check whether to use approximate voronoi region
 			//bool use_appox_VD = false;
-			//double min_factor = std::numeric_limits<double>::max();
-			//for (unsigned int j = 0; j < solutions.size(); j++)
-			//	if (solutions[j].k > 1.0)
-			//		min_factor = std::min(solutions[j].k, min_factor);		
-			//use_appox_VD = enlarge && (min_factor < 1.01);
+			double min_factor = std::numeric_limits<double>::max();
+			for (unsigned int j = 0; j < solutions.size(); j++)
+				if (solutions[j].k > 1.0)
+					min_factor = std::min(solutions[j].k, min_factor);		
+			use_voronoi_cell_ = !(enlarge && (min_factor < 1.05));
 
 			// update idt
 			rpvd.iDT_update();
-			compute_clipped_VD(approx_vd);
+			//compute_clipped_VD(approx_vd);
 
 			//if (!use_appox_VD)
-				//compute_clipped_VD(false);
+				compute_clipped_VD(false);
 			//else 
 			//	compute_clipped_VD(true);
 
@@ -977,6 +1009,7 @@ namespace Geex
 				{
 					vec3 dummyv;
 					samp_pnts[j]->mp = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(future_samp_pnts[j]), dummyv));
+					//samp_pnts[j]->mp = future_samp_pnts[j];
 				}
 			}
 			stop = true;
@@ -1003,9 +1036,13 @@ namespace Geex
 				cgal_vec_normalize(v12);
 				Vector_3 n = CGAL::cross_product(v01, v12);
 				double nlen2 = n.squared_length();
-				if (nlen2 == 0.0) //degenerate case
+				if (nlen2 <= 1.0e-8) //degenerate case
 				{
-					//std::cout<<"degenerate at <"<<i0<<", "<<i1<<", "<<i2<<">\n";
+					nb_flipped++;
+					if (i0 >= 0)	flipped[i0] = true;
+					if (i1 >= 0)	flipped[i1] = true;
+					if (i2 >= 0)	flipped[i2] = true;
+					stop = false;
 					continue;
 				}
 				cgal_vec_normalize(n);
@@ -1380,7 +1417,7 @@ namespace Geex
 				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
 
 			// choose the result with the smallest match error now
-			double shrink_factor = 0.8;
+			double shrink_factor = 0.6;
 
 			Match_info_item<unsigned int> matcher = match_res.top();
 			if (discrete_scaling)
@@ -1438,6 +1475,7 @@ namespace Geex
 		generate_RDT();
 		compute_clipped_VD();
 		stop_update_DT = false;
+		use_voronoi_cell_ = true;
 		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
 		if (discrete_scaling)
 		{

@@ -251,6 +251,12 @@ namespace Geex {
 
 		std::cout << "nb_vertices: " <<nb_vertices_ << "; nb_faces: " <<size()<< std::endl;
 		std::cout << "number of boundary vertices: "<<boundaryEdges.size()<<std::endl;
+
+		mesh_cent = vec3(0.0, 0.0, 0.0);
+
+		for (unsigned int i = 0; i < nb_vertices(); i++)
+			mesh_cent += vertices_[i].pos_;
+		mesh_cent /= nb_vertices();
     }
 
 	bool TriMesh::near_boundary(int idx) const

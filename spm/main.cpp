@@ -208,11 +208,12 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Smoothed Voronoi", TW_TYPE_BOOL8, &spm()->show_smoothed_voronoi_cell(), "group = 'Geometry' ");
+			TwAddVarRW(graphics_bar, "Midpoint Cell", TW_TYPE_BOOL8, &spm()->show_midpoint_cell(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Vertices", TW_TYPE_BOOL8, &spm()->show_vertices(), "group = 'Geometry' ");
 
 			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "group = 'Debug' ");
 			TwAddVarRW(graphics_bar, "Local frame", TW_TYPE_BOOL8, &spm()->show_local_frame(), "group = 'Debug' ");
-			TwAddVarRW(graphics_bar, "CDT", TW_TYPE_BOOL8, &spm()->show_cdt(), "group = 'Debug' ");
+			//TwAddVarRW(graphics_bar, "CDT", TW_TYPE_BOOL8, &spm()->show_cdt(), "group = 'Debug' ");
 
 			//TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Holes", TW_TYPE_BOOL8, &spm()->show_holes(), "group = 'Geometry' ");
@@ -230,7 +231,7 @@ namespace Geex {
 			TwAddVarRW(function_bar, "Pack Iter", TW_TYPE_INT32, &pack_iter_times, "min=1 group = 'Optimization'");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_opt, "group = 'Optimization' ");
-
+			TwAddVarRW(function_bar, "Use Voronoi Cell", TW_TYPE_BOOL8, &spm()->use_voronoi_cell(), "group = 'Optimization' ");
 			//TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
 			//TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
 			//TwAddButton(function_bar, "Fill holes", tw_fill, NULL, "key=f group = 'Hole' ");

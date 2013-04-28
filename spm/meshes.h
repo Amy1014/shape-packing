@@ -495,6 +495,8 @@ namespace Geex {
 		inline double getMinFacetWeight() const { return minFacetWeight; }
 
 		inline double curvature_at_vertex(int idx) const { return vertices_[idx].curvature; }
+
+		vec3 mesh_center() const { return mesh_cent; }
 		//inline double get_max_curvature() const { return max_vert_curvature; }
 		//inline double get_min_curvature() const { return min_vert_curvature; }
  
@@ -554,6 +556,8 @@ namespace Geex {
 		//double min_vert_curvature;
 		vector<pair<double, int>> facetWeight;
 		static double PI;
+
+		vec3 mesh_cent;
 
 		// record whether a vertex is on boundary or feature
 		vector<bool> vert_on_boundary;

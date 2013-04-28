@@ -33,10 +33,11 @@ namespace Geex
 		show_curvatures_ = false;
 		textured = false;
 		show_holes_ = false;
-		show_cdt_ = false;
+		//show_cdt_ = false;
 		highlighted_group = -1;
 		show_multi_tiles_ = false;
 		show_multi_submeshes_ = false;
+		show_midpoint_cell_ = false;
 		show_inactive_ = true;
 		sub_pack_id = 0;
 	}
@@ -85,6 +86,9 @@ namespace Geex
 			draw_voronoi_cell();
 		if (show_smoothed_voronoi_cell_)
 			draw_smoothed_voronoi_cell();
+		if (show_midpoint_cell_)
+			draw_midpoint_cell();
+
 		if (show_vertices_)
 			draw_all_vertices();
 		if (show_hole_triangles_)
@@ -93,8 +97,8 @@ namespace Geex
 			draw_holes();
 		if (show_local_frame_)
 			draw_local_frames();
-		if (show_cdt_)
-			draw_cdt();
+		//if (show_cdt_)
+		//	draw_cdt();
 		if (show_curvatures_)
 			glCallList(cur_color_displist);
 
@@ -106,6 +110,7 @@ namespace Geex
 
 	void SPM_Graphics::draw_mesh()
 	{
+		
 		glCullFace(GL_FRONT) ;
 		glEnable(GL_LIGHTING);
 		glPushMatrix();
@@ -113,14 +118,15 @@ namespace Geex
 		glMaterialfv(GL_FRONT, GL_SPECULAR, surf_spec);
 		glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
 		const TriMesh& m = packer->mesh_domain();
+		vec3 mc = m.mesh_center();
 		for(unsigned int i=0; i<m.size(); i++) 
 		{
 			vec3 n = m[i].normal();
 			glBegin(GL_TRIANGLES);
 			glNormal(n);
-			glVertex(m[i].vertex[0]) ;
-			glVertex(m[i].vertex[1]) ;
-			glVertex(m[i].vertex[2]) ;
+			glVertex((m[i].vertex[0]-mc)*0.99 + mc) ;
+			glVertex((m[i].vertex[1]-mc)*0.99 + mc) ;
+			glVertex((m[i].vertex[2]-mc)*0.99 + mc) ;
 			glEnd();
 		}
 		glPopMatrix();
@@ -751,26 +757,26 @@ namespace Geex
 		texture_lib = multi_texture_libs[sub_pack_id];
 		sub_pack_id++;
 	}
-	void SPM_Graphics::draw_cdt()
-	{
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glLineWidth(1.5f);
-		glBegin(GL_LINES);
-		CDT& cdt = packer->get_cdt();
-		for (CDT::All_faces_iterator fit = cdt.all_faces_begin(); fit != cdt.all_faces_end(); ++fit)
-		{
-			if (!fit->inside_hole)
-				continue;
-			CDT::Vertex_handle v[] = {fit->vertex(0), fit->vertex(1), fit->vertex(2)};
-			
-			for (int i = 0; i < 3; i++)
-			{
-				glPoint_3(v[i]->geo_info.prj_pnt);
-				glPoint_3(v[(i+1)%3]->geo_info.prj_pnt);
-			}
-		}
-		glEnd();
-	}
+	//void SPM_Graphics::draw_cdt()
+	//{
+	//	glColor3f(1.0f, 0.0f, 0.0f);
+	//	glLineWidth(1.5f);
+	//	glBegin(GL_LINES);
+	//	CDT& cdt = packer->get_cdt();
+	//	for (CDT::All_faces_iterator fit = cdt.all_faces_begin(); fit != cdt.all_faces_end(); ++fit)
+	//	{
+	//		if (!fit->inside_hole)
+	//			continue;
+	//		CDT::Vertex_handle v[] = {fit->vertex(0), fit->vertex(1), fit->vertex(2)};
+	//		
+	//		for (int i = 0; i < 3; i++)
+	//		{
+	//			glPoint_3(v[i]->geo_info.prj_pnt);
+	//			glPoint_3(v[(i+1)%3]->geo_info.prj_pnt);
+	//		}
+	//	}
+	//	glEnd();
+	//}
 
 	void SPM_Graphics::draw_smoothed_voronoi_cell()
 	{
@@ -788,5 +794,30 @@ namespace Geex
 			glEnd();
 		}
 		glEnable(GL_LIGHTING);
+	}
+
+	void SPM_Graphics::draw_midpoint_cell()
+	{
+		const RestrictedPolygonVoronoiDiagram& rpvd = packer->get_rpvd();
+		glDisable(GL_LIGHTING);
+		glColor3f(1.0f, 1.0f, 0.0f);
+		glLineWidth(1.5f);
+		glBegin(GL_LINES);
+		for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
+		{
+			const RestrictedPolygonVoronoiDiagram::VertGroup& vg = rpvd.sample_points_group(i);
+			for (unsigned int j = 0; j < vg.size(); j++)
+			{
+				const std::vector<Segment_3>& med_segs = vg[j]->med_segs;
+				for (unsigned int k = 0; k < med_segs.size(); k++)
+				{
+					glPoint_3(med_segs[k].source());
+					glPoint_3(med_segs[k].target());
+				}
+			}
+		}
+		glEnd();
+		glEnable(GL_LIGHTING);
+		glLineWidth(1.0f);
 	}
 }

@@ -47,6 +47,8 @@ namespace Geex
 		GLboolean& show_inactive() { return show_inactive_; }
 
 		GLboolean& show_voronoi_cell() { return show_voronoi_cell_; }
+		GLboolean& show_midpoint_cell() { return show_midpoint_cell_; }
+
 		GLboolean& show_smoothed_voronoi_cell() { return show_smoothed_voronoi_cell_; }
 
 		void redraw_voronoi_cell() { glDeleteLists(vc_displist, 1); }
@@ -68,7 +70,7 @@ namespace Geex
 		int& highlighted_group_id() { return highlighted_group; }
 
 		GLboolean& show_local_frame() { return show_local_frame_; }
-		GLboolean& show_cdt() { return show_cdt_; }
+		//GLboolean& show_cdt() { return show_cdt_; }
 
 		void load_graphics() 
 		{
@@ -99,6 +101,8 @@ namespace Geex
 		void draw_triangulation();
 
 		void draw_voronoi_cell();
+		void draw_midpoint_cell();
+
 		void draw_smoothed_voronoi_cell();
 
 		void draw_hole_triangles();
@@ -114,7 +118,7 @@ namespace Geex
 		void cur_color_map(double cur, double min_cur, double max_cur, GLfloat& r, GLfloat& g, GLfloat& b);
 		// debug
 		void draw_all_vertices();
-		void draw_cdt(); 
+		//void draw_cdt(); 
 
 		void draw_local_frames();
 
@@ -130,6 +134,7 @@ namespace Geex
 
 		GLboolean show_polygons_;
 		GLboolean show_voronoi_cell_;
+		GLboolean show_midpoint_cell_;
 		GLboolean show_smoothed_voronoi_cell_;
 
 		GLboolean show_triangulation_;
@@ -154,7 +159,7 @@ namespace Geex
 
 		// debug
 		GLboolean show_local_frame_;
-		GLboolean show_cdt_;
+		//GLboolean show_cdt_;
 		int highlighted_group;
 		// colors
 		int random_color_index;
