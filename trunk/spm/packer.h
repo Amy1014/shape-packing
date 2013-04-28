@@ -69,6 +69,7 @@ namespace Geex
 		double& get_epsilon() { return epsilon; }
 		double& get_match_weight() { return match_weight; }
 		ProjectIO& get_project_ioer() { return pio; }
+		bool& use_voronoi_cell() { return use_voronoi_cell_; }
 
 		const std::vector<std::vector<Packing_object>>& get_multigroup_tiles() const { return res_pack_objects; }
 		const std::vector<TriMesh>& get_multigroup_submeshes() const { return mesh_segments; }
@@ -108,7 +109,7 @@ namespace Geex
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
 		void save_curvature_and_area(); // deleted for simplicity, see revision 67
 		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty); // deleted for simplicity, see revision 67
-		CDT& get_cdt() {  return cdt; }
+		//CDT& get_cdt() {  return cdt; }
 
 		void report();
 
@@ -216,6 +217,7 @@ namespace Geex
 		/** control variable **/
 		bool stop_update_DT;
 		double match_weight;
+		bool use_voronoi_cell_;
 
 		/** helper classes **/
 	private:
@@ -322,7 +324,7 @@ namespace Geex
 
 	public: // for debug
 		RestrictedPolygonVoronoiDiagram rpvd;
-		CDT cdt;
+		//CDT cdt;
 		//std::vector<Local_frame> local_frames;
 		//Packing_object backup;
 		std::vector<std::vector<Packing_object>> res_pack_objects;

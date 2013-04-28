@@ -277,7 +277,6 @@ namespace Geex
 			for (unsigned int j = 0; j < vg.size(); j++)
 			{
 				std::vector<bool> is_triple_pnt;
-				int gid = vg[j]->group_id;
 				Edge_circulator start_edge = vg[j]->vertex_begin();
 				Edge_circulator current_edge = start_edge;
 				do 
@@ -516,17 +515,17 @@ namespace Geex
 						}
 						else if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id == vg[j]->group_id)
 						{
-							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_pre->mp), end1 = CGAL::midpoint(v_nxt->mp, v_pre->mp);
+							Point_3 end0 = CGAL::midpoint(v_nxt->mp, v_pre->mp), end1 = CGAL::midpoint(vg[j]->mp, v_pre->mp);
 							vg[j]->med_segs.push_back(Segment_3(end0, end1));
 						}
 						else if ( v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id == v_nxt->group_id )
 						{
-							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_pre->mp), end1 = CGAL::midpoint(v_nxt->mp, vg[j]->mp);
+							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, vg[j]->mp);
 							vg[j]->med_segs.push_back(Segment_3(end0, end1));
 						}
 						else if ( v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id )
 						{
-							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_pre->mp), end1 = CGAL::midpoint(v_nxt->mp, vg[j]->mp);
+							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, vg[j]->mp);
 							Point_3 c = CGAL::centroid(vg[j]->mp, v_pre->mp, v_nxt->mp);
 							vg[j]->med_segs.push_back(Segment_3(end0, c));
 							vg[j]->med_segs.push_back(Segment_3(c, end1));
@@ -536,17 +535,17 @@ namespace Geex
 					--current_edge;
 				} while (current_edge != start_edge);
 
-				std::vector<Point_3>& vd_vertices = vg[j]->vd_vertices;
-				//std::vector<bool>& is_triple_pnt = vg[j]->is_triple_pnt;
-				for (unsigned int k = 0; k < vd_vertices.size(); k++)
+				std::vector<Segment_3>& med_segs = vg[j]->med_segs;
+				for (unsigned int k = 0; k < med_segs.size(); k++)
 				{
-					vd_vertices[k] = pln.projection(vd_vertices[k]);
-					if (is_triple_pnt[k])
-						smoothed_VD_regions[i].push_back(vd_vertices[k]);
+					Point_3 src = pln.projection(med_segs[k].source());
+					Point_3 tgt = pln.projection(med_segs[k].target());
+					med_segs[k] = Segment_3(src, tgt);
 				}
 			}
-			std::vector<Point_2> conhull;
-			std::vector<Point_2> pnt2d;
+			for (unsigned int k = 0; k < smoothed_VD_regions[i].size(); k++)
+				smoothed_VD_regions[i][k] = pln.projection(smoothed_VD_regions[i][k]);
+			std::vector<Point_2> conhull, pnt2d;
 			pnt2d.reserve(smoothed_VD_regions[i].size());
 			Vector_3 base1 = pln.base1(), base2 = pln.base2();
 			cgal_vec_normalize(base1);
@@ -642,7 +641,7 @@ namespace Geex
 				Vertex_handle v = e->next()->vertex();
 				Vertex_handle u = e->opposite()->next()->vertex();
 				if (e->vertex()->group_id == e->opposite()->vertex()->group_id 
-					&& std::abs(e->vertex()->idx - e->opposite()->vertex()->idx) == 1)
+					/*&& std::abs(e->vertex()->idx - e->opposite()->vertex()->idx) == 1*/)
 					continue;
 					//e->facet()->is_delaunay = e->opposite()->facet()->is_delaunay = false;
 				if (vpedges.find(Edge(u, v)) != vpedges.end())
