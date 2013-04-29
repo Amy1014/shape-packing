@@ -542,7 +542,7 @@ namespace Geex
 	bool Packer::discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, 
 									double barrier_factor, double nxt_barrier, std::vector<bool>& approx_vd)
 	{
-		double min_factor = 1.02; // to determine convergence
+		double min_factor = 1.05; // to determine convergence
 
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
@@ -567,6 +567,7 @@ namespace Geex
 		}
 	
 		double mink = std::numeric_limits<double>::max();
+		//int nb_failures = 0;
 		// suppress the inactive and optimization failure ones
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
@@ -576,10 +577,13 @@ namespace Geex
 				solutions[i].k = 1.0;
 			else if (opti_res[i] != SUCCESS)
 			{
+				//nb_failures++;
 				solutions[i].k = 1.0;
 				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
 			}
 		}
+
+		//std::cout<<"number of failures: "<<nb_failures<<std::endl;
 		
 		//if (mink >= min_factor)
 		//{
@@ -633,22 +637,6 @@ namespace Geex
 			transform_one_polygon(i, lfs[i], solutions[i]);
 		}
 		
-
-		// update facet normal
-		for (RestrictedPolygonVoronoiDiagram::Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
-		{
-			RestrictedPolygonVoronoiDiagram::Halfedge_handle eh = fit->halfedge();
-			Point_3 v0 = eh->vertex()->mp;
-			eh = eh->next();
-			Point_3 v1 = eh->vertex()->mp;
-			eh = eh->next();
-			Point_3 v2 = eh->vertex()->mp;
-			Vector_3 v01(v0, v1), v12(v1, v2);
-			cgal_vec_normalize(v01);
-			cgal_vec_normalize(v12);
-			fit->n = CGAL::cross_product(v01, v12);
-			fit->n = fit->n / CGAL::sqrt(fit->n.squared_length());
-		}
 		bool stay_at_this_barrier = false;
 		for (unsigned int i = 0; i < has_growth_room.size(); i++)
 			stay_at_this_barrier = stay_at_this_barrier || has_growth_room[i];
@@ -892,16 +880,13 @@ namespace Geex
 						if (pack_objects[j].active && !pack_objects[j].reach_barrier)
 						{
 							pack_objects[j].active = false;
-							double closest_phy_barrier;
-							phy_disc_barr.set_current_barrier(pack_objects[j].factor);
-							if (!phy_disc_barr.get_prev_barrier(closest_phy_barrier))
-							{
-								//std::cout<<"Tile "<<j<<" is even smaller than the smallest barrier.\n";
-								continue;
-							}
-							Parameter p(closest_phy_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
-							Local_frame lf = pack_objects[j].local_frame();
-							transform_one_polygon(j, lf, p);
+							//double closest_phy_barrier;
+							//phy_disc_barr.set_current_barrier(pack_objects[j].factor);
+							//if (!phy_disc_barr.get_prev_barrier(closest_phy_barrier))
+							//	continue;
+							//Parameter p(closest_phy_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
+							//Local_frame lf = pack_objects[j].local_frame();
+							//transform_one_polygon(j, lf, p);
 						}
 					}
 				else
@@ -1030,6 +1015,10 @@ namespace Geex
 				Point_3 v2 = eh->vertex()->mp;
 				//Point_3 dv2 = eh->vertex()->point();
 				int i2 = eh->vertex()->group_id;
+
+				if (i0 == i1 && i0 == i2)
+					continue;
+
 				Vector_3 v01(v0, v1), v12(v1, v2);
 				cgal_vec_normalize(v01);
 				cgal_vec_normalize(v12);
