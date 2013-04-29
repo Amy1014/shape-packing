@@ -72,6 +72,20 @@ namespace Geex
 		}
 		return nb_pnts;
 	}
+
+	unsigned int RestrictedPolygonVoronoiDiagram::insert_polygons(const Polygon_3& polygon, unsigned int group_id)
+	{
+		unsigned int nb_pnts = 0; 
+		for ( unsigned int i = 0; i < polygon.size(); i++ )
+		{
+			Point_3 p = polygon.vertex(i);
+			vec3 dv;
+			vec3 pp = trimesh->project_to_mesh(to_geex_pnt(p), dv);
+			all_points.push_back(MyPoint(p, to_cgal_pnt(pp), group_id));
+			nb_pnts++;
+		}
+		return nb_pnts;
+	}
 	
 	void RestrictedPolygonVoronoiDiagram::insert_bounding_points(unsigned int samp_nb)
 	{
