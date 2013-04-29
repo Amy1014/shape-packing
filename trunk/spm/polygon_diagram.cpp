@@ -724,6 +724,21 @@ namespace Geex
 			}
 			fit->is_delaunay = true;
 		}
+		// update facet normal
+		for (Facet_iterator fit = rdt_ds.facets_begin(); fit != rdt_ds.facets_end(); ++fit)
+		{
+			RestrictedPolygonVoronoiDiagram::Halfedge_handle eh = fit->halfedge();
+			Point_3 v0 = eh->vertex()->mp;
+			eh = eh->next();
+			Point_3 v1 = eh->vertex()->mp;
+			eh = eh->next();
+			Point_3 v2 = eh->vertex()->mp;
+			Vector_3 v01(v0, v1), v12(v1, v2);
+			cgal_vec_normalize(v01);
+			cgal_vec_normalize(v12);
+			fit->n = CGAL::cross_product(v01, v12);
+			cgal_vec_normalize(fit->n);
+		}
 	}
 
 	void RestrictedPolygonVoronoiDiagram::save_triangulation(const std::string fn)
