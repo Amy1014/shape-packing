@@ -80,6 +80,9 @@ namespace Geex
 			//	glEnable(GL_TEXTURE_2D);
 		}
 
+		// file io
+		void save_materials();
+
 	protected:
 		// for multiple polygon sets display
 		void load_next_texture_lib();

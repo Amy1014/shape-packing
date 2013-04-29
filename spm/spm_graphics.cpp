@@ -751,6 +751,38 @@ namespace Geex
 		textured = true;
 	}
 
+	void SPM_Graphics::save_materials()
+	{
+		if (!packer->get_project_ioer().texture_specified())
+			return;
+		std::vector<std::string> texture_files;
+		packer->get_project_ioer().read_texture_files(texture_files);
+		if (texture_files.empty())
+			return;
+		// pick out only the file name
+		// save material file
+		std::string output_dir = packer->get_project_ioer().attribute_value("OutputDir");
+		std::string mat_fn = output_dir + "/mat.mtl";
+		std::ofstream of(mat_fn.c_str());
+		for (unsigned int i = 0; i < texture_files.size(); i++)
+		{
+			unsigned int last_slash_pos = texture_files[i].rfind('/');
+			if (last_slash_pos == std::string::npos)
+				last_slash_pos = texture_files[i].rfind('\\');
+			if (last_slash_pos == std::string::npos)
+				last_slash_pos = 0;
+			std::string fn(texture_files[i], last_slash_pos+1);
+			unsigned int dot_pos = fn.find('.');
+			std::string mat_name(fn, 0, dot_pos);
+			of << "newmtl " << mat_name << std::endl;
+			of << "Ka " << "0.8 0.8 0.8 \n";
+			of << "Kd " << "0.8 0.8 0.8 \n";
+			of << "illum 2 \n";
+			of << "map_Ka " << fn << std::endl;
+			of << "map_Kd " << fn << std::endl;
+			of << std::endl;
+		}
+	}
 	void SPM_Graphics::load_next_texture_lib()
 	{
 		texture_lib.clear();

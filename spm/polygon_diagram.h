@@ -69,7 +69,10 @@ public:
 	void begin_insert() ;
 
 	// insert a group of polygons
-	template<class InputIterator> void insert_polygons(InputIterator first, InputIterator last, unsigned int samp_nb = 24);
+	template<class InputIterator> void insert_polygons(InputIterator first, InputIterator last, unsigned int samp_nb);
+
+	// only insert polygon vertices
+	template<class InputIterator> void insert_polygons(InputIterator first, InputIterator last);
 
 	// modify rdt through adding a cdt
 	void delegate(CDTtoRDT& cdt2rdt) { rdt_ds.delegate(cdt2rdt); }
@@ -124,7 +127,10 @@ private: // private functions
 	inline void add_quadrilateral_edge(Halfedge_handle e, std::stack<Halfedge_handle>& q, std::set<Halfedge_handle>& s);
 
 	// insert one polygon, return how many sample points are actually inserted
-	unsigned int insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb = 24);
+	unsigned int insert_polygons(const Polygon_3& polygon, unsigned int group_id, unsigned int samp_nb);
+
+	// insert the vertices of a polygon only
+	unsigned int insert_polygons(const Polygon_3& polygon, unsigned int group_id);
 
 	template <class EdgeInputIterator>
 	unsigned int insert_bounding_edges(EdgeInputIterator first, EdgeInputIterator last, unsigned int samp_nb);
@@ -162,6 +168,21 @@ void RestrictedPolygonVoronoiDiagram::insert_polygons(InputIterator first, Input
 	}
 	nb_groups = group_id;
 	//assert(nb_pnts == rdt_ds.size_of_vertices());
+}
+
+template <class InputIterator>
+void RestrictedPolygonVoronoiDiagram::insert_polygons(InputIterator first, InputIterator last)
+{
+	assert(open);
+	unsigned int group_id = 0, nb_pnts = 0;
+	samp_pnts.resize(last - first);
+	while (first != last)
+	{
+		nb_pnts += insert_polygons(*first, group_id);
+		++first;
+		++group_id;
+	}
+	nb_groups = group_id;
 }
 
 template <class EdgeInputIterator>

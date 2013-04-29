@@ -32,6 +32,7 @@ namespace Geex {
 	void TW_CALL tw_report(void*);
 	void TW_CALL tw_discretize_tiles(void*);
 	void TW_CALL tw_save_tiles(void *);
+	void TW_CALL tw_save_mat(void *);
 	void TW_CALL tw_split(void*);
 	
     class SPMApp : public GeexApp 
@@ -181,6 +182,11 @@ namespace Geex {
 			spm()->save_tiles();
 		}
 
+		void save_mat()
+		{
+			spm()->save_materials();
+		}
+
 		void split()
 		{
 			spm()->split_large_tiles();
@@ -262,6 +268,8 @@ namespace Geex {
 			//TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
 			
 			TwAddButton(function_bar, "save tiles", tw_save_tiles, NULL, "key=S group='File'");
+			TwAddButton(function_bar, "save mat", tw_save_mat, NULL, "key=M group='File'");
+
 			toggle_skybox_CB() ;
             glut_viewer_add_toggle('b', glut_viewer_is_enabled_ptr(GLUT_VIEWER_BACKGROUND), "switch Color/BW") ;
             glut_viewer_add_toggle('T', &viewer_properties_->visible(), "viewer properties") ;
@@ -321,6 +329,7 @@ void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
 void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
 void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
 void TW_CALL tw_save_tiles(void* clientData) { spm_app()->save_tiles(); }
+void TW_CALL tw_save_mat(void *clientData) { spm_app()->save_mat(); }
 void TW_CALL tw_split(void *clietData) { spm_app()->split(); }
 }
 

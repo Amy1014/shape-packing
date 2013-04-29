@@ -295,13 +295,13 @@ namespace Geex
 	{
 		rpvd.begin_insert();
 		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), samp_nb);
+		//rpvd.insert_polygons(pack_objects.begin(), pack_objects.end());
 		rpvd.insert_bounding_points(40);
 		CGAL::Timer t;
 		t.start();
 		rpvd.end_insert();
 		t.stop();
 		std::cout<<"time spent in RDT: "<<t.time()<<" seconds."<<std::endl;
-		//compute_clipped_VD();
 	}
 
 	vec3 Packer::approx_normal(unsigned int facet_idx)
@@ -581,12 +581,12 @@ namespace Geex
 			}
 		}
 		
-		if (mink >= min_factor)
-		{
-			for (unsigned int i = 0; i < pack_objects.size(); i++)
-				if (opti_res[i] == SUCCESS && pack_objects[i].active)
-					solutions[i].k = mink;
-		}
+		//if (mink >= min_factor)
+		//{
+		//	for (unsigned int i = 0; i < pack_objects.size(); i++)
+		//		if (opti_res[i] == SUCCESS && pack_objects[i].active)
+		//			solutions[i].k = mink;
+		//}
 		constraint_transformation(solutions, lfs, false);
 
 		std::cout<<"Minimum scale is "<<mink<<std::endl;
@@ -1557,27 +1557,89 @@ namespace Geex
 
 	void Packer::save_tiles()
 	{
-		std::ofstream ofile("packed_tiles.obj");
+		std::string obj_fn = pio.attribute_value("OutputDir") + "/tiles.obj";
+		std::ofstream ofile(obj_fn.c_str());
 		unsigned int vtx_idx = 1;
 		std::vector<std::vector<unsigned int>> global_vtx_idx;
 		global_vtx_idx.reserve(pack_objects.size());
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		if (!pio.texture_specified())
 		{
-			global_vtx_idx.push_back(std::vector<unsigned int>());
-			global_vtx_idx.back().reserve(pack_objects[i].size());
-			for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
-				Point_3 v = pack_objects[i].vertex(j);
-				ofile<<"v "<<v.x()<<' '<<v.y()<<' '<<v.z()<<std::endl;
-				global_vtx_idx.back().push_back(vtx_idx);
-				vtx_idx++;
+				global_vtx_idx.push_back(std::vector<unsigned int>());
+				global_vtx_idx.back().reserve(pack_objects[i].size());
+				for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+				{
+					Point_3 v = pack_objects[i].vertex(j);
+					ofile<<"v "<<v.x()<<' '<<v.y()<<' '<<v.z()<<std::endl;
+					global_vtx_idx.back().push_back(vtx_idx);
+					vtx_idx++;
+				}
+			}
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				for (unsigned int j = 1; j < pack_objects[i].size()-1; j++)
+					ofile<<"f "<<global_vtx_idx[i][0]<<' '<<global_vtx_idx[i][j]<<' '<<global_vtx_idx[i][j+1]<<std::endl;
+				ofile<<std::endl;
 			}
 		}
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		else
 		{
-			for (unsigned int j = 1; j < pack_objects[i].size()-1; j++)
-				ofile<<"f "<<global_vtx_idx[i][0]<<' '<<global_vtx_idx[i][j]<<' '<<global_vtx_idx[i][j+1]<<std::endl;
-			ofile<<std::endl;
+			ofile << "mtllib "<<"mat.mtl\n";
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				global_vtx_idx.push_back(std::vector<unsigned int>());
+				global_vtx_idx.back().reserve(pack_objects[i].size());
+				for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+				{
+					Point_3 v = pack_objects[i].vertex(j);
+					ofile<<"v "<<v.x()<<' '<<v.y()<<' '<<v.z()<<std::endl;
+					global_vtx_idx.back().push_back(vtx_idx);
+					vtx_idx++;
+				}
+			}
+			// write texture coordinates
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				std::vector<Point_2>& text_coord = pack_objects[i].texture_coord;
+				for (int j = 0; j < pack_objects[i].size(); j++)
+				{
+					ofile<<"vt "<<text_coord[j].x()<<' '<<1.0 - text_coord[j].y()<<std::endl;
+				}
+			}
+			// write normals
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				Vector_3 n = pack_objects[i].norm();
+				for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+					ofile<<"vn "<<n.x()<<' '<<n.y()<<' '<<n.z()<<std::endl;
+			}
+			std::vector<std::string> texture_files;
+			pio.read_texture_files(texture_files);
+			std::vector<std::string> texture_names;
+			// pick out only the file name
+			// save material file
+			for (unsigned int i = 0; i < texture_files.size(); i++)
+			{
+				unsigned int last_slash_pos = texture_files[i].rfind('/');
+				if (last_slash_pos == std::string::npos)
+					last_slash_pos = texture_files[i].rfind('\\');
+				if (last_slash_pos == std::string::npos)
+					last_slash_pos = 0;
+				std::string fn(texture_files[i], last_slash_pos+1);
+				unsigned int dot_pos = fn.find('.');
+				std::string texture_name(fn, 0, dot_pos);
+				texture_names.push_back(texture_name);
+			}
+			// write faces
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				ofile<<"usemtl "<<texture_names[pack_objects[i].texture_id]<<std::endl;
+				ofile<<"f ";
+				for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+					ofile<<global_vtx_idx[i][j]<<'/'<<global_vtx_idx[i][j]<<'/'<<global_vtx_idx[i][j]<<' ';
+				ofile<<std::endl;
+			}
 		}
 	}
 	int Packer::KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx)
