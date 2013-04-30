@@ -1,9 +1,13 @@
-< SpMProject >  Elephant Test </ SPMProject >
+< SpMProject >  Bunny Test </ SPMProject >
 
 < MeshFile >          ..\..\surfaces\bunny.obj        </ MeshFile >    
             
 < polygonfile >      ..\..\polygons\voronoi418_bunny.poly      </ PolygonFile >
 
-< gamma > 2.5 </ gamma>
+< gamma > 1.0 </ gamma>
 
 < DensityFile >      ..\..\surfaces\bunny.txt </ DensityFile >
+
+< PhysicalScales > 0.3 1.2 10 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 10 </ OptimizationScales >

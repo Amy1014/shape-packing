@@ -124,9 +124,12 @@ namespace Geex
 			vec3 n = m[i].normal();
 			glBegin(GL_TRIANGLES);
 			glNormal(n);
-			glVertex((m[i].vertex[0]-mc)*0.99 + mc) ;
-			glVertex((m[i].vertex[1]-mc)*0.99 + mc) ;
-			glVertex((m[i].vertex[2]-mc)*0.99 + mc) ;
+			//glVertex((m[i].vertex[0]-mc)*0.99 + mc) ;
+			//glVertex((m[i].vertex[1]-mc)*0.99 + mc) ;
+			//glVertex((m[i].vertex[2]-mc)*0.99 + mc) ;
+			glVertex(m[i].vertex[0]) ;
+			glVertex(m[i].vertex[1]) ;
+			glVertex(m[i].vertex[2]) ;
 			glEnd();
 		}
 		glPopMatrix();

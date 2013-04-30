@@ -35,6 +35,7 @@ public:
 	/** access function **/
 	string attribute_value(const string& attribute_name) ;
 	bool has_density_input() const { return has_density_input_; }
+	inline double gamma_used() const { return gamma; }
 
 	inline bool texture_specified() const 
 	{
@@ -124,6 +125,7 @@ private:
 	std::vector<std::string> mesh_tile_couple_dir; // one polygon set and one mesh are in the same directory
 	/** indicators of what are input **/
 	bool has_density_input_; // each vertex has a weight, e.g. curvature
+	double gamma;
 
 	/** i/o error message **/
 	const static string error_start_tag;

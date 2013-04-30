@@ -51,8 +51,8 @@ namespace Geex {
 			enlarge_tx = 0.0;
 			enlarge_ty = 0.0;
 
-			lloyd_iter_times = 1;
-			pack_iter_times = 1;
+			lloyd_iter_times = 10;
+			pack_iter_times = 40;
        }
 
         SPM* spm() { return static_cast<SPM*>(scene()) ; }
@@ -247,7 +247,8 @@ namespace Geex {
 			//			tw_front_len_get_callback, NULL, "min=0.0 step=0.001 group = 'Hole' ");
 
 			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
-			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
+			TwAddVarRW(function_bar, "factor", TW_TYPE_DOUBLE, &spm()->replace_shrink_factor(), "min=0.4 group = 'Replace' ");
+			//TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
 			//TwAddButton(function_bar, "remove", tw_remove, NULL, "key=R group = 'Replace' ");
 			//TwAddButton(function_bar, "ex-replace", tw_ex_replace, NULL, "key=e group = 'Replace' ");
 			TwAddButton(function_bar, "ext-replace", tw_con_replace, NULL, "key = x group = 'Replace' ");
