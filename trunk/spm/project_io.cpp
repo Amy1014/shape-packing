@@ -15,6 +15,7 @@ namespace Geex
 	{
 		has_density_input_ = false;
 		load_project(prj_config_file);
+		gamma = 1.0;
 	}
 
 	void ProjectIO::load_project(const string& prj_config_file)
@@ -334,7 +335,6 @@ namespace Geex
 			str_gamma.str(gamma_it->second);
 		else
 			str_gamma.str("1.0");
-		double gamma;
 		str_gamma >> gamma;
 		std::cout<<"using gamma = "<<str_gamma.str()<<std::endl;
 		has_density_input_ = mesh.load_density(single_density_file, gamma);
@@ -355,7 +355,6 @@ namespace Geex
 			}
 		// load density
 		TagLookupTable::const_iterator gamma_it = attr_val.find("gamma");
-		double gamma = 1.0;
 		if ( gamma_it != attr_val.end() )
 		{
 			std::istringstream str_gamma;

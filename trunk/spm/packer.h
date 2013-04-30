@@ -70,6 +70,7 @@ namespace Geex
 		double& get_match_weight() { return match_weight; }
 		ProjectIO& get_project_ioer() { return pio; }
 		bool& use_voronoi_cell() { return use_voronoi_cell_; }
+		double& replace_shrink_factor() { return replace_factor; }
 
 		const std::vector<std::vector<Packing_object>>& get_multigroup_tiles() const { return res_pack_objects; }
 		const std::vector<TriMesh>& get_multigroup_submeshes() const { return mesh_segments; }
@@ -146,7 +147,7 @@ namespace Geex
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
 
 		bool discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, 
-								double barrier_factor,	double nxt_barrier, std::vector<bool>& approx_vd);
+								double barrier_factor,	double nxt_barrier);
 
 		static int callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
 							const double * const x,	const double * const lambda, double * const obj, double * const c,
@@ -211,6 +212,7 @@ namespace Geex
 		double rot_lower_bd;
 		double rot_upper_bd;
 		double epsilon;
+		double replace_factor; // shrink factor after replacement
 
 		/** control variable **/
 		bool stop_update_DT;
@@ -260,6 +262,7 @@ namespace Geex
 				if (!beyond_range())
 					++current_barrier;
 			}
+			void go_to_end() { current_barrier = grades.end(); }
 			bool get_next_barrier(double& res)
 			{
 				std::vector<double>::iterator tmp = current_barrier;

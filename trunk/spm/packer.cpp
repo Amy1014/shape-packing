@@ -30,6 +30,8 @@ namespace Geex
 		sync_opt = true;
 		phony_upper_scale = 100.0;
 		use_voronoi_cell_ = true;
+
+		replace_factor = 0.8;
 	}
 
 	void Packer::load_project(const std::string& prj_config_file)
@@ -540,7 +542,7 @@ namespace Geex
 	}
 
 	bool Packer::discrete_one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs, 
-									double barrier_factor, double nxt_barrier, std::vector<bool>& approx_vd)
+									double barrier_factor, double nxt_barrier/*, std::vector<bool>& approx_vd*/)
 	{
 		double min_factor = 1.05; // to determine convergence
 
@@ -557,10 +559,10 @@ namespace Geex
 		// check whether the tile has already been close to its voronoi region
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			if (opti_res[i] == SUCCESS && solutions[i].k >= 1.065)
-				approx_vd[i] = false;
-			else
-				approx_vd[i] = true;
+			//if (opti_res[i] == SUCCESS && solutions[i].k >= 1.065)
+			//	approx_vd[i] = false;
+			//else
+			//	approx_vd[i] = true;
 
 			if (!enlarge)
 				solutions[i].k = 1.0;
@@ -626,7 +628,9 @@ namespace Geex
 				else 
 					has_growth_room[i] = false;
 			}		
-
+		else
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+				pack_objects[i].reach_barrier = true;
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -638,9 +642,16 @@ namespace Geex
 		}
 		
 		bool stay_at_this_barrier = false;
+		int nb_potential_growth = 0;
 		for (unsigned int i = 0; i < has_growth_room.size(); i++)
-			stay_at_this_barrier = stay_at_this_barrier || has_growth_room[i];
-
+		{
+			//stay_at_this_barrier = stay_at_this_barrier || has_growth_room[i];
+			if (has_growth_room[i])
+				nb_potential_growth++;
+		}
+		double perc = nb_potential_growth/(double)pack_objects.size();
+		std::cout<<"percentage of potential growth: "<<perc*100.0<<'%'<<std::endl;
+		stay_at_this_barrier = (perc > 0.005); // if only few tiles can be enlarged
 		if (!enlarge)
 			return true;
 		else
@@ -860,46 +871,58 @@ namespace Geex
 				std::cout<<"The maximum barrier factor achieved. Do nothing.\n";
 				return false;
 			}
+
 			std::vector<Parameter> solutions(pack_objects.size());
 			std::vector<Local_frame> local_frames(pack_objects.size());
-			std::vector<bool> approx_vd(pack_objects.size());
+			//std::vector<bool> approx_vd(pack_objects.size());
 
 			std::cout<<"============ discrete lloyd iteration "<<times++<<" ============\n";
 			
 			double nxt_barrier;
 			if (!disc_barr.get_next_barrier(nxt_barrier))
 				nxt_barrier = 1.0e20;
-			stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, nxt_barrier, approx_vd);
+			stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, nxt_barrier);
 			
 			if (!stay_at_this_barrier)  // go to the next barrier
 			{
 				// roll back to previous barrier for tiles that do not reach current barrier
-				if (!sync_opt)
-					for (unsigned int j = 0; j < pack_objects.size(); j++)
-					{
-						if (pack_objects[j].active && !pack_objects[j].reach_barrier)
-						{
-							pack_objects[j].active = false;
-							//double closest_phy_barrier;
-							//phy_disc_barr.set_current_barrier(pack_objects[j].factor);
-							//if (!phy_disc_barr.get_prev_barrier(closest_phy_barrier))
-							//	continue;
-							//Parameter p(closest_phy_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
-							//Local_frame lf = pack_objects[j].local_frame();
-							//transform_one_polygon(j, lf, p);
-						}
-					}
-				else
-				{
-					// check whether any chance to be larger
-					bool all_reach_barrier = true;
-					for (unsigned int j = 0; j < pack_objects.size(); j++)
-						all_reach_barrier = all_reach_barrier && pack_objects[j].reach_barrier;
-					if (all_reach_barrier)
-						std::cout<<"Synchronized optimization should stop.\n";
-				}
+				//if (!sync_opt)
+				//	for (unsigned int j = 0; j < pack_objects.size(); j++)
+				//	{
+				//		if (pack_objects[j].active && !pack_objects[j].reach_barrier)
+				//		{
+				//			pack_objects[j].active = false;
+				//			//double closest_phy_barrier;
+				//			//phy_disc_barr.set_current_barrier(pack_objects[j].factor);
+				//			//if (!phy_disc_barr.get_prev_barrier(closest_phy_barrier))
+				//			//	continue;
+				//			//Parameter p(closest_phy_barrier / pack_objects[j].factor, 0.0, 0.0, 0.0);
+				//			//Local_frame lf = pack_objects[j].local_frame();
+				//			//transform_one_polygon(j, lf, p);
+				//		}
+				//	}
+				//else
+				//{
+				//	// check whether any chance to be larger
+				//	bool all_reach_barrier = true;
+				//	for (unsigned int j = 0; j < pack_objects.size(); j++)
+				//		all_reach_barrier = all_reach_barrier && pack_objects[j].reach_barrier;
+				//	if (all_reach_barrier)
+				//		std::cout<<"Synchronized optimization should stop.\n";
+				//}
 				disc_barr.go_to_next_barrier();
 				std::cout<<"go to next barrier\n";
+			}
+			else
+			{
+				bool no_reach_barrier = true;
+				for (unsigned int j = 0; j < pack_objects.size(); j++)
+					no_reach_barrier = no_reach_barrier && !pack_objects[j].reach_barrier;
+				if (no_reach_barrier)
+				{
+					std::cout<<"No tile can be enlarged any more.\n";
+					disc_barr.go_to_end(); // just to terminate this series of iterations using barrier
+				}
 			}
 
 			// check whether to use approximate voronoi region
@@ -1288,6 +1311,7 @@ namespace Geex
 		mean_radius /= pack_objects[pgn_id].size();
 		if ( para.k * para.k * mean_radius * mean_radius/*pgn_radius2*/ > threshold * r * r)
 		{
+			//std::cout<<"Restricting size\n";
 			//double temp = std::sqrt(threshold)*r/(para.k*std::sqrt(pgn_radius2));
 			double temp = std::sqrt(threshold)*r/(para.k*mean_radius);
 			para.k = std::max(1.0, para.k*temp);
@@ -1405,7 +1429,7 @@ namespace Geex
 				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
 
 			// choose the result with the smallest match error now
-			double shrink_factor = 0.6;
+			double shrink_factor = replace_factor;
 
 			Match_info_item<unsigned int> matcher = match_res.top();
 			if (sync_opt)
@@ -1479,21 +1503,46 @@ namespace Geex
 	{
 		double max_factor = std::numeric_limits<double>::min();
 		double min_factor = std::numeric_limits<double>::max();
+		double cur_max_factor = std::numeric_limits<double>::min();
+		double cur_min_factor = std::numeric_limits<double>::max();
 		double mean_factor = 0.0;
+		double cur_mean_factor = 0.0;
 		std::set<unsigned int> lib_indices;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
 			//double normalized_factor = pack_objects[i].factor*pgn_lib[pack_objects[i].lib_idx].normalize_factor;
-			double normalized_factor = pack_objects[i].factor;
-			max_factor = std::max(max_factor, normalized_factor);
-			min_factor = std::min(min_factor, normalized_factor);
-			mean_factor += normalized_factor;
+			const Facet& f = mesh[pack_objects[i].facet_idx];
+			double v0_cur = mesh.curvature_at_vertex(f.vertex_index[0]),
+				   v1_cur = mesh.curvature_at_vertex(f.vertex_index[1]),
+				   v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
+			double avg_cur = (v0_cur + v1_cur + v2_cur) / 3.0 ;
+			double res_area = pack_objects[i].area();
+			double normalized_factor = /*std::pow(pack_objects[i].factor, 0.75) * */pow(avg_cur, pio.gamma_used())*res_area;
+			max_factor = std::max(max_factor, pack_objects[i].factor);
+			min_factor = std::min(min_factor, pack_objects[i].factor);
+			cur_max_factor = std::max(cur_max_factor, normalized_factor);
+			cur_min_factor = std::min(cur_min_factor, normalized_factor);
+			//if (cur_min_factor > cur_max_factor)
+			//{
+			//	std::cout<<"curvature = "<<avg_cur<<", factor = "<<pack_objects[i].factor<<std::endl;
+			//	std::cout<<"( "<<cur_max_factor<<','<<cur_min_factor<<")\n";
+			//	system("pause");
+			//}
+			mean_factor += pack_objects[i].factor;
+			cur_mean_factor += normalized_factor;
 			lib_indices.insert(pack_objects[i].lib_idx);
 		}
 		mean_factor /= pack_objects.size();
+		cur_mean_factor /= pack_objects.size();
+		std::cout<<"Absolute size: \n";
 		std::cout<<"\t-- Maximum factor: "<<max_factor<<std::endl;
 		std::cout<<"\t-- Minimum factor: "<<min_factor<<std::endl;
 		std::cout<<"\t-- Mean factor: "<<mean_factor<<std::endl;
+		std::cout<<"Curvature relative size: \n";
+		std::cout<<"\t-- Maximum curvature correction factor: "<<cur_max_factor<<std::endl;
+		std::cout<<"\t-- Minimum curvature correction factor: "<<cur_min_factor<<std::endl;
+		std::cout<<"\t-- Mean factor: "<<cur_mean_factor<<std::endl;
+		std::cout<<"Polygon variety:\n";
 		std::cout<<"\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
 		std::cout<<"\t-- Number of polygon types: "<<lib_indices.size()<<std::endl;
 	}
