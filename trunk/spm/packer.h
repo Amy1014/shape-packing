@@ -219,6 +219,8 @@ namespace Geex
 		double match_weight;
 		bool use_voronoi_cell_;
 
+		double area_coverage;
+
 		/** helper classes **/
 	private:
 

@@ -495,10 +495,13 @@ namespace Geex {
 		inline double getMinFacetWeight() const { return minFacetWeight; }
 
 		inline double curvature_at_vertex(int idx) const { return vertices_[idx].curvature; }
+		inline double curvature_at_face(int idx) const 
+		{
+			const Facet& f = operator[](idx);
+			return (curvature_at_vertex(f.vertex_index[0]) + curvature_at_vertex(f.vertex_index[1]) + curvature_at_vertex(f.vertex_index[2]))/3.0;
+		}
 
 		vec3 mesh_center() const { return mesh_cent; }
-		//inline double get_max_curvature() const { return max_vert_curvature; }
-		//inline double get_min_curvature() const { return min_vert_curvature; }
  
 	protected:
 		int                       nb_vertices_ ;

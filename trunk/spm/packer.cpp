@@ -6,7 +6,7 @@ namespace Geex
 
 	double Packer::PI = 3.141592653589793;
 
-	Packer::Packer() /*: phy_disc_barr(0.3, 1.2, 10), opt_disc_barr(0.2, 1.1 , 10), disc_barr(phy_disc_barr, opt_disc_barr)*/
+	Packer::Packer()
 	{
 		assert( instance_ == nil );
 		instance_ = this;
@@ -612,10 +612,15 @@ namespace Geex
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
 				pack_objects[i].reach_barrier = false;
-				if (pack_objects[i].active && pack_objects[i].factor*solutions[i].k > barrier_factor)
+				//double rel_factor = pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx));
+				if (pack_objects[i].active && pack_objects[i].factor*solutions[i].k > barrier_factor/*rel_factor > barrier_factor*/)
 				{
 					if (pack_objects[i].factor < nxt_barrier)
+					//if (rel_factor < nxt_barrier)
+					{
+						//solutions[i].k = barrier_factor / rel_factor;
 						solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
+					}
 					else
 						solutions[i].k = 1.0;
 					has_growth_room[i] = false;
@@ -962,13 +967,9 @@ namespace Geex
 			lloyd(post_action, true);
 		else
 		{
-			if (sync_opt && disc_barr.get_max() != phony_upper_scale)
-				disc_barr.append(phony_upper_scale);
-			if (discrete_lloyd(post_action, true))
-			{
-				//for (int i = 0; i < 1; i++)
-					//discrete_lloyd(post_action, false);
-			}
+			//if (sync_opt && disc_barr.get_max() != phony_upper_scale)
+			//	disc_barr.append(phony_upper_scale);
+			discrete_lloyd(post_action, true);
 		}
 		print_area_coverage();	
 	}
@@ -1492,9 +1493,9 @@ namespace Geex
 		if (sync_opt)
 		{
 			double min_size = std::numeric_limits<double>::max();
-			//current_factor = discrete_factors.size();
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 				min_size = std::min(pack_objects[i].factor, min_size);
+				//min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
 			disc_barr.set_current_barrier(min_size);
 		}
 		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
@@ -1508,26 +1509,30 @@ namespace Geex
 		double mean_factor = 0.0;
 		double cur_mean_factor = 0.0;
 		std::set<unsigned int> lib_indices;
+		double sum_curvature = 0.0;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			//double normalized_factor = pack_objects[i].factor*pgn_lib[pack_objects[i].lib_idx].normalize_factor;
+			double temp = mesh.curvature_at_face(pack_objects[i].facet_idx);
+			sum_curvature += 1.0/(temp*temp+1.0);
+		}
+
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
 			const Facet& f = mesh[pack_objects[i].facet_idx];
 			double v0_cur = mesh.curvature_at_vertex(f.vertex_index[0]),
 				   v1_cur = mesh.curvature_at_vertex(f.vertex_index[1]),
 				   v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
 			double avg_cur = (v0_cur + v1_cur + v2_cur) / 3.0 ;
 			double res_area = pack_objects[i].area();
-			double normalized_factor = /*std::pow(pack_objects[i].factor, 0.75) * */pow(avg_cur, pio.gamma_used())*res_area;
+			//double normalized_factor = /*std::pow(pack_objects[i].factor, 0.75) * */pow(avg_cur, pio.gamma_used())*res_area;
+			double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
+			double normalized_factor = res_area / (sum_curvature*area_coverage*mesh_area/(cur*cur+1.0));
+			//double normalized_factor = (avg_cur*avg_cur+1.0)*pack_objects[i].factor*pack_objects[i].factor;
+//			double normalized_factor = pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx));
 			max_factor = std::max(max_factor, pack_objects[i].factor);
 			min_factor = std::min(min_factor, pack_objects[i].factor);
 			cur_max_factor = std::max(cur_max_factor, normalized_factor);
 			cur_min_factor = std::min(cur_min_factor, normalized_factor);
-			//if (cur_min_factor > cur_max_factor)
-			//{
-			//	std::cout<<"curvature = "<<avg_cur<<", factor = "<<pack_objects[i].factor<<std::endl;
-			//	std::cout<<"( "<<cur_max_factor<<','<<cur_min_factor<<")\n";
-			//	system("pause");
-			//}
 			mean_factor += pack_objects[i].factor;
 			cur_mean_factor += normalized_factor;
 			lib_indices.insert(pack_objects[i].lib_idx);
@@ -1554,12 +1559,14 @@ namespace Geex
 		cilk::reducer_opadd<double> sum_pgn_area(0.0);
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 			sum_pgn_area += pack_objects[i].area();
-		std::cout<<"-- Area coverage ratio: "<<sum_pgn_area.get_value()/mesh_area<<std::endl;
+		area_coverage = sum_pgn_area.get_value()/mesh_area;
+		std::cout<<"-- Area coverage ratio: "<<area_coverage<<std::endl;
 #else
 		double sum_pgn_area = 0.0;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 			sum_pgn_area += pack_objects[i].area();
-		std::cout<<"-- Area coverage ratio: "<<sum_pgn_area/mesh_area<<std::endl;
+		area_coverage = sum_pgn_area/mesh_area;
+		std::cout<<"-- Area coverage ratio: "<<area_coverage<<std::endl;
 #endif
 	}
 	void Packer::discretize_tiles()

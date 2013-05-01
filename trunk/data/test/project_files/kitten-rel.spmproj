@@ -1,4 +1,4 @@
-< SpMProject >  Kitten Test </ SPMProject >
+< SpMProject >  Kitten Curvature Relative Test </ SPMProject >
 
 < MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile >    
             
@@ -6,9 +6,9 @@
 
 < gamma > 2.0 </ gamma >
 
-< PhysicalScales > 0.3 1.2 10 </ PhysicalScales >
+< PhysicalScales > 0.2 0.6 10 </ PhysicalScales >
 
-< OptimizationScales > 1.2 2.4 10 </ OptimizationScales >
+< OptimizationScales > 0.7 1.1 10 </ OptimizationScales >
 
 < DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
 
