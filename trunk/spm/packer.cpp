@@ -1517,7 +1517,7 @@ namespace Geex
 				   v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
 			double avg_cur = (v0_cur + v1_cur + v2_cur) / 3.0 ;
 			double res_area = pack_objects[i].area();
-			double normalized_factor = /*std::pow(pack_objects[i].factor, 0.75) * *//*pow(avg_cur, pio.gamma_used())*/avg_cur*avg_cur*res_area;
+			double normalized_factor = /*std::pow(pack_objects[i].factor, 0.75) * */pow(avg_cur, pio.gamma_used())*res_area;
 			max_factor = std::max(max_factor, pack_objects[i].factor);
 			min_factor = std::min(min_factor, pack_objects[i].factor);
 			cur_max_factor = std::max(cur_max_factor, normalized_factor);

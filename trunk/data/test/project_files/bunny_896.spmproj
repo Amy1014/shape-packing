@@ -1,0 +1,13 @@
+< SpMProject >  Bunny Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\bunny_smoothed.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi_896_bunny.poly      </ PolygonFile >
+
+< gamma > 1.5 </ gamma>
+
+< DensityFile >      ..\..\surfaces\bunny_smoothed.txt </ DensityFile >
+
+< PhysicalScales > 0.3 1.2 10 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 10 </ OptimizationScales >
