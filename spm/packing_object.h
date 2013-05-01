@@ -91,8 +91,14 @@ namespace Geex
 			return lf;
 		}
 
+		double rel_factor(double cur)
+		{
+			return std::sqrt(cur*cur + 1.0) * factor;
+		}
+
 	public:
 		double factor; //scaling factor
+		//double rel_factor;//relative factor to curvature-varying area
 		unsigned int lib_idx;
 		int facet_idx; // index of triangle on which this object lies on
 		std::vector<Point_2> texture_coord;
