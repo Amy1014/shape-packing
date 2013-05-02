@@ -135,7 +135,15 @@ namespace Geex
 		for (unsigned int i = 0; i < mesh.size(); i++)
 			mesh_area += std::fabs(mesh[i].area());
 		std::cout<<"Surface area: "<<mesh_area<<std::endl;
-
+		double max_cur = std::numeric_limits<double>::min();
+		double min_cur = std::numeric_limits<double>::max();
+		for (unsigned int i = 0; i < mesh.size(); i++)
+		{
+			double cur = mesh.curvature_at_face(i);
+			max_cur = std::max(max_cur, cur);
+			min_cur = std::min(min_cur, cur);
+		}
+		std::cout<<"Maximum curvature = "<<max_cur<<", minimum curvature = "<<min_cur<<std::endl;
 		///////////////////////////// Curvature variation ///////////////////////////////////
 		//for (unsigned int i = 0; i < mesh.size(); i++)
 		//	mesh_area += ( mesh.curvature_at_face(i)*mesh.curvature_at_face(i) + 1.0 );
@@ -261,86 +269,89 @@ namespace Geex
 
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
-			set<int> init_facets; // on which facets the location are
-			std::vector<std::pair<int, Point_3>> init_pos;
-			init_pos.reserve(nb_init_polygons);
-			if (pio.has_density_input()) // put according to density function
+		set<int> init_facets; // on which facets the location are
+		std::vector<std::pair<int, Point_3>> init_pos;
+		init_pos.reserve(nb_init_polygons);
+		if (pio.has_density_input()) // put according to density function
+		{
+			double total_weight = 0.0, res = 0.0;
+			std::vector<double> region_area(mesh.nb_vertices());
+			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 			{
-				double total_weight = 0.0, res = 0.0;
-				std::vector<double> region_area(mesh.nb_vertices());
-				for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
-					total_weight += mesh.curvature_at_vertex(i)*mesh.curvature_at_vertex(i) + 1.0;
-
-				for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
+				double cur = mesh.curvature_at_vertex(i);
+				total_weight += cur_size_map(cur);
+			}
+			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
+			{
+				if (mesh.near_boundary(i) || mesh.is_on_feature(i))
+					continue;
+				double cur = mesh.curvature_at_vertex(i);
+				double nf = nb_init_polygons*(cur_size_map(cur)/total_weight);
+				int n(nf+res);
+				if ( n >= 1 )
 				{
-					if (mesh.near_boundary(i) || mesh.is_on_feature(i))
-						continue;
-					double nf = nb_init_polygons*(mesh.curvature_at_vertex(i)*mesh.curvature_at_vertex(i)+1.0)/total_weight;
-					int n(nf+res);
-					if ( n >= 1 )
+					res = nf + res - n; // fractional part
+					int nbput = std::min<int>(n, mesh.vertex(i).faces_.size());
+					if (nbput < n)
+						std::cout<<"inadequate sampling!\n";
+					for (int j = 0; j < nbput; j++)
 					{
-						res = nf + res - n; // fractional part
-						int nbput = std::min<int>(n, mesh.vertex(i).faces_.size());
-						if (nbput < n)
-							std::cout<<"inadequate sampling!\n";
-						for (int j = 0; j < nbput; j++)
-						{
-							int idx = mesh.vertex(i).faces_[j];
-							Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
-							init_pos.push_back(std::make_pair(idx, CGAL::midpoint(to_cgal_pnt(mesh.vertex(i).pos_), c)));
-							init_facets.insert(idx);
-						}
+						int idx = mesh.vertex(i).faces_[j];
+						Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
+						init_pos.push_back(std::make_pair(idx, CGAL::midpoint(to_cgal_pnt(mesh.vertex(i).pos_), c)));
+						init_facets.insert(idx);
 					}
-					else 
-						res += nf;
 				}
-				// pick up the lost ones
-				while ( init_pos.size() < nb_init_polygons && init_facets.size() < mesh.size() )
-				{
-					int idx = ::rand()%mesh.size();
-					while ( init_facets.find(idx) != init_facets.end() )
-						idx = ::rand()%mesh.size();
-					init_facets.insert(idx);
-					int vi0 = mesh[idx].vertex_index[0], vi1 = mesh[idx].vertex_index[1], vi2 = mesh[idx].vertex_index[2];
-					bool v_near_bd[] = { mesh.is_on_boundary(vi0), mesh.is_on_boundary(vi1), mesh.is_on_boundary(vi2)};
-					if ( v_near_bd[0] && v_near_bd[1] || v_near_bd[1] && v_near_bd[2] || v_near_bd[2] && v_near_bd[0] )
-						continue;
-					Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
-					init_pos.push_back(std::make_pair(idx, c));
-				}
+				else 
+					res += nf;
 			}
-			else   // if no density specified, uniformly put	
+			// pick up the lost ones
+			while ( init_pos.size() < nb_init_polygons && init_facets.size() < mesh.size() )
 			{
-				for (unsigned int i = 0; i < nb_init_polygons; i++)
-				{
-					int idx = ::rand()%mesh.size();
-					while ( init_facets.find(idx) != init_facets.end() )
-						idx = ::rand()%mesh.size();
-					init_facets.insert(idx);
-					Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
-					init_pos.push_back(std::make_pair(idx, c));
-				}
+				int idx = ::rand()%mesh.size();
+				while ( init_facets.find(idx) != init_facets.end() )
+					idx = ::rand()%mesh.size();
+				init_facets.insert(idx);
+				int vi0 = mesh[idx].vertex_index[0], vi1 = mesh[idx].vertex_index[1], vi2 = mesh[idx].vertex_index[2];
+				bool v_near_bd[] = { mesh.is_on_boundary(vi0), mesh.is_on_boundary(vi1), mesh.is_on_boundary(vi2)};
+				if ( v_near_bd[0] && v_near_bd[1] || v_near_bd[1] && v_near_bd[2] || v_near_bd[2] && v_near_bd[0] )
+					continue;
+				Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
+				init_pos.push_back(std::make_pair(idx, c));
 			}
-			// choose polygons and distribute
-			pack_objects.reserve(nb_init_polygons);
-			unsigned int pgn_lib_idx = 0;
-			for (unsigned int i = 0; i < init_pos.size(); i++)
+		}
+		else   // if no density specified, uniformly put	
+		{
+			for (unsigned int i = 0; i < nb_init_polygons; i++)
 			{
-				const Facet& f = mesh[init_pos[i].first];
-				vec3 gx_normal = approx_normal(init_pos[i].first);
-				const Ex_polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
-				// shrink factor
-				double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
-				double s = std::min(fa/pa, pa/fa);
-				s = 0.05*std::sqrt(s);
-				Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
-				pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), init_pos[i].second, s));
-				pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
-				pack_objects.back().facet_idx = init_pos[i].first;
-				pack_objects.back().texture_id = pgn_2.texture_id;
-				pack_objects.back().texture_coord.assign(pgn_2.texture_coords.begin(), pgn_2.texture_coords.end());
-				pgn_lib_idx++;
+				int idx = ::rand()%mesh.size();
+				while ( init_facets.find(idx) != init_facets.end() )
+					idx = ::rand()%mesh.size();
+				init_facets.insert(idx);
+				Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
+				init_pos.push_back(std::make_pair(idx, c));
 			}
+		}
+		// choose polygons and distribute
+		pack_objects.reserve(nb_init_polygons);
+		unsigned int pgn_lib_idx = 0;
+		for (unsigned int i = 0; i < init_pos.size(); i++)
+		{
+			const Facet& f = mesh[init_pos[i].first];
+			vec3 gx_normal = approx_normal(init_pos[i].first);
+			const Ex_polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
+			// shrink factor
+			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
+			double s = std::min(fa/pa, pa/fa);
+			s = 0.05*std::sqrt(s);
+			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
+			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), init_pos[i].second, s));
+			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
+			pack_objects.back().facet_idx = init_pos[i].first;
+			pack_objects.back().texture_id = pgn_2.texture_id;
+			pack_objects.back().texture_coord.assign(pgn_2.texture_coords.begin(), pgn_2.texture_coords.end());
+			pgn_lib_idx++;
+		}
 	}
 
 	void Packer::compute_clipped_VD(bool approx)
@@ -647,11 +658,6 @@ namespace Geex
 		// check whether the tile has already been close to its voronoi region
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			//if (opti_res[i] == SUCCESS && solutions[i].k >= 1.065)
-			//	approx_vd[i] = false;
-			//else
-			//	approx_vd[i] = true;
-
 			if (!enlarge)
 				solutions[i].k = 1.0;
 		}
@@ -695,21 +701,15 @@ namespace Geex
 //			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
 //#endif
 		// check state of each tile
-		// sum up all curvatures
-		double cur_sum = 0.0;
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
-		{
-			double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
-			cur_sum += 1.0/(cur*cur+1.0);
-		}
 		std::vector<bool> has_growth_room(pack_objects.size());
 		if (enlarge)
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
 				pack_objects[i].reach_barrier = false;
-				//double rel_factor = pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx));
 				double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
-				double rel_factor = pack_objects[i].rel_factor(1.0/(cur*cur+1.0), cur_sum, mesh_area*0.85);
+				double rel_factor = pack_objects[i].rel_factor(cur);
+				
+				//double rel_factor = pack_objects[i].rel_factor(1.0/(cur*cur+1.0), cur_sum, mesh_area*0.85);
 				//if (pack_objects[i].active && pack_objects[i].factor*solutions[i].k > barrier_factor)
 				if (pack_objects[i].active && rel_factor*solutions[i].k > barrier_factor)
 				{
@@ -1540,20 +1540,6 @@ namespace Geex
 			Match_info_item<unsigned int> matcher = match_res.top();
 			if (sync_opt)
 			{
-				//Match_info_item<unsigned int> best_backup = matcher;
-				//while ( matcher.scale*shrink_factor > discrete_factors.back() )
-				//{
-				//	match_res.pop();
-				//	if (match_res.empty())
-				//		break;
-				//	matcher = match_res.top();
-				//}	
-				//if (match_res.empty())
-				//{
-				//	std::cout<<"No suitable matcher!\n";
-				//	shrink_factor = discrete_factors.back() / best_backup.scale;
-				//	matcher = best_backup;
-				//}
 				if ( matcher.scale * shrink_factor > disc_barr.get_max() )
 					shrink_factor = disc_barr.get_max() / matcher.scale;
 			}
@@ -1608,11 +1594,11 @@ namespace Geex
 			{
 				//min_size = std::min(pack_objects[i].factor, min_size);
 				
-				//min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
+				min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
 
-				double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
-				double rel_factor = pack_objects[i].rel_factor(1.0/(cur*cur+1.0), cur_sum, mesh_area*0.85);
-				min_size = std::min(min_size, rel_factor);
+				//double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
+				//double rel_factor = pack_objects[i].rel_factor(1.0/(cur*cur+1.0), cur_sum, mesh_area*0.85);
+				//min_size = std::min(min_size, rel_factor);
 			}
 			disc_barr.set_current_barrier(min_size);
 		}
@@ -1637,17 +1623,12 @@ namespace Geex
 
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			const Facet& f = mesh[pack_objects[i].facet_idx];
-			double v0_cur = mesh.curvature_at_vertex(f.vertex_index[0]),
-				   v1_cur = mesh.curvature_at_vertex(f.vertex_index[1]),
-				   v2_cur = mesh.curvature_at_vertex(f.vertex_index[2]);
-			double avg_cur = (v0_cur + v1_cur + v2_cur) / 3.0 ;
 			double res_area = pack_objects[i].area();
 			//double normalized_factor = /*std::pow(pack_objects[i].factor, 0.75) * */pow(avg_cur, pio.gamma_used())*res_area;
 			double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
-			double normalized_factor = std::sqrt(res_area / (area_coverage*mesh_area/(sum_curvature*(cur*cur+1.0))));
+			//double normalized_factor = std::sqrt(res_area / (area_coverage*mesh_area/(sum_curvature*(cur*cur+1.0))));
 			//double normalized_factor = (avg_cur*avg_cur+1.0)*pack_objects[i].factor*pack_objects[i].factor;
-			//double normalized_factor = pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx));
+			double normalized_factor = pack_objects[i].rel_factor(cur);
 			max_factor = std::max(max_factor, pack_objects[i].factor);
 			min_factor = std::min(min_factor, pack_objects[i].factor);
 			//cur_max_factor = std::max(cur_max_factor, normalized_factor);
@@ -1655,13 +1636,13 @@ namespace Geex
 			if (cur_max_factor < normalized_factor)
 			{
 				cur_max_factor = normalized_factor;
-				c_max = avg_cur;
+				c_max = cur;
 				a_max = res_area;
 			}
 			if (cur_min_factor > normalized_factor)
 			{
 				cur_min_factor = normalized_factor;
-				c_min = avg_cur;
+				c_min = cur;
 				a_min = res_area;
 			}
 			mean_factor += pack_objects[i].factor;
