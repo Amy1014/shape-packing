@@ -2,7 +2,7 @@
 
 < MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile >    
             
-< polygonfile >      ..\..\polygons\voronoi417_kitten_normalized.poly      </ PolygonFile >
+< polygonfile >      ..\..\polygons\voronoi417_kitten_normalized_rel.poly      </ PolygonFile >
 
 < gamma > 2.0 </ gamma >
 
