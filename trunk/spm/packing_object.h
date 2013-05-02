@@ -96,6 +96,11 @@ namespace Geex
 			return std::sqrt(cur*cur + 1.0) * factor;
 		}
 
+		double rel_factor(double cur, double sum_cur, double sum_tile_area)
+		{
+			return std::sqrt( area() / (cur*sum_tile_area/sum_cur) );
+		}
+
 	public:
 		double factor; //scaling factor
 		//double rel_factor;//relative factor to curvature-varying area
