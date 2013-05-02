@@ -135,6 +135,8 @@ namespace Geex
 		for (unsigned int i = 0; i < mesh.size(); i++)
 			mesh_area += std::fabs(mesh[i].area());
 		std::cout<<"Surface area: "<<mesh_area<<std::endl;
+		//for (unsigned int i = 0; i < mesh.size(); i++)
+		//	mesh_area += ( mesh.curvature_at_face(i)*mesh.curvature_at_face(i) + 1.0 )
 
 		// compute maximum and average polygon area in the library
 		double max_pgn_area = std::numeric_limits<double>::min(), mean_pgn_area = 0.0;
@@ -967,8 +969,8 @@ namespace Geex
 			lloyd(post_action, true);
 		else
 		{
-			//if (sync_opt && disc_barr.get_max() != phony_upper_scale)
-			//	disc_barr.append(phony_upper_scale);
+			if (sync_opt && disc_barr.get_max() != phony_upper_scale)
+				disc_barr.append(phony_upper_scale);
 			discrete_lloyd(post_action, true);
 		}
 		print_area_coverage();	
@@ -1526,7 +1528,7 @@ namespace Geex
 			double res_area = pack_objects[i].area();
 			//double normalized_factor = /*std::pow(pack_objects[i].factor, 0.75) * */pow(avg_cur, pio.gamma_used())*res_area;
 			double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
-			double normalized_factor = res_area / (sum_curvature*area_coverage*mesh_area/(cur*cur+1.0));
+			double normalized_factor = res_area / (area_coverage*mesh_area/(sum_curvature*(cur*cur+1.0)));
 			//double normalized_factor = (avg_cur*avg_cur+1.0)*pack_objects[i].factor*pack_objects[i].factor;
 //			double normalized_factor = pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx));
 			max_factor = std::max(max_factor, pack_objects[i].factor);
