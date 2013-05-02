@@ -4,7 +4,7 @@
             
 < polygonfile >      ..\..\polygons\voronoi417_kitten_normalized.poly      </ PolygonFile >
 
-< gamma > 2.0 </ gamma >
+< gamma > 4.0 </ gamma >
 
 < PhysicalScales > 0.3 1.2 10 </ PhysicalScales >
 
