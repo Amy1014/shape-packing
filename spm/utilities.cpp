@@ -2,6 +2,11 @@
 
 namespace Geex
 {
+	double cur_size_map(double cur)
+	{
+		return 0.5129*std::pow(cur*cur + 1.0, 0.2);
+	}
+
 	bool inside_polygon(const Point_2& p, const std::vector<Segment_2>& bounded_edges)
 	{
 		// construct an array from p to infinity
