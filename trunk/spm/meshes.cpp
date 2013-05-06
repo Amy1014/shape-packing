@@ -475,6 +475,14 @@ namespace Geex {
 		for (unsigned int i = 0; i < nb_vertices(); i++)
 			 curs[i] = std::max(std::fabs(min_cur[i]), std::fabs(max_cur[i]));
 			// curs[i] = (min_cur[i] + max_cur[i])/2.0;
+		// smooth the curvature
+		std::vector<double> cutoff_curs(curs);
+		unsigned int cutoff_n = nb_vertices()*0.98;
+		std::nth_element(cutoff_curs.begin(), cutoff_curs.begin()+cutoff_n, cutoff_curs.end());
+		double median = *(cutoff_curs.begin()+cutoff_n) ;
+		for (unsigned int i = 0; i < nb_vertices(); i++)
+			if (curs[i] > median)
+				curs[i] = median;
 		std::vector<double> avgcurs(nb_vertices(), 0.0);
 		std::vector<int> nb_neighbors(nb_vertices(), 0);
 		for (unsigned int i = 0; i < size(); i++)
@@ -504,15 +512,15 @@ namespace Geex {
 			vertices_[i].curvature = avgcurs[i]; // load curvature at this vertex
 			//test_file<<vertices_[i].curvature<<std::endl;
 		}
-		unsigned int cutoff_n = nb_vertices()*0.9;
-		std::nth_element(avgcurs.begin(), avgcurs.begin()+cutoff_n, avgcurs.end());
-		double median = *(avgcurs.begin()+cutoff_n) ;
+		//unsigned int cutoff_n = nb_vertices()*0.9;
+		//std::nth_element(avgcurs.begin(), avgcurs.begin()+cutoff_n, avgcurs.end());
+		//double median = *(avgcurs.begin()+cutoff_n) ;
 		for (unsigned int i = 0; i < nb_vertices(); i++)
 			//vertices_[i].weight() = pow(avgcurs[i], gamma)/*avgcurs[i]*/;
 			//vertices_[i].weight() = /*pow(avgcurs[i], gamma)*/avgcurs[i]*avgcurs[i];
 		{
-			if (vertices_[i].curvature > median)
-				vertices_[i].curvature = median;
+			//if (vertices_[i].curvature > median)
+			//	vertices_[i].curvature = median;
 			vertices_[i].weight()  = pow(vertices_[i].curvature , gamma);
 		}
 

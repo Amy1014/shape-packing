@@ -95,7 +95,7 @@ namespace Geex
 		double rel_factor(double cur)
 		{
 			//return std::sqrt(cur*cur + 1.0) * factor;
-			return cur_size_map(cur)*factor;
+			return std::sqrt(cur_size_map(cur))*factor;
 		}
 
 		double rel_factor(double cur, double sum_cur, double sum_tile_area)

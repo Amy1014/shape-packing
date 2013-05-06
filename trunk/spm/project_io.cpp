@@ -291,11 +291,12 @@ namespace Geex
 		}
 		// filter out image file
 		for (unsigned int i = 0; i < all_files.size(); i++)
+		{
 			if (Geex::FileSystem::extension(all_files[i]) == "jpg")
-			{
 				texture_files.push_back(all_files[i]);
-				//std::cout<<"loading "<<texture_files.back()<<std::endl;
-			}
+			else if (Geex::FileSystem::extension(all_files[i]) == "png")
+				texture_files.push_back(all_files[i]);
+		}
 	}
 
 	void ProjectIO::read_texture_files(std::vector<std::vector<std::string>>& texture_files_set)
@@ -316,6 +317,8 @@ namespace Geex
 				std::string ext = Geex::FileSystem::extension(all_files[j]);
 				CaseInsensitiveTagCmp cmp;
 				if ( !cmp(ext, "jpg") && !cmp("jpg", ext) )
+					texture_files_set.back().push_back(all_files[j]);
+				else if ( !cmp(ext, "png") && !cmp("png", ext) )
 					texture_files_set.back().push_back(all_files[j]);
 			}		
 		}

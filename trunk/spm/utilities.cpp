@@ -4,7 +4,9 @@ namespace Geex
 {
 	double cur_size_map(double cur)
 	{
-		return 0.5129*std::pow(cur*cur + 1.0, 0.2);
+		//return 0.4*std::pow(cur + 1.0, 0.35);
+		//return 0.201*std::pow(cur, 0.6742) + 0.02238; // fitted with matlab
+		return 0.25*std::pow(cur+1, 0.6);
 	}
 
 	bool inside_polygon(const Point_2& p, const std::vector<Segment_2>& bounded_edges)
