@@ -114,7 +114,7 @@ namespace Geex
 		void build_curv_color_list(); 
 		void build_texture_lib();
 
-		bool build_texture_from_files(std::vector<GLuint>& text_indices, const std::vector<std::string>& text_files);
+		bool build_texture_from_files(std::vector<GLuint>& text_indices, const std::vector<std::string>& text_files, int cv_flag = 1);
 
 		void clear_all_textures();
 
@@ -149,6 +149,7 @@ namespace Geex
 		GLboolean show_inactive_;
 
 		GLboolean textured;
+		GLboolean alpha_texture;
 		std::vector<GLuint> texture_lib;
 
 		// for multiple sets of polygons

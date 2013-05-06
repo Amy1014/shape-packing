@@ -26,6 +26,8 @@ namespace Geex
 		show_mesh_ = true;
 		show_polygons_ = true;
 		show_voronoi_cell_ = false;
+		show_smoothed_voronoi_cell_ = false;
+		show_midpoint_cell_ = true;
 		show_triangulation_ = false;
 		show_vertices_ = false;
 		show_hole_triangles_ = false;
@@ -37,8 +39,8 @@ namespace Geex
 		highlighted_group = -1;
 		show_multi_tiles_ = false;
 		show_multi_submeshes_ = false;
-		show_midpoint_cell_ = false;
 		show_inactive_ = true;
+		alpha_texture = false;
 		sub_pack_id = 0;
 	}
 
@@ -110,7 +112,6 @@ namespace Geex
 
 	void SPM_Graphics::draw_mesh()
 	{
-		
 		glCullFace(GL_FRONT) ;
 		glEnable(GL_LIGHTING);
 		glPushMatrix();
@@ -133,8 +134,7 @@ namespace Geex
 			glEnd();
 		}
 		glPopMatrix();
-		glDisable(GL_LIGHTING);
-		
+		glDisable(GL_LIGHTING);	
 	}
 
 	void SPM_Graphics::draw_multi_submeshes()
@@ -282,6 +282,13 @@ namespace Geex
 		static GLfloat mat[] = {0.9f, 0.9f, 0.9f, 1.0f};
 		//const std::vector<Packing_object>& tiles = packer->get_tiles();
 		glEnable(GL_TEXTURE_2D);
+		if (alpha_texture)
+		{
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);          
+			glEnable(GL_BLEND); 
+			glEnable(GL_ALPHA_TEST);
+			glAlphaFunc(GL_GREATER, 0.5f);  
+		}
 		GLboolean old_cull_face_config = glIsEnabled(GL_CULL_FACE);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
@@ -313,10 +320,14 @@ namespace Geex
 			glEnd();
 		}
 		glPopMatrix();
-		//glDisable(GL_LIGHTING);
 		if (!old_cull_face_config)
 			glDisable(GL_CULL_FACE);
 		glDisable(GL_TEXTURE_2D);
+		if (alpha_texture)
+		{
+			glDisable(GL_BLEND);
+			glDisable(GL_ALPHA_TEST);
+		}
 	}
 
 	void SPM_Graphics::discrete_draw_polygons(const std::vector<Packing_object>& tiles)
@@ -669,12 +680,12 @@ namespace Geex
 		glEnable(GL_LIGHTING);
 	}
 
-	bool SPM_Graphics::build_texture_from_files(std::vector<GLuint>& text_indices, const std::vector<std::string>& text_files)
+	bool SPM_Graphics::build_texture_from_files(std::vector<GLuint>& text_indices, const std::vector<std::string>& text_files, int cv_flag)
 	{
 		text_indices.resize(text_files.size());
 		for (unsigned int i = 0; i < text_files.size(); i++)
 		{
-			cv::Mat m = cv::imread(text_files[i]);
+			cv::Mat m = cv::imread(text_files[i], cv_flag);
 			if (!m.data)
 			{
 				std::cout<<"Error: cannot read texture file \""<<text_files[i]<<"\"\n";
@@ -691,35 +702,55 @@ namespace Geex
 			while ((1<<e) < m.cols)
 				e++;
 			c = (1<<e);
-			GLubyte *scaleTexels = (GLubyte*)malloc(r*c*3*sizeof(GLubyte));
-			GLubyte *pixels = (GLubyte*)malloc(m.rows*m.cols*3*sizeof(GLubyte));
+			int channel_sz = 3;
+			if (cv_flag < 0)
+				channel_sz = 4;
+			GLubyte *scaleTexels = (GLubyte*)malloc(r*c*channel_sz*sizeof(GLubyte));
+			GLubyte *pixels = (GLubyte*)malloc(m.rows*m.cols*channel_sz*sizeof(GLubyte));
 			GLubyte *ptr = pixels;
 			// load content in m to 1D array pixels
-			for (int y = 0; y < m.rows; y++)
-				for (int x = 0; x < m.cols; x++)
-				{
-					cv::Vec3b pixel = m.at<Vec3b>(y, x);
-					// to rgb model
-					*ptr++ = pixel.val[2];
-					*ptr++ = pixel.val[1];
-					*ptr++ = pixel.val[0];
-				}
-				if (gluScaleImage(GL_RGB, m.cols, m.rows, GL_UNSIGNED_BYTE, pixels, c, r, GL_UNSIGNED_BYTE, scaleTexels))
-				{
-					std::cout<<"Error: Scale image failed.\n";
-					return;
-				}
-				glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-				glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, c, r, 0, GL_RGB, GL_UNSIGNED_BYTE, scaleTexels);
-				free(scaleTexels);
-				free(pixels);
+			if (cv_flag > 0)
+				for (int y = 0; y < m.rows; y++)
+					for (int x = 0; x < m.cols; x++)
+					{
+						cv::Vec3b pixel = m.at<Vec3b>(y, x);
+						// to rgb model
+						*ptr++ = pixel.val[2];
+						*ptr++ = pixel.val[1];
+						*ptr++ = pixel.val[0];
+					}
+			else
+				for (int y = 0; y < m.rows; y++)
+					for (int x = 0; x < m.cols; x++)
+					{
+						cv::Vec4b pixel = m.at<Vec4b>(y, x);
+						// to rgb model
+						*ptr++ = pixel.val[2];
+						*ptr++ = pixel.val[1];
+						*ptr++ = pixel.val[0];
+						*ptr++ = pixel.val[3];
+					}
+			GLuint rgb_mode = GL_RGB;
+			if (cv_flag < 0)
+				rgb_mode = GL_RGBA;
+			if (gluScaleImage(rgb_mode, m.cols, m.rows, GL_UNSIGNED_BYTE, pixels, c, r, GL_UNSIGNED_BYTE, scaleTexels))
+			{
+				std::cout<<"Error: Scale image failed.\n";
+				return;
+			}
+
+			glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			glTexImage2D(GL_TEXTURE_2D, 0, rgb_mode, c, r, 0, rgb_mode, GL_UNSIGNED_BYTE, scaleTexels);
+			free(scaleTexels);
+			free(pixels);
 		}
 		return true;
 	}
 	void SPM_Graphics::build_texture_lib()
 	{
+		int cv_flag = 1;
 		if (!packer->get_project_ioer().texture_specified())
 			return;
 		if (!packer->get_project_ioer().mesh_polygon_coupled())
@@ -728,7 +759,13 @@ namespace Geex
 			packer->get_project_ioer().read_texture_files(texture_files);
 			if (texture_files.empty())
 				return;
-			if (! build_texture_from_files(texture_lib, texture_files) )
+			
+			if (Geex::FileSystem::extension(texture_files[0]) == "png" || Geex::FileSystem::extension(texture_files[0]) == "PNG")
+			{
+				cv_flag = -1;
+				std::cout<<"Loading texture images with alpha mode...\n";
+			}
+			if (! build_texture_from_files(texture_lib, texture_files, cv_flag) )
 			{
 				clear_all_textures();
 				return;
@@ -743,7 +780,9 @@ namespace Geex
 			multi_texture_libs.resize(multi_file_sets.size());
 			for (unsigned int i = 0; i < multi_file_sets.size(); i++)
 			{
-				if (! build_texture_from_files(multi_texture_libs[i], multi_file_sets[i]) )
+				if (Geex::FileSystem::extension(multi_file_sets[i][0]) == "png" || Geex::FileSystem::extension(multi_file_sets[i][0]) == "PNG")
+					cv_flag = -1;
+				if (! build_texture_from_files(multi_texture_libs[i], multi_file_sets[i], cv_flag) )
 				{
 					clear_all_textures();
 					return;
@@ -752,6 +791,11 @@ namespace Geex
 		}
 
 		textured = true;
+
+		if (cv_flag < 0)
+		{
+			alpha_texture = true;  
+		}
 	}
 
 	void SPM_Graphics::save_materials()

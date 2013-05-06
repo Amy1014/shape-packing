@@ -1,0 +1,15 @@
+< SpMProject >  Hypersheet Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\hypersheet.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi_896_hypersheet.poly      </ PolygonFile >
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >      ..\..\surfaces\hypersheet.txt </ DensityFile >
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+
+< OutputDir > ..\..\output\hypersheet </ OutputDir >

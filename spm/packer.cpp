@@ -279,14 +279,16 @@ namespace Geex
 			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 			{
 				double cur = mesh.curvature_at_vertex(i);
-				total_weight += cur_size_map(cur);
+				//total_weight += std::sqrt(cur_size_map(cur));
+				total_weight += std::pow(cur + 1.0, 0.10);
 			}
 			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 			{
 				if (mesh.near_boundary(i) || mesh.is_on_feature(i))
 					continue;
 				double cur = mesh.curvature_at_vertex(i);
-				double nf = nb_init_polygons*(cur_size_map(cur)/total_weight);
+				double nf = nb_init_polygons*(std::pow(cur + 1.0, 0.10)/total_weight);
+				//double nf = nb_init_polygons*(std::sqrt(cur_size_map(cur))/total_weight);
 				int n(nf+res);
 				if ( n >= 1 )
 				{
@@ -738,7 +740,7 @@ namespace Geex
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{	
-			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
+			//curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
 			transform_one_polygon(i, lfs[i], solutions[i]);
 		}
 		
@@ -1025,14 +1027,14 @@ namespace Geex
 			}
 			else
 			{
-				bool no_reach_barrier = true;
-				for (unsigned int j = 0; j < pack_objects.size(); j++)
-					no_reach_barrier = no_reach_barrier && !pack_objects[j].reach_barrier;
-				if (no_reach_barrier)
-				{
-					std::cout<<"No tile can be enlarged any more.\n";
-					disc_barr.go_to_end(); // just to terminate this series of iterations using barrier
-				}
+				//bool no_reach_barrier = true;
+				//for (unsigned int j = 0; j < pack_objects.size(); j++)
+				//	no_reach_barrier = no_reach_barrier && !pack_objects[j].reach_barrier;
+				//if (no_reach_barrier)
+				//{
+				//	std::cout<<"No tile can be enlarged any more.\n";
+				//	disc_barr.go_to_end(); // just to terminate this series of iterations using barrier
+				//}
 			}
 
 			// check whether to use approximate voronoi region
@@ -1417,7 +1419,7 @@ namespace Geex
 		mean_radius /= pack_objects[pgn_id].size();
 		if ( para.k * para.k * mean_radius * mean_radius/*pgn_radius2*/ > threshold * r * r)
 		{
-			//std::cout<<"Restricting size\n";
+			std::cout<<"Restricting size\n";
 			//double temp = std::sqrt(threshold)*r/(para.k*std::sqrt(pgn_radius2));
 			double temp = std::sqrt(threshold)*r/(para.k*mean_radius);
 			para.k = std::max(1.0, para.k*temp);
@@ -1611,6 +1613,7 @@ namespace Geex
 		double cur_max_factor = std::numeric_limits<double>::min();
 		double cur_min_factor = std::numeric_limits<double>::max();
 		double a_min, c_min, a_max, c_max;
+		unsigned int min_idx, max_idx;
 		double mean_factor = 0.0;
 		double cur_mean_factor = 0.0;
 		std::set<unsigned int> lib_indices;
@@ -1638,17 +1641,25 @@ namespace Geex
 				cur_max_factor = normalized_factor;
 				c_max = cur;
 				a_max = res_area;
+				max_idx = i;
 			}
 			if (cur_min_factor > normalized_factor)
 			{
 				cur_min_factor = normalized_factor;
 				c_min = cur;
 				a_min = res_area;
+				min_idx = i;
 			}
 			mean_factor += pack_objects[i].factor;
 			cur_mean_factor += normalized_factor;
 			lib_indices.insert(pack_objects[i].lib_idx);
 		}
+		//std::ofstream hacking_file("cur-relf.txt");
+		//for (unsigned int i = 0; i < pack_objects.size(); i++)
+		//{
+		//	double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
+		//	hacking_file<<cur<<' '<<1.0/pack_objects[i].factor<<';'<<std::endl;
+		//}
 		mean_factor /= pack_objects.size();
 		cur_mean_factor /= pack_objects.size();
 		std::cout<<"Absolute size: \n";
@@ -1656,8 +1667,8 @@ namespace Geex
 		std::cout<<"\t-- Minimum factor: "<<min_factor<<std::endl;
 		std::cout<<"\t-- Mean factor: "<<mean_factor<<std::endl;
 		std::cout<<"Curvature relative size: \n";
-		std::cout<<"\t-- Maximum curvature correction factor: "<<cur_max_factor<<" : "<<a_max<<", "<<c_max<<std::endl;
-		std::cout<<"\t-- Minimum curvature correction factor: "<<cur_min_factor<<" : "<<a_min<<", "<<c_min<<std::endl;
+		std::cout<<"\t-- Maximum factor: "<<cur_max_factor<<" : "<<a_max<<", "<<c_max<<", "<<max_idx<<std::endl;
+		std::cout<<"\t-- Minimum factor: "<<cur_min_factor<<" : "<<a_min<<", "<<c_min<<", "<<min_idx<<std::endl;
 		std::cout<<"\t-- Mean factor: "<<cur_mean_factor<<std::endl;
 		std::cout<<"Polygon variety:\n";
 		std::cout<<"\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;

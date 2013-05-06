@@ -1,0 +1,19 @@
+< SpMProject >  Kitten B/W/G stone Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\bwg_stones_kitten_normalized\    </ PolygonDir >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+
+< DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\polygons\bwg_stones_kitten_normalized\    </ TextureImageDir >
+
+< OutputDir > ..\..\output\bwg_stones_kitten </ OutputDir >
