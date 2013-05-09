@@ -1,0 +1,15 @@
+< SpMProject >  Venus Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\venus.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi417_venus.poly      </ PolygonFile >
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >      ..\..\surfaces\venus.txt </ DensityFile >
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+
+< OutputDir > ..\..\output\venus_voronoi </ OutputDir >

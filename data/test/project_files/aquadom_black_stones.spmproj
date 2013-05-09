@@ -1,0 +1,19 @@
+< SpMProject >  Aquadom with black stone Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\aquadom.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\black_stones_aquadom\    </ PolygonDir >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+
+< DensityFile >      ..\..\surfaces\aquadom.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\polygons\black_stones_aquadom\    </ TextureImageDir >
+
+< OutputDir > ..\..\output\black_stones_aquadom </ OutputDir >

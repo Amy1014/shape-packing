@@ -1,0 +1,19 @@
+< SpMProject >  Kitten with green stone Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\green_stones_kitten\    </ PolygonDir >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+
+< DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\polygons\green_stones_kitten\    </ TextureImageDir >
+
+< OutputDir > ..\..\output\green_stones_kitten </ OutputDir >
