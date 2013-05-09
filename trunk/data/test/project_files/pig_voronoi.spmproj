@@ -1,0 +1,13 @@
+< SpMProject >  Pig Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\pig_remesh_4.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi417_pig_.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\pig_remesh_4.txt </ DensityFile >
+
+< OutputDir > ..\..\output\pig_voronoi </ OutputDir >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
