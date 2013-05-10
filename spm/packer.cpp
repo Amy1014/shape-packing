@@ -280,14 +280,14 @@ namespace Geex
 			{
 				double cur = mesh.curvature_at_vertex(i);
 				//total_weight += std::sqrt(cur_size_map(cur));
-				total_weight += std::pow(cur + 1.0, 0.10);
+				total_weight += std::pow(cur + 1.0, 0.40);
 			}
 			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 			{
 				if (mesh.near_boundary(i) || mesh.is_on_feature(i))
 					continue;
 				double cur = mesh.curvature_at_vertex(i);
-				double nf = nb_init_polygons*(std::pow(cur + 1.0, 0.10)/total_weight);
+				double nf = nb_init_polygons*(std::pow(cur + 1.0, 0.40)/total_weight);
 				//double nf = nb_init_polygons*(std::sqrt(cur_size_map(cur))/total_weight);
 				int n(nf+res);
 				if ( n >= 1 )
@@ -1616,7 +1616,8 @@ namespace Geex
 		unsigned int min_idx, max_idx;
 		double mean_factor = 0.0;
 		double cur_mean_factor = 0.0;
-		std::set<unsigned int> lib_indices;
+		//std::set<unsigned int> lib_indices;
+		std::map<unsigned int, unsigned int> frequency;
 		double sum_curvature = 0.0;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
@@ -1652,7 +1653,8 @@ namespace Geex
 			}
 			mean_factor += pack_objects[i].factor;
 			cur_mean_factor += normalized_factor;
-			lib_indices.insert(pack_objects[i].lib_idx);
+			//lib_indices.insert(pack_objects[i].lib_idx);
+			frequency[pack_objects[i].lib_idx]++;
 		}
 		//std::ofstream hacking_file("cur-relf.txt");
 		//for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -1672,7 +1674,10 @@ namespace Geex
 		std::cout<<"\t-- Mean factor: "<<cur_mean_factor<<std::endl;
 		std::cout<<"Polygon variety:\n";
 		std::cout<<"\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
-		std::cout<<"\t-- Number of polygon types: "<<lib_indices.size()<<std::endl;
+		std::cout<<"\t-- Number of polygon types: "<<frequency.size()<<std::endl;
+		std::ofstream freq_file("usage-frequency.txt");
+		for (std::map<unsigned int, unsigned int>::const_iterator it = frequency.begin(); it != frequency.end(); ++it)
+			freq_file<<it->first<<' '<<it->second<<std::endl;
 	}
 
 	void Packer::print_area_coverage()
@@ -1732,6 +1737,9 @@ namespace Geex
 		global_vtx_idx.reserve(pack_objects.size());
 		if (!pio.texture_specified())
 		{
+			// pseudo texture, this can be removed safely
+			ofile << "mtllib "<<"mat.mtl\n";
+			/////////////////////////////////////////////////////
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
 				global_vtx_idx.push_back(std::vector<unsigned int>());
@@ -1744,10 +1752,61 @@ namespace Geex
 					vtx_idx++;
 				}
 			}
+			// pseudo texture, this can be removed safely
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
-				for (unsigned int j = 1; j < pack_objects[i].size()-1; j++)
-					ofile<<"f "<<global_vtx_idx[i][0]<<' '<<global_vtx_idx[i][j]<<' '<<global_vtx_idx[i][j+1]<<std::endl;
+				double xmin = std::numeric_limits<double>::max(), ymin = std::numeric_limits<double>::max();
+				double xmax = std::numeric_limits<double>::min(), ymax = std::numeric_limits<double>::min();
+				Local_frame lf = pack_objects[i].local_frame();
+				Polygon_2 pgn2d;
+				for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+					pgn2d.push_back(lf.to_uv(pack_objects[i].vertex(j)));
+				for (unsigned int j = 0; j < pgn2d.size(); j++)
+				{
+					Point_2 v = pgn2d.vertex(j);
+					xmin = std::min(v.x(), xmin);
+					xmax = std::max(v.x(), xmax);
+					ymin = std::min(v.y(), ymin);
+					ymax = std::max(v.y(), ymax);
+				}
+				double w = std::max(xmax - xmin, ymax - ymin);
+				double bd_area = w * w;
+				//double pgn_area = std::fabs(pgn2d.area());
+				int nx = 10, ny = 10;
+				int idx = pack_objects[i].lib_idx%(nx*ny);
+				int c = idx/nx, r = idx%ny;
+				double f = std::sqrt(1.0/(nx*ny)/bd_area);
+				double lbc_x = c*(1.0/nx), lbc_y = r*(1.0/ny);
+				Point_2 lbc(lbc_x, lbc_y);
+				Transformation_2 to_org(CGAL::TRANSLATION, Vector_2(Point_2(xmin, ymin), /*CGAL::ORIGIN*/lbc));
+				Transformation_2 in_bd(CGAL::SCALING, 0.99*f);
+				Transformation_2 t = in_bd*to_org;
+				Polygon_2 tex_pgn = CGAL::transform(t, pgn2d);
+				for (unsigned int j = 0; j < tex_pgn.size(); j++)
+				{
+					Point_2 v = tex_pgn.vertex(j);
+					double tx = std::min(v.x(), 1.0);
+					tx = std::max(v.x(), 0.0);
+					double ty = std::min(v.y(), 1.0);
+					ty = std::max(v.y(), 0.0);
+					ofile<<"vt "<<tx<<' '<<ty<<std::endl;
+				}
+			}
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				Vector_3 n = pack_objects[i].norm();
+				for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+					ofile<<"vn "<<n.x()<<' '<<n.y()<<' '<<n.z()<<std::endl;
+			}
+			/////////////////////////////////////////////////////
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{
+				ofile<<"usemtl marble"<<std::endl;
+				//for (unsigned int j = 1; j < pack_objects[i].size()-1; j++)
+				//	ofile<<"f "<<global_vtx_idx[i][0]<<' '<<global_vtx_idx[i][j]<<' '<<global_vtx_idx[i][j+1]<<std::endl;
+				ofile<<"f ";
+				for (unsigned int j = 0; j < pack_objects[i].size(); j++)
+					ofile<<global_vtx_idx[i][j]<<'/'<<global_vtx_idx[i][j]<<'/'<<global_vtx_idx[i][j]<<' ';
 				ofile<<std::endl;
 			}
 		}

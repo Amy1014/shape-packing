@@ -271,6 +271,7 @@ namespace Geex
 			multi_polygon_set.push_back(std::vector<Ex_polygon_2>());
 			read_polygons_from_dir(multi_polygon_set.back(), mesh_tile_couple_dir[i]);
 		}
+		return *this;
 	}
 
 	void ProjectIO::read_texture_files(std::vector<string>& texture_files)

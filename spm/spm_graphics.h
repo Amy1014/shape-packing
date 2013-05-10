@@ -41,6 +41,8 @@ namespace Geex
 
 		GLboolean& show_multi_submeshes() { return show_multi_submeshes_; }
 
+		GLboolean& show_feature_lines() { return show_feature_lines_; }
+
 		GLboolean& show_multi_tiles() { return show_multi_tiles_; }
 
 		GLboolean& show_polygons()	{ return show_polygons_; }
@@ -97,6 +99,7 @@ namespace Geex
 
 		void draw_mesh();
 		void draw_multi_submeshes(); 
+		void draw_feature_line();
 
 		void draw_multi_tiles();
 
@@ -134,6 +137,7 @@ namespace Geex
 		GLboolean show_mesh_;
 		GLboolean show_multi_submeshes_;
 		GLboolean show_multi_tiles_;
+		GLboolean show_feature_lines_;
 
 		GLboolean show_polygons_;
 		GLboolean show_voronoi_cell_;

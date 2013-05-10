@@ -201,7 +201,7 @@ namespace Geex {
 			TwDefine("Graphics position='16 10' size='200 300' alpha=200"); 
 			TwAddVarRW(graphics_bar, "Domain Mesh", TW_TYPE_BOOL8, &spm()->show_mesh(), "group = 'Surface' ");
 			TwAddVarRW(graphics_bar, "Curvature", TW_TYPE_BOOL8, &spm()->show_curvatures(), "group = 'Surface' ");
-			
+			TwAddVarRW(graphics_bar, "Feature", TW_TYPE_BOOL8, &spm()->show_feature_lines(), "group = 'Surface' ");
 			
 			TwEnumVal draw_polygon_mode[] = {
 				{spm()->OUTLINE_DRAW, "Outline"}, {spm()->FILL_DRAW, "Fill"}, {spm()->TEXTURE_DRAW, "Texture"}, { spm()->DISCRETE_SCALE_DRAWE, "Discrete"}

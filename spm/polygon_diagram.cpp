@@ -522,7 +522,20 @@ namespace Geex
 					{
 						Vertex_handle v_nxt = current_edge->next()->vertex();
 						Vertex_handle v_pre = current_edge->prev()->vertex();
-						if (v_pre->group_id == vg[j]->group_id && v_nxt->group_id != vg[j]->group_id)
+						if (v_pre->group_id < 0 && v_nxt->group_id < 0)
+						{
+							vg[j]->med_segs.push_back(Segment_3(v_pre->mp, v_nxt->mp));
+							smoothed_VD_regions[i].push_back(v_pre->mp);
+						}
+						else if (v_pre->group_id < 0 && v_nxt->group_id == vg[j]->group_id )
+						{
+							//vg[j]->med_segs.push_back(Segment_3(v_pre->mp, CGAL::midpoint(v_nxt->mp, v_pre->mp)));
+						}
+						else if (v_nxt->group_id < 0 && v_pre->group_id == vg[j]->group_id)
+						{
+							//vg[j]->med_segs.push_back(Segment_3(v_nxt->mp, CGAL::midpoint(v_nxt->mp, v_pre->mp)));
+						}
+						else if (v_pre->group_id == vg[j]->group_id && v_nxt->group_id != vg[j]->group_id)
 						{
 							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, v_nxt->mp);
 							vg[j]->med_segs.push_back(Segment_3(end0, end1));
