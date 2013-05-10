@@ -2,7 +2,7 @@
 
 < MeshFile >          ..\..\..\surfaces\cow-cut\mouth\mouth.obj        </ MeshFile >    
             
-< polygonfile >      ..\..\..\polygons\cow-voronoi\peripheral.poly     </ PolygonFile >
+< polygonfile >      ..\..\..\polygons\cow-voronoi\mouth.poly     </ PolygonFile >
 
 < gamma > 1.0 </ gamma>
 
