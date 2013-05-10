@@ -1,0 +1,15 @@
+< SpMProject >  Cow left eye </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\cow-cut\front-right-foot\front-right-foot.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\..\polygons\cow-voronoi\peripheral.poly     </ PolygonFile >
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >      ..\..\..\surfaces\front-right-foot\front-right-foot.txt </ DensityFile >
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+
+< OutputDir > ..\..\..\output\cow-voronoi\front-right-foot </ OutputDir >
