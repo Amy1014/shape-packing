@@ -4,7 +4,7 @@
 
 < WithTexture >True</ WithTexture>   
             
-< PolygonDir >      ..\..\polygons\green_stones_aquadom\    </ PolygonDir >
+< PolygonDir >      ..\..\polygons\green_stones_bunny\    </ PolygonDir >
 
 < gamma > 1.0 </ gamma >
 
@@ -14,6 +14,6 @@
 
 < DensityFile >      ..\..\surfaces\bunny_smoothed.txt </ DensityFile >
 
-< TextureImageDir >      ..\..\polygons\green_stones_aquadom\    </ TextureImageDir >
+< TextureImageDir >      ..\..\polygons\green_stones_bunny\    </ TextureImageDir >
 
-< OutputDir > ..\..\output\green_stones_aquadom </ OutputDir >
+< OutputDir > ..\..\output\green_stones_bunny </ OutputDir >
