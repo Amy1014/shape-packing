@@ -24,6 +24,7 @@ namespace Geex
 	{
 		how_to_draw_polygons = OUTLINE_DRAW;
 		show_mesh_ = true;
+		show_feature_lines_ = false;
 		show_polygons_ = true;
 		show_voronoi_cell_ = false;
 		show_smoothed_voronoi_cell_ = false;
@@ -52,6 +53,25 @@ namespace Geex
 		clear_all_textures();
 	}
 
+	void SPM_Graphics::draw_feature_line()
+	{
+		const TriMesh& mesh = packer->mesh_domain();
+		const vector<pair<int, int>>& feature_edges = mesh.getFeatureEdges();
+		glDisable(GL_LIGHTING);
+		glLineWidth(1.5f);
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glBegin(GL_LINES);
+		for (unsigned int i = 0; i < feature_edges.size(); i++)
+		{
+			const vec3& v0 = mesh.vertex(feature_edges[i].first).pos_;
+			const vec3& v1 = mesh.vertex(feature_edges[i].second).pos_;
+			glVertex(v0);
+			glVertex(v1);
+		}
+		glEnd();
+		glEnable(GL_LIGHTING);
+	}
+
 	void SPM_Graphics::clear_all_textures()
 	{
 		if (multi_texture_libs.empty())
@@ -64,7 +84,7 @@ namespace Geex
 			for (unsigned int i = 0; i < multi_texture_libs.size(); i++)
 				for (unsigned int j = 0; j < multi_texture_libs[i].size(); j++)
 					glDeleteTextures(1, &multi_texture_libs[i][j]);
-			std::for_each(multi_texture_libs.begin(), multi_texture_libs.end(), std::mem_fun_ref(std::vector<GLuint>::clear));
+			std::for_each(multi_texture_libs.begin(), multi_texture_libs.end(), std::mem_fun_ref(&std::vector<GLuint>::clear));
 			multi_texture_libs.clear();
 		}
 		texture_lib.clear();
@@ -80,6 +100,9 @@ namespace Geex
 		glUseProgramObjectARB(0);
 		if (show_mesh_)
 			draw_mesh();
+		if (show_feature_lines_)
+			draw_feature_line();
+
 		if (show_polygons_)
 			draw_polygons();
 		if (show_triangulation_)
@@ -736,7 +759,7 @@ namespace Geex
 			if (gluScaleImage(rgb_mode, m.cols, m.rows, GL_UNSIGNED_BYTE, pixels, c, r, GL_UNSIGNED_BYTE, scaleTexels))
 			{
 				std::cout<<"Error: Scale image failed.\n";
-				return;
+				return false;
 			}
 
 			glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
