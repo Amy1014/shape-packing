@@ -1,0 +1,15 @@
+< SpMProject >  Cow left duck-body </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\vase-duck\duck-body\duck-body.obj </ MeshFile >    
+            
+< polygonfile >      ..\..\..\polygons\vase-duck\duck-body.poly     </ PolygonFile >
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >      ..\..\..\surfaces\vase-duck\duck-body\duck-body.txt </ DensityFile >
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+
+< OutputDir > ..\..\..\output\vase-duck\duck-body </ OutputDir >

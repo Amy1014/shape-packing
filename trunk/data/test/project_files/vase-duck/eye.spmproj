@@ -1,0 +1,15 @@
+< SpMProject >  Cow left eye </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\vase-duck\eye\eye.obj </ MeshFile >    
+            
+< polygonfile >      ..\..\..\polygons\vase-duck\eye.poly     </ PolygonFile >
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >      ..\..\..\surfaces\vase-duck\eye\eye.txt </ DensityFile >
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+
+< OutputDir > ..\..\..\output\vase-duck\eye </ OutputDir >
