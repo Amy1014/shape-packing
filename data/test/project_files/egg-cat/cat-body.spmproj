@@ -1,0 +1,15 @@
+< SpMProject >  Cow left cat-body </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\egg-cat\cat-body\cat-body.obj </ MeshFile >    
+            
+< polygonfile >      ..\..\..\polygons\egg-cat\cat-body.poly     </ PolygonFile >
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >      ..\..\..\surfaces\egg-cat\cat-body\cat-body.txt </ DensityFile >
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+
+< OutputDir > ..\..\..\output\egg-cat\cat-body </ OutputDir >
