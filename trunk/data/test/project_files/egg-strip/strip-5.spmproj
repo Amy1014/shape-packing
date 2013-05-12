@@ -1,0 +1,16 @@
+< SpMProject > strip-5 </ SPMProject >
+
+< MeshFile >  ..\..\..\surfaces\egg-strip\strip-5\strip-5.obj </ MeshFile > 
+
+< PolygonFile >  ..\..\..\polygons\egg-strip\strip-5.poly </ PolygonFile > 
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >  ..\..\..\surfaces\egg-strip\strip-5\strip-5.txt </ DensityFile > 
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+
+< OutputDir > ..\..\..\output\egg-strip\strip-5</ OutputDir >
+
