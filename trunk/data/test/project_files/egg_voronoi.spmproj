@@ -1,0 +1,13 @@
+< SpMProject >  Egg Voronoi Tiles Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\egg.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi417_egg.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\egg.txt </ DensityFile >
+
+< OutputDir > ..\..\output\egg_voronoi </ OutputDir >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >

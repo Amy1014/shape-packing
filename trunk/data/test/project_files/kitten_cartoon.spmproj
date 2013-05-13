@@ -4,15 +4,15 @@
 
 < WithTexture >True</ WithTexture>   
             
-< PolygonDir >      ..\..\polygons\kitten_cartoon_\    </ PolygonDir >
+< PolygonDir >      ..\..\polygons\kitten_cartoon\    </ PolygonDir >
 
 < DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
 
-< OutputDir > ..\..\output </ OutputDir >
+< OutputDir > ..\..\output\kitten_cartoon </ OutputDir >
 
 < gamma > 1.1 </ gamma>
 
-< TextureImageDir >  ..\..\polygons\kitten_cartoon_\  </ TextureImageDir >
+< TextureImageDir >  ..\..\polygons\kitten_cartoon\  </ TextureImageDir >
 
 < PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
 

@@ -1,0 +1,16 @@
+< SpMProject >  Plane voronoi for comparison </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\plane_remeshed.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi417_plane.poly      </ PolygonFile >
+
+< DensityFile >      ..\..\surfaces\plane_remeshed.txt </ DensityFile >
+
+< OutputDir > ..\..\output\plane_voronoi </ OutputDir >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+
+
+< OutputDir > ..\..\output\voronoi_plane </ OutputDir >
