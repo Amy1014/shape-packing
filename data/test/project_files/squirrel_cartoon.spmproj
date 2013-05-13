@@ -1,0 +1,19 @@
+< SpMProject > Squirrel Cartoon Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\squirrel.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\squirrel_cartoon\    </ PolygonDir >
+
+< DensityFile >      ..\..\surfaces\squirrel.txt </ DensityFile >
+
+< OutputDir > ..\..\output\squirrel_cartoon </ OutputDir >
+
+< gamma > 1.1 </ gamma>
+
+< TextureImageDir >  ..\..\polygons\squirrel_cartoon\  </ TextureImageDir >
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
