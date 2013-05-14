@@ -2,7 +2,7 @@
 
 < MeshFile >          ..\..\..\surfaces\cow-cut\spot-2\spot-2.obj        </ MeshFile >    
             
-< polygonfile >      ..\..\..\polygons\cow-voronoi\peripheral.poly     </ PolygonFile >
+< polygonfile >      ..\..\..\polygons\spot.poly     </ PolygonFile >
 
 < gamma > 1.0 </ gamma>
 
