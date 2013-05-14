@@ -1,0 +1,19 @@
+< SpMProject >  Double Torus with B/W/G stone Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\eight.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\bwg_stones_eight\    </ PolygonDir >
+
+< TextureImageDir >      ..\..\polygons\bwg_stones_eight\    </ TextureImageDir >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+
+< DensityFile >      ..\..\surfaces\eight.txt </ DensityFile >
+
+< OutputDir > ..\..\output\bwg_stones_eight </ OutputDir >
