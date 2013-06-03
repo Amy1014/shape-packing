@@ -40,7 +40,9 @@ namespace Geex
 		int group_id;
 		Point_3 mp; // projection point on mesh
 		std::vector<Point_3> vd_vertices;
+		std::vector<Point_3> no_prj_vd_vertices;
 		std::vector<Segment_3> med_segs;
+		std::vector<Segment_3> no_prj_med_segs; // just for demo
 		//std::vector<bool> is_triple_pnt;
 		bool contain_non_delaunay_facet;
 		bool penetration;

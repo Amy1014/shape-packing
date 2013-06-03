@@ -280,14 +280,14 @@ namespace Geex
 			{
 				double cur = mesh.curvature_at_vertex(i);
 				//total_weight += std::sqrt(cur_size_map(cur));
-				total_weight += std::pow(cur + 1.0, 0.40);
+				total_weight += std::pow(cur + 1.0, 0.10);
 			}
 			for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 			{
 				if (mesh.near_boundary(i) || mesh.is_on_feature(i))
 					continue;
 				double cur = mesh.curvature_at_vertex(i);
-				double nf = nb_init_polygons*(std::pow(cur + 1.0, 0.40)/total_weight);
+				double nf = nb_init_polygons*(std::pow(cur + 1.0, 0.10)/total_weight);
 				//double nf = nb_init_polygons*(std::sqrt(cur_size_map(cur))/total_weight);
 				int n(nf+res);
 				if ( n >= 1 )
@@ -316,7 +316,7 @@ namespace Geex
 				init_facets.insert(idx);
 				int vi0 = mesh[idx].vertex_index[0], vi1 = mesh[idx].vertex_index[1], vi2 = mesh[idx].vertex_index[2];
 				bool v_near_bd[] = { mesh.is_on_boundary(vi0), mesh.is_on_boundary(vi1), mesh.is_on_boundary(vi2)};
-				if ( v_near_bd[0] && v_near_bd[1] || v_near_bd[1] && v_near_bd[2] || v_near_bd[2] && v_near_bd[0] )
+				if ( v_near_bd[0] /*&& v_near_bd[1]*/ || v_near_bd[1] /*&& v_near_bd[2]*/ || v_near_bd[2] /*&& v_near_bd[0]*/ )
 					continue;
 				Point_3 c = CGAL::centroid(to_cgal_pnt(mesh[idx].vertex[0]), to_cgal_pnt(mesh[idx].vertex[1]), to_cgal_pnt(mesh[idx].vertex[2]));
 				init_pos.push_back(std::make_pair(idx, c));
@@ -355,7 +355,20 @@ namespace Geex
 			pgn_lib_idx++;
 		}
 	}
-
+	
+	void Packer::adjust(double factor)
+	{
+		if (factor <= 0.0)
+			return;
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			Local_frame lf = pack_objects[i].local_frame();
+			Parameter scale(factor, 0.0, 0.0, 0.0);
+			transform_one_polygon(i, lf, scale);
+		}
+		generate_RDT();
+		compute_clipped_VD();
+	}
 	void Packer::compute_clipped_VD(bool approx)
 	{
 		//std::cout<<"Start computing clipped Voronoi region\n";
@@ -1044,7 +1057,7 @@ namespace Geex
 				if (solutions[j].k > 1.0)
 					min_factor = std::min(solutions[j].k, min_factor);		
 			use_voronoi_cell_ = !(enlarge && (min_factor < 1.05));
-
+			//use_voronoi_cell_ = false;
 			// update idt
 			rpvd.iDT_update();
 			//compute_clipped_VD(approx_vd);
@@ -1506,6 +1519,10 @@ namespace Geex
 
 	void Packer::con_replace()
 	{
+		///////////////////////////////// Hacking //////////////////////////////////////
+		
+		//unsigned int hack_indices[] = { 0, 11, 44, 6, 13, 23, 27, 17, 34, 38, 41, 45, 52, 53, 64, 65, 3, 4, 5, 7, 10, 39, 40, 46};
+		//std::set<unsigned int> disallowed_replace(hack_indices, hack_indices+24);
 		std::cout<<"Start replacing...\n";
 		CGAL::Timer replace_timer;
 		replace_timer.start();
@@ -1517,6 +1534,7 @@ namespace Geex
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{
+
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
 
 			const std::vector<Point_3>& smoothed_region = rpvd.get_smoothed_voronoi_regions().at(i);
@@ -1548,13 +1566,23 @@ namespace Geex
 			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
 			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
 
-			pack_objects[i].clear();
+			//////////////////////////// Hacking //////////////////////////////////
+			//if ( disallowed_replace.find(pack_objects[i].lib_idx) != disallowed_replace.end())
+			//{
+				////shrink_factor *= matcher.scale;
+			//}
+			////////////////////////////////////////////////////////////////////////
+			//else
+			//{
+				pack_objects[i].clear();
 
-			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
-			{
-				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
-				pack_objects[i].push_back(p);
-			}
+				for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+				{
+					Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+					pack_objects[i].push_back(p);
+				}
+			//}
+
 
 			Point_3 c = pack_objects[i].centroid();
 			vec3 v;
@@ -1569,12 +1597,20 @@ namespace Geex
 				Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
 
 			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
-			//
-			pack_objects[i].lib_idx = matcher.val;
-			pack_objects[i].factor = matcher.scale*shrink_factor;
-			pack_objects[i].facet_idx = fid;
-			pack_objects[i].texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
-			pack_objects[i].texture_id = match_pgn.texture_id;
+			
+			//if ( disallowed_replace.find(pack_objects[i].lib_idx) != disallowed_replace.end())
+			//{
+			//	pack_objects[i].factor *= shrink_factor;
+			//	pack_objects[i].facet_idx = fid;
+			//}
+			//else
+			//{
+				pack_objects[i].lib_idx = matcher.val;
+				pack_objects[i].factor = matcher.scale*shrink_factor;
+				pack_objects[i].facet_idx = fid;
+				pack_objects[i].texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
+				pack_objects[i].texture_id = match_pgn.texture_id;
+			//}
 		}
 		replace_timer.stop();
 		// rebuild the restricted delaunay triangulation and voronoi cell
@@ -1582,6 +1618,7 @@ namespace Geex
 		compute_clipped_VD();
 		stop_update_DT = false;
 		use_voronoi_cell_ = true;
+		//use_voronoi_cell_ = false;
 		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
 		if (sync_opt)
 		{

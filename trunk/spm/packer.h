@@ -86,6 +86,9 @@ namespace Geex
 
 		void save_tiles();
 
+		void adjust(double factor); // adjust for demo
+
+		/** core functions **/
 		// hole detection
 		void detect_holes();
 		// hole filling

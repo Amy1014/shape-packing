@@ -4,7 +4,7 @@
 
 < WithTexture >True</ WithTexture>   
             
-< PolygonDir >      ..\..\..\polygons\bwg_stones_pig\    </ PolygonDir >
+< PolygonDir >      ..\..\..\polygons\bwg_stones_pig_nose\    </ PolygonDir >
 
 < gamma > 1.0 </ gamma >
 
@@ -14,6 +14,6 @@
 
 < DensityFile >      ..\..\..\surfaces\pig-cut\nose.txt </ DensityFile >
 
-< TextureImageDir >      ..\..\..\polygons\bwg_stones_pig\    </ TextureImageDir >
+< TextureImageDir >      ..\..\..\polygons\bwg_stones_pig_nose\    </ TextureImageDir >
 
 < OutputDir > ..\..\..\output\pig-cut\bwg_stones_nose </ OutputDir >
