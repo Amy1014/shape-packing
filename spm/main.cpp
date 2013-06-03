@@ -34,6 +34,7 @@ namespace Geex {
 	void TW_CALL tw_save_tiles(void *);
 	void TW_CALL tw_save_mat(void *);
 	void TW_CALL tw_split(void*);
+	void TW_CALL tw_adjust(void *);
 	
     class SPMApp : public GeexApp 
 	{
@@ -147,6 +148,13 @@ namespace Geex {
 			spm()->con_replace();
 			post_update();
 		}
+		void adjust()
+		{
+			spm()->adjust(enlarge_factor);
+			spm()->redraw_triangulation();
+			spm()->redraw_voronoi_cell();
+			glut_viewer_redraw();
+		}
 		//void enlarge_polygon()
 		//{
 		//	if (enlarge_id >= 0 && enlarge_factor >= 1.0)
@@ -202,6 +210,10 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Domain Mesh", TW_TYPE_BOOL8, &spm()->show_mesh(), "group = 'Surface' ");
 			TwAddVarRW(graphics_bar, "Curvature", TW_TYPE_BOOL8, &spm()->show_curvatures(), "group = 'Surface' ");
 			TwAddVarRW(graphics_bar, "Feature", TW_TYPE_BOOL8, &spm()->show_feature_lines(), "group = 'Surface' ");
+
+			TwAddVarRW(graphics_bar, "Red", TW_TYPE_FLOAT, &spm()->tunable_red, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
+			TwAddVarRW(graphics_bar, "Green", TW_TYPE_FLOAT, &spm()->tunable_green, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
+			TwAddVarRW(graphics_bar, "Blue", TW_TYPE_FLOAT, &spm()->tunable_blue, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
 			
 			TwEnumVal draw_polygon_mode[] = {
 				{spm()->OUTLINE_DRAW, "Outline"}, {spm()->FILL_DRAW, "Fill"}, {spm()->TEXTURE_DRAW, "Texture"}, { spm()->DISCRETE_SCALE_DRAWE, "Discrete"}
@@ -209,7 +221,7 @@ namespace Geex {
 			TwType tw_draw_polygon_mode = TwDefineEnum("DrawPolygonMode", draw_polygon_mode, 4);
 			TwAddVarRW(graphics_bar, "Draw Switch", TW_TYPE_BOOL8, &spm()->show_polygons(), "group = 'Polygon' ");
 			TwAddVarRW(graphics_bar, "Draw Mode", tw_draw_polygon_mode, &spm()->get_polygon_draw_type(), "group = 'Polygon' ");
-			TwAddVarRW(graphics_bar, "In/Active", TW_TYPE_BOOL8, &spm()->show_inactive(), "group = 'Polygon' ");
+			//TwAddVarRW(graphics_bar, "In/Active", TW_TYPE_BOOL8, &spm()->show_inactive(), "group = 'Polygon' ");
 		
 			TwAddVarRW(graphics_bar, "Triangulation", TW_TYPE_BOOL8, &spm()->show_triangulation(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Voronoi Cell", TW_TYPE_BOOL8, &spm()->show_voronoi_cell(), "group = 'Geometry' ");
@@ -217,8 +229,8 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Midpoint Cell", TW_TYPE_BOOL8, &spm()->show_midpoint_cell(), "group = 'Geometry' ");
 			TwAddVarRW(graphics_bar, "Vertices", TW_TYPE_BOOL8, &spm()->show_vertices(), "group = 'Geometry' ");
 
-			TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "group = 'Debug' ");
-			TwAddVarRW(graphics_bar, "Local frame", TW_TYPE_BOOL8, &spm()->show_local_frame(), "group = 'Debug' ");
+			//TwAddVarRW(graphics_bar, "Highlight", TW_TYPE_INT32, &spm()->highlighted_group_id(), "group = 'Debug' ");
+			//TwAddVarRW(graphics_bar, "Local frame", TW_TYPE_BOOL8, &spm()->show_local_frame(), "group = 'Debug' ");
 			//TwAddVarRW(graphics_bar, "CDT", TW_TYPE_BOOL8, &spm()->show_cdt(), "group = 'Debug' ");
 
 			//TwAddVarRW(graphics_bar, "Hole Tri", TW_TYPE_BOOL8, &spm()->show_hole_triangles(), "group = 'Geometry' ");
@@ -247,11 +259,14 @@ namespace Geex {
 			//			tw_front_len_get_callback, NULL, "min=0.0 step=0.001 group = 'Hole' ");
 
 			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
-			TwAddVarRW(function_bar, "factor", TW_TYPE_DOUBLE, &spm()->replace_shrink_factor(), "min=0.4 group = 'Replace' ");
+			TwAddVarRW(function_bar, "factor", TW_TYPE_DOUBLE, &spm()->replace_shrink_factor(), "min=0.05 group = 'Replace' ");
 			//TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
 			//TwAddButton(function_bar, "remove", tw_remove, NULL, "key=R group = 'Replace' ");
 			//TwAddButton(function_bar, "ex-replace", tw_ex_replace, NULL, "key=e group = 'Replace' ");
 			TwAddButton(function_bar, "ext-replace", tw_con_replace, NULL, "key = x group = 'Replace' ");
+
+			TwAddVarRW(function_bar, "k", TW_TYPE_DOUBLE, &enlarge_factor, "min=0.01 group = 'Adjustment'");
+			TwAddButton(function_bar, "adjust", tw_adjust, NULL, "key = d group = 'Adjustment'");
 
 			TwAddVarRW(function_bar, "epsilon", TW_TYPE_DOUBLE, &spm()->get_epsilon(), "min=0.0 max=0.999999999 group = 'Optimization' ");
 			if (spm()->contain_multi_packing())
@@ -292,7 +307,7 @@ namespace Geex {
 Geex::SPMApp* spm_app() { return static_cast<Geex::SPMApp*>(Geex::GeexApp::instance()) ; }
 
 //void TW_CALL tw_reset(void *clientData) { spm_app()->reset(); }
-//void TW_CALL tw_adjust(void *clientData) { spm_app()->adjust(); }
+void TW_CALL tw_adjust(void *clientData) { spm_app()->adjust(); }
 void TW_CALL tw_lloyd(void *clientData) {spm_app()->lloyd();}
 void update() { spm_app()->post_update(); }
 void TW_CALL tw_pack(void *clientData) { spm_app()->pack(); }

@@ -131,12 +131,19 @@ namespace Geex
 		/** call opengl **/
 		inline void glPoint_3(const Point_3& p) { glVertex3d(p.x(), p.y(), p.z()); }
 
+	public:
+		GLfloat tunable_red;
+		GLfloat tunable_green;
+		GLfloat tunable_blue;
+
 	private:
 		Packer* packer;
 		Polygon_draw_type how_to_draw_polygons;
 		GLboolean show_mesh_;
 		GLboolean show_multi_submeshes_;
 		GLboolean show_multi_tiles_;
+
+
 		GLboolean show_feature_lines_;
 
 		GLboolean show_polygons_;
