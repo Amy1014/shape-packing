@@ -204,7 +204,7 @@ MyPolygon_3<Kernel, Container>& MyPolygon_3<Kernel, Container>::operator*=(FT fa
 }
 
 template <class Kernel, class Container>
-MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>::align(const Vector_3& v_, const Point_3& p)
+typename MyPolygon_3<Kernel, Container>::Transformation_3 MyPolygon_3<Kernel, Container>::align(const Vector_3& v_, const Point_3& p)
 {
 	Point_3 c = CGAL::centroid(verts.begin(), verts.end(), CGAL::Dimension_tag<0>());
 	Transformation_3 to_org(CGAL::TRANSLATION, Vector_3(c, CGAL::ORIGIN));

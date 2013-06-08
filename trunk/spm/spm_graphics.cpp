@@ -154,12 +154,15 @@ namespace Geex
 			vec3 n = m[i].normal();
 			glBegin(GL_TRIANGLES);
 			glNormal(n);
+#ifdef _DEMO_
 			glVertex((m[i].vertex[0]-mc)*(1-1.0e-4) + mc) ;
 			glVertex((m[i].vertex[1]-mc)*(1-1.0e-4) + mc) ;
 			glVertex((m[i].vertex[2]-mc)*(1-1.0e-4) + mc) ;
-			//glVertex(m[i].vertex[0]) ;
-			//glVertex(m[i].vertex[1]) ;
-			//glVertex(m[i].vertex[2]) ;
+#else
+ 			glVertex(m[i].vertex[0]) ;
+ 			glVertex(m[i].vertex[1]) ;
+ 			glVertex(m[i].vertex[2]) ;
+#endif
 			glEnd();
 		}
 		glPopMatrix();
@@ -310,9 +313,15 @@ namespace Geex
 			glNormal3d(n.x(), n.y(), n.z());
 			for (unsigned int j = 0; j < tiles[i].size(); j++)
 			{
+#ifdef _DEMO_
 				glPoint_3(c + 1.0e-2*n);
 				glPoint_3(tiles[i].vertex(j) + 1.0e-2*n);
 				glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()) + 1.0e-2*n);
+#else
+				glPoint_3(c);
+				glPoint_3(tiles[i].vertex(j));
+				glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()));
+#endif
 			}
 			glEnd();
 
@@ -458,13 +467,13 @@ namespace Geex
 	}
 	void SPM_Graphics::draw_all_vertices()
 	{
-		RDT_data_structure& rdt = packer->rpvd.get_rdt();
+		const RDT_data_structure& rdt = packer->rpvd.get_rdt();
 		
 		glDisable(GL_LIGHTING);
 		glColor3f(0.0f, 0.0f, 0.0f);
 		glPointSize(2.0f);
 		glBegin(GL_POINTS);
-		for (Vertex_iterator vi = rdt.vertices_begin(); vi != rdt.vertices_end(); ++vi)
+		for (Vertex_const_iterator vi = rdt.vertices_begin(); vi != rdt.vertices_end(); ++vi)
 		{
 			Point_3 p = vi->mp;
 			glPoint_3(p);
@@ -485,9 +494,9 @@ namespace Geex
 			glLineWidth(1.0f);
 			glColor3f(0.6f, 0.0f, 0.0f);
 			glDisable(GL_LIGHTING);
-			RPVD& rpvd = packer->get_rpvd();
+			const RPVD& rpvd = packer->get_rpvd();
 			glBegin(GL_LINES);
-			for (Halfedge_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
+			for (Halfedge_const_iterator eit = rpvd.edges_begin(); eit != rpvd.edges_end(); ++eit)
 			{
 				//if (eit->is_border() || eit->opposite()->is_border())
 				//	continue;
@@ -495,7 +504,8 @@ namespace Geex
 					glColor3f(0.6f, 0.0f, 0.0f);
 				//else
 				//	glColor3f(0.0f, 0.0f, 0.4f);
-				RDT_data_structure::Vertex_handle vh0 = eit->vertex(), vh1 = eit->opposite()->vertex();
+				RDT_data_structure::Vertex_const_handle vh0 = eit->vertex();
+				RDT_data_structure::Vertex_const_handle vh1 = eit->opposite()->vertex();
 				glPoint_3(vh0->mp);
 				glPoint_3(vh1->mp);
 				
@@ -515,6 +525,7 @@ namespace Geex
 		const std::vector<Packing_object>& po = packer->get_tiles();
 
 #ifndef _DEMO_
+#pragma message ("Non-demo code compiled!")
 		////////////////////////////////  Outline draw ////////////////////////////////////////
 		glDisable(GL_LIGHTING);
 		for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
@@ -593,19 +604,19 @@ namespace Geex
 
 	void SPM_Graphics::draw_hole_triangles()
 	{
-		RPVD& rpvd = packer->get_rpvd();
+		const RPVD& rpvd = packer->get_rpvd();
 		glColor3f(0.3f, 0.3f, 0.3f);
 		glDisable(GL_LIGHTING);
-		for (Facet_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
+		for (Facet_const_iterator fit = rpvd.faces_begin(); fit != rpvd.faces_end(); ++fit)
 		{
 			if (fit->vacant)
 			{
-				RPVD::Halfedge_handle eh = fit->halfedge();
-				Vertex_handle v0 = eh->vertex();
+				RPVD::Halfedge_const_handle eh = fit->halfedge();
+				Vertex_const_handle v0 = eh->vertex();
 				eh = eh->next();
-				Vertex_handle v1 = eh->vertex();
+				Vertex_const_handle v1 = eh->vertex();
 				eh = eh->next();
-				Vertex_handle v2 = eh->vertex();
+				Vertex_const_handle v2 = eh->vertex();
 				glBegin(GL_TRIANGLES);
 				glPoint_3(v0->mp);
 				glPoint_3(v1->mp);
@@ -618,7 +629,7 @@ namespace Geex
 
 	void SPM_Graphics::draw_holes()
 	{
-		std::vector<Packer::Hole>& holes = packer->get_holes();
+		const std::vector<Packer::Hole>& holes = packer->get_holes();
 		glDisable(GL_LIGHTING);
 		//glColor3f(0.0f, 0.0f, 1.0f);
 		
@@ -973,8 +984,8 @@ namespace Geex
 			glBegin(GL_LINES);
 			for (unsigned int j = 0; j < vg.size(); j++)
 			{
-				//const std::vector<Segment_3>& med_segs = vg[j]->med_segs;
-				const std::vector<Segment_3>& med_segs = vg[j]->no_prj_med_segs;
+				const std::vector<Segment_3>& med_segs = vg[j]->med_segs;
+				//const std::vector<Segment_3>& med_segs = vg[j]->no_prj_med_segs;
 				for (unsigned int k = 0; k < med_segs.size(); k++)
 				{
 					glPoint_3(med_segs[k].source());
