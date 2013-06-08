@@ -240,7 +240,9 @@ namespace Geex
 					++current_edge;
 				} while (current_edge != end);
 				std::vector<Point_3>& vd_vertices = vg[j]->vd_vertices;
+#ifdef _DEMO_
 				vg[j]->no_prj_vd_vertices = vd_vertices;
+#endif
 				//std::vector<bool>& is_triple_pnt = vg[j]->is_triple_pnt;
 				for (unsigned int k = 0; k < vd_vertices.size(); k++)
 				{
@@ -564,7 +566,9 @@ namespace Geex
 				} while (current_edge != start_edge);
 
 				std::vector<Segment_3>& med_segs = vg[j]->med_segs;
+#ifdef _DEMO_
 				vg[j]->no_prj_med_segs = med_segs;
+#endif
 				for (unsigned int k = 0; k < med_segs.size(); k++)
 				{
 					Point_3 src = pln.projection(med_segs[k].source());

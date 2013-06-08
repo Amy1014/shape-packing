@@ -693,7 +693,8 @@ namespace Geex {
 		delete [] data;	
 	}
 
-	vec3 TriMesh::project_to_mesh(const vec3& pt, vec3& norm) {
+	vec3 TriMesh::project_to_mesh(const vec3& pt, vec3& norm) const 
+	{
 			Geex::vec3 cent = pt;
 			int fid;
 			fid  = kdtree_->queryNearestNeighbor(cent[0],cent[1],cent[2]) / 
@@ -763,7 +764,7 @@ namespace Geex {
 			//std::cerr << norm[0] << ' ' << norm[1] << ' ' << norm[2] << std::endl;
 			return fp;
 	}
-	vec3 TriMesh::project_to_mesh(const vec3& pt, vec3& norm, int &nearestFacet)
+	vec3 TriMesh::project_to_mesh(const vec3& pt, vec3& norm, int &nearestFacet) const
 	{
 		Geex::vec3 cent = pt;
 		int fid;

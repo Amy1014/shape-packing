@@ -1,6 +1,8 @@
 #ifndef _SPM_GRAPHICS_H_
 #define  _SPM_GRAPHICS_H_
 
+#undef _DEMO_
+
 #ifdef WIN32
 #include <windows.h>
 #endif
@@ -22,10 +24,14 @@ namespace Geex
 
 		typedef RestrictedPolygonVoronoiDiagram RPVD;
 		typedef RPVD::Vertex_handle Vertex_handle;
+		typedef RPVD::Vertex_const_handle Vertex_const_handle;
 		typedef RPVD::Halfedge_handle Halfedge_handle;
 		typedef RPVD::Halfedge_iterator	Halfedge_iterator;
 		typedef RPVD::Vertex_iterator Vertex_iterator;
 		typedef RPVD::Facet_iterator Facet_iterator;
+		typedef RPVD::Vertex_const_iterator Vertex_const_iterator;
+		typedef RPVD::Halfedge_const_iterator	Halfedge_const_iterator;
+		typedef RPVD::Facet_const_iterator	Facet_const_iterator;
 
 	public:
 

@@ -469,8 +469,8 @@ namespace Geex {
 		real zmax() const { return bbox_[1][2] ; } 
 
 		void build_kdtree() ;
-		vec3 project_to_mesh(const vec3& pt, vec3& norm) ;
-		vec3 project_to_mesh(const vec3& pt, vec3& norm, int &nearestFacet);
+		vec3 project_to_mesh(const vec3& pt, vec3& norm) const;
+		vec3 project_to_mesh(const vec3& pt, vec3& norm, int &nearestFacet) const;
 
 		bool load_density(const std::string& filename, double gamma=1.) ;
 		void set_uniform_density() ;

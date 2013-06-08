@@ -29,6 +29,7 @@
 #include "knitro.h"
 #include "polygon_matcher.h"
 #include "utilities.h"
+#include "Init_point_generator.h"
 
 namespace Geex
 {
@@ -60,12 +61,12 @@ namespace Geex
 		/** access functions **/
 		const TriMesh& mesh_domain() const { return mesh; }
 		const vector<Packing_object>& get_tiles() const { return pack_objects; }
-		RestrictedPolygonVoronoiDiagram& get_rpvd() const { return rpvd; }
+		const RestrictedPolygonVoronoiDiagram& get_rpvd() const { return rpvd; }
 		double hole_size() const { return hole_face_size; }
 		void hole_size(double sz) { hole_face_size = sz; }
 		double front_edge_len() const { return frontier_edge_size; }
 		void front_edge_len(double len) { frontier_edge_size = len; }
-		std::vector<Hole>& get_holes() const { return holes; }
+		const std::vector<Hole>& get_holes() const { return holes; }
 		double& get_epsilon() { return epsilon; }
 		double& get_match_weight() { return match_weight; }
 		ProjectIO& get_project_ioer() { return pio; }
@@ -105,7 +106,7 @@ namespace Geex
 		double& max_scale_factor() { return max_scale; }
 		double& min_scale_factor() { return min_scale; }
 		int& discrete_levels() { return levels; }
-		void split_large_tiles();
+		//void split_large_tiles();
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug
@@ -144,7 +145,7 @@ namespace Geex
 
 		bool discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
 
-		void split(std::set<unsigned int>& indices);
+	//	void split(std::set<unsigned int>& indices);
 
 		// one Lloyd iteration
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);

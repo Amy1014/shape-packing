@@ -43,21 +43,23 @@ class RestrictedPolygonVoronoiDiagram
 public:
 	typedef RestrictedVoronoiDiagram_poly RestrictedVoronoiDiagram;
 	typedef RDT_data_structure::HalfedgeDS::Vertex_handle Vertex_handle;
-	//typedef RDT_data_structure::Vertex_handle Vertex_handle;
+	typedef RDT_data_structure::Vertex_const_handle	Vertex_const_handle;
 	typedef RDT_data_structure::Halfedge_handle Halfedge_handle;
+	typedef RDT_data_structure::Halfedge_const_iterator Halfedge_const_handle;
 	typedef RDT_data_structure::Facet_handle Facet_handle;
-	//typedef std::pair<Vertex_handle, Vertex_handle> Vertex_pair;
-	typedef std::vector<Vertex_handle> VertGroup; // vertices belonging to the same group
 	typedef RDT_data_structure::Halfedge::Vertex Vertex;
-	//typedef RDT_data_structure::Vertex Vertex;
 	typedef RDT_data_structure::Halfedge Halfedge;
 	typedef RDT_data_structure::Face Face;
-	//typedef RDT_data_structure::Edge Edge;
 	typedef RDT_data_structure::Halfedge_iterator Halfedge_iterator;
 	typedef RDT_data_structure::Edge_iterator Edge_iterator;
 	typedef RDT_data_structure::Vertex_iterator Vertex_iterator;
 	typedef RDT_data_structure::Facet_iterator Facet_iterator;
+	typedef RDT_data_structure::Vertex_const_iterator Vertex_const_iterator;
+	typedef RDT_data_structure::Halfedge_const_iterator Halfedge_const_iterator;
+	typedef RDT_data_structure::Facet_const_iterator	Facet_const_iterator;
+	typedef RDT_data_structure::Edge_const_iterator		Edge_const_iterator;
 
+	typedef std::vector<Vertex_handle> VertGroup; // vertices belonging to the same group
 public:
 	RestrictedPolygonVoronoiDiagram();
 	~RestrictedPolygonVoronoiDiagram();
@@ -106,12 +108,21 @@ public:
 	
 	Vertex_iterator vertices_begin() { return rdt_ds.vertices_begin(); }
 	Vertex_iterator vertices_end() { return rdt_ds.vertices_end(); }
+	Vertex_const_iterator vertices_begin() const { return rdt_ds.vertices_begin(); }
+	Vertex_const_iterator vertices_end() const { return rdt_ds.vertices_end(); }
 	Edge_iterator edges_begin() { return rdt_ds.edges_begin(); }
 	Edge_iterator edges_end() { return rdt_ds.edges_end(); }
 	Facet_iterator faces_begin()  { return rdt_ds.facets_begin(); }
 	Facet_iterator faces_end()  { return rdt_ds.facets_end(); }
 	Halfedge_iterator halfedges_begin() { return rdt_ds.halfedges_begin(); }
 	Halfedge_iterator halfedges_end() { return rdt_ds.halfedges_end(); }
+	Halfedge_const_iterator halfedges_begin() const { return rdt_ds.halfedges_begin(); }
+	Halfedge_const_iterator halfedges_end() const { return rdt_ds.halfedges_end(); }
+	Facet_const_iterator faces_begin() const { return rdt_ds.facets_begin(); }
+	Facet_const_iterator faces_end() const { return rdt_ds.facets_end(); }
+	Edge_const_iterator edges_begin() const { return rdt_ds.edges_begin(); }
+	Edge_const_iterator edges_end() const { return rdt_ds.edges_end(); }
+
 	unsigned int number_of_groups() const { return nb_groups; }
 
 	// for debug

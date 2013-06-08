@@ -33,7 +33,7 @@ namespace Geex {
 	void TW_CALL tw_discretize_tiles(void*);
 	void TW_CALL tw_save_tiles(void *);
 	void TW_CALL tw_save_mat(void *);
-	void TW_CALL tw_split(void*);
+	//void TW_CALL tw_split(void*);
 	void TW_CALL tw_adjust(void *);
 	
     class SPMApp : public GeexApp 
@@ -46,11 +46,11 @@ namespace Geex {
 				prompt_and_exit("Error: No project configuration file input!");
 			prj_config_file = argv[1];
 
-			enlarge_id = -1;
+// 			enlarge_id = -1;
 			enlarge_factor = 1.0;
-			enlarge_theta = 0.0;
-			enlarge_tx = 0.0;
-			enlarge_ty = 0.0;
+// 			enlarge_theta = 0.0;
+// 			enlarge_tx = 0.0;
+// 			enlarge_ty = 0.0;
 
 			lloyd_iter_times = 10;
 			pack_iter_times = 40;
@@ -195,12 +195,12 @@ namespace Geex {
 			spm()->save_materials();
 		}
 
-		void split()
-		{
-			spm()->split_large_tiles();
-			post_update();
-			glut_viewer_redraw();
-		}
+// 		void split()
+// 		{
+// 			spm()->split_large_tiles();
+// 			post_update();
+// 			glut_viewer_redraw();
+// 		}
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -278,7 +278,7 @@ namespace Geex {
 			TwAddVarRW(function_bar, "Levels", TW_TYPE_INT32, &spm()->discrete_levels(), "min=1 group = 'Discretize' ");
 			//TwAddButton(function_bar, "Discretize Tiles", tw_discretize_tiles, NULL, "key=d group = 'Discretize' ");
 			//TwAddVarRW(function_bar, "Discrete Scale", TW_TYPE_BOOL8, &spm()->discrete_scale(), "group = 'Discretize'");
-			TwAddButton(function_bar, "Split", tw_split, NULL, "key=s group = 'Discretize' ");
+			//TwAddButton(function_bar, "Split", tw_split, NULL, "key=s group = 'Discretize' ");
 			//TwAddButton(function_bar, "subresult", tw_save_subresult, NULL, "group = 'multimesh' ");
 			//TwAddButton(function_bar, "save tri", tw_save_triangulation, NULL, "key=t group = 'File' ");
 			//TwAddButton(function_bar, "save area_cur", tw_save_cur_area, NULL, "key=S group = 'File' ");
@@ -296,11 +296,11 @@ namespace Geex {
 		int lloyd_iter_times;
 		int pack_iter_times;
 		//debug
-		int enlarge_id;
-		double enlarge_factor;
-		double enlarge_theta;
-		double enlarge_tx;
-		double enlarge_ty;
+// 		int enlarge_id;
+ 		double enlarge_factor;
+// 		double enlarge_theta;
+// 		double enlarge_tx;
+// 		double enlarge_ty;
     } ;
 
 
@@ -346,7 +346,7 @@ void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
 void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
 void TW_CALL tw_save_tiles(void* clientData) { spm_app()->save_tiles(); }
 void TW_CALL tw_save_mat(void *clientData) { spm_app()->save_mat(); }
-void TW_CALL tw_split(void *clietData) { spm_app()->split(); }
+//void TW_CALL tw_split(void *clietData) { spm_app()->split(); }
 }
 
 int main(int argc, char** argv) 
