@@ -44,6 +44,7 @@ class Polygon_matcher
 	typedef std::vector<cv::Point2d> PointSet; 
 public:
 	Polygon_matcher(std::vector<Segment_2>& model, unsigned int _nb_sampling = 100);
+	Polygon_matcher(const Polygon_2& model, unsigned int _nb_sampling = 100);
 	~Polygon_matcher();
 
 	template <class UserDataType>

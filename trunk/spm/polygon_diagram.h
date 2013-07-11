@@ -127,7 +127,7 @@ public:
 
 	// for debug
 	const RDT_data_structure& get_rdt() const { return rdt_ds; }
-	void save_triangulation(const std::string fn);
+	void save_triangulation(const std::string fn) const;
 
 	bool is_delaunay_edge(Halfedge_handle e);
 
@@ -152,7 +152,7 @@ private:
 	std::vector<VertGroup> samp_pnts;
 	std::vector<Vertex_handle> bounding_pnts;
 	std::vector<MyPoint> all_points;
-	std::vector<std::vector<Point_3>> smoothed_VD_regions;
+	std::vector< std::vector<Point_3> > smoothed_VD_regions;
 	/** geometry **/
 	TopoPolyMesh *mesh;
 	TriMesh *trimesh;//the same as mesh, but with some other necessary functions
@@ -201,13 +201,14 @@ unsigned int RestrictedPolygonVoronoiDiagram::insert_bounding_edges(EdgeInputIte
 {
 	assert(open);
 	std::set<int> vert_idx; 
-	//bounding_pnts.reserve(last - first);
 	unsigned int cnt = 0;
 	while (first != last)
 	{
 		int vi0 = first->first, vi1 = first->second;
 		const vec3& v0 = trimesh->vertex(vi0).point();
 		const vec3& v1 = trimesh->vertex(vi1).point();
+// 		vec3 v0 = 0.98*trimesh->vertex(vi0).point();
+// 		vec3 v1 = 0.98*trimesh->vertex(vi1).point();
 		if ( vert_idx.find(vi0) == vert_idx.end() )
 		{
 			Point_3 p = to_cgal_pnt(v0);

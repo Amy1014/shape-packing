@@ -6,7 +6,7 @@
 
 < gamma > 1.0 </ gamma>
 
-< DensityFile >      ..\..\..\surfaces\left-horn\left-horn.txt </ DensityFile >
+< DensityFile >      ..\..\..\surfaces\cow-cut\left-horn\left-horn.txt </ DensityFile >
 
 < PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
 

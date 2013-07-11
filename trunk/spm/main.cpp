@@ -30,7 +30,7 @@ namespace Geex {
 	void TW_CALL tw_con_replace(void *);
 	void TW_CALL tw_pack_next(void*);
 	void TW_CALL tw_report(void*);
-	void TW_CALL tw_discretize_tiles(void*);
+	//void TW_CALL tw_discretize_tiles(void*);
 	void TW_CALL tw_save_tiles(void *);
 	void TW_CALL tw_save_mat(void *);
 	//void TW_CALL tw_split(void*);
@@ -53,7 +53,7 @@ namespace Geex {
 // 			enlarge_ty = 0.0;
 
 			lloyd_iter_times = 10;
-			pack_iter_times = 40;
+			pack_iter_times = 45;
        }
 
         SPM* spm() { return static_cast<SPM*>(scene()) ; }
@@ -163,7 +163,7 @@ namespace Geex {
 		//}
 		void save_triangulation()
 		{
-			spm()->rpvd.save_triangulation("enforced_enlarge.obj");
+			spm()->get_rpvd().save_triangulation("enforced_enlarge.obj");
 		}
 		void pack_next()
 		{
@@ -179,11 +179,11 @@ namespace Geex {
 			spm()->report();
 		}
 
-		void discretize_tiles()
-		{
-			spm()->discretize_tiles();
-			glut_viewer_redraw();
-		}
+		//void discretize_tiles()
+		//{
+		//	spm()->discretize_tiles();
+		//	glut_viewer_redraw();
+		//}
 
 		void save_tiles()
 		{
@@ -248,7 +248,7 @@ namespace Geex {
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Pack Iter", TW_TYPE_INT32, &pack_iter_times, "min=1 group = 'Optimization'");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
-			TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_opt, "group = 'Optimization' ");
+			TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_optimization(), "group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Use Voronoi Cell", TW_TYPE_BOOL8, &spm()->use_voronoi_cell(), "group = 'Optimization' ");
 			//TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
 			//TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
@@ -273,9 +273,9 @@ namespace Geex {
 				TwAddButton(function_bar, "pack next", tw_pack_next, NULL, "key=n group = 'multimesh' ");
 			TwAddButton(function_bar, "Report", tw_report, NULL, "group = 'Discretize' ");
 
-			TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->min_scale_factor(), "min=0.01 max=1.0 group = 'Discretize' ");
-			TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->max_scale_factor(), "min=1.0 group = 'Discretize' ");
-			TwAddVarRW(function_bar, "Levels", TW_TYPE_INT32, &spm()->discrete_levels(), "min=1 group = 'Discretize' ");
+			//TwAddVarRW(function_bar, "Min Scale", TW_TYPE_DOUBLE, &spm()->min_scale_factor(), "min=0.01 max=1.0 group = 'Discretize' ");
+			//TwAddVarRW(function_bar, "Max Scale", TW_TYPE_DOUBLE, &spm()->max_scale_factor(), "min=1.0 group = 'Discretize' ");
+			//TwAddVarRW(function_bar, "Levels", TW_TYPE_INT32, &spm()->discrete_levels(), "min=1 group = 'Discretize' ");
 			//TwAddButton(function_bar, "Discretize Tiles", tw_discretize_tiles, NULL, "key=d group = 'Discretize' ");
 			//TwAddVarRW(function_bar, "Discrete Scale", TW_TYPE_BOOL8, &spm()->discrete_scale(), "group = 'Discretize'");
 			//TwAddButton(function_bar, "Split", tw_split, NULL, "key=s group = 'Discretize' ");
@@ -343,7 +343,7 @@ void TW_CALL tw_fill( void *clientData ) { spm_app()->fill_holes(); }
 void TW_CALL tw_con_replace(void * clientData) { spm_app()->con_replace(); }
 void TW_CALL tw_pack_next(void *clientData) { spm_app()->pack_next(); }
 void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
-void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
+//void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
 void TW_CALL tw_save_tiles(void* clientData) { spm_app()->save_tiles(); }
 void TW_CALL tw_save_mat(void *clientData) { spm_app()->save_mat(); }
 //void TW_CALL tw_split(void *clietData) { spm_app()->split(); }

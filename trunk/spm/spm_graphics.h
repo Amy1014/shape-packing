@@ -101,7 +101,7 @@ namespace Geex
 		void outline_draw_polygons(const std::vector<Packing_object>& tiles);
 		void fill_draw_polygons(const std::vector<Packing_object>& tiles);
 		void texture_draw_polygons(const std::vector<Packing_object>& tiles);
-		void discrete_draw_polygons(const std::vector<Packing_object>& tiles);
+		//void discrete_draw_polygons(const std::vector<Packing_object>& tiles);
 
 		void draw_mesh();
 		void draw_multi_submeshes(); 

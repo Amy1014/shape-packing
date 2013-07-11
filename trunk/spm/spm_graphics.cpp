@@ -213,7 +213,7 @@ namespace Geex
 
 	void SPM_Graphics::draw_multi_tiles()
 	{
-		const std::vector<std::vector<Packing_object>>& multi_tiles = packer->res_pack_objects;
+		const std::vector< std::vector<Packing_object> >& multi_tiles = packer->get_multigroup_tiles();
 
 		static GLfloat amb_mat[][4] = {{0.19225f, 0.19225f, 0.19225f, 1.0f}, {0.19225f, 0.19225f, 0.19225f, 1.0f}, {0.19225f, 0.19225f, 0.19225f, 1.0f}};
 		static GLfloat diff_mat[][4] = {{0.2f, 0.2f, 0.2f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.50754f, 0.50754f, 0.50754f, 1.0f}};
@@ -260,9 +260,9 @@ namespace Geex
 			else
 				outline_draw_polygons(tiles);
 			break;
-		case DISCRETE_SCALE_DRAWE:
-			discrete_draw_polygons(tiles);
-			break;
+		//case DISCRETE_SCALE_DRAWE:
+		//	discrete_draw_polygons(tiles);
+		//	break;
 		}
 	}
 
@@ -395,79 +395,79 @@ namespace Geex
 		}
 	}
 
-	void SPM_Graphics::discrete_draw_polygons(const std::vector<Packing_object>& tiles)
-	{
-		// draw color bar
-		GLint old_shade_model;
-		glGetIntegerv(GL_SHADE_MODEL, &old_shade_model);
-		glDisable(GL_LIGHTING);
-		glShadeModel(GL_SMOOTH);
-		GLfloat r, g, b;
+	//void SPM_Graphics::discrete_draw_polygons(const std::vector<Packing_object>& tiles)
+	//{
+	//	// draw color bar
+	//	GLint old_shade_model;
+	//	glGetIntegerv(GL_SHADE_MODEL, &old_shade_model);
+	//	glDisable(GL_LIGHTING);
+	//	glShadeModel(GL_SMOOTH);
+	//	GLfloat r, g, b;
 
-		// draw color bar
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();	
-		glLoadIdentity();
-		int glut_viewer_W = 800;
-		int glut_viewer_H = 800;
-		glut_viewer_get_screen_size(&glut_viewer_W, &glut_viewer_H);
-		glOrtho(0, glut_viewer_W, glut_viewer_H, 0, 0, 1);
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
-		glBegin(GL_QUADS);	
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex2i(glut_viewer_W - 50, 30); 
-		glVertex2i(glut_viewer_W - 30, 30);
+	//	// draw color bar
+	//	glMatrixMode(GL_PROJECTION);
+	//	glPushMatrix();	
+	//	glLoadIdentity();
+	//	int glut_viewer_W = 800;
+	//	int glut_viewer_H = 800;
+	//	glut_viewer_get_screen_size(&glut_viewer_W, &glut_viewer_H);
+	//	glOrtho(0, glut_viewer_W, glut_viewer_H, 0, 0, 1);
+	//	glMatrixMode(GL_MODELVIEW);
+	//	glPushMatrix();
+	//	glLoadIdentity();
+	//	glBegin(GL_QUADS);	
+	//	glColor3f(1.0f, 0.0f, 0.0f);
+	//	glVertex2i(glut_viewer_W - 50, 30); 
+	//	glVertex2i(glut_viewer_W - 30, 30);
 
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex2i(glut_viewer_W - 30, (glut_viewer_H)/2);
-		glVertex2i(glut_viewer_W - 50, (glut_viewer_H)/2); 
+	//	glColor3f(0.0f, 1.0f, 0.0f);
+	//	glVertex2i(glut_viewer_W - 30, (glut_viewer_H)/2);
+	//	glVertex2i(glut_viewer_W - 50, (glut_viewer_H)/2); 
 
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex2i(glut_viewer_W - 50, (glut_viewer_H)/2); 
-		glVertex2i(glut_viewer_W - 30, (glut_viewer_H)/2);
+	//	glColor3f(0.0f, 1.0f, 0.0f);
+	//	glVertex2i(glut_viewer_W - 50, (glut_viewer_H)/2); 
+	//	glVertex2i(glut_viewer_W - 30, (glut_viewer_H)/2);
 
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex2i(glut_viewer_W - 30, glut_viewer_H - 30); 
-		glVertex2i(glut_viewer_W - 50, glut_viewer_H - 30); 
-		glEnd();
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
+	//	glColor3f(0.0f, 0.0f, 1.0f);
+	//	glVertex2i(glut_viewer_W - 30, glut_viewer_H - 30); 
+	//	glVertex2i(glut_viewer_W - 50, glut_viewer_H - 30); 
+	//	glEnd();
+	//	glMatrixMode(GL_MODELVIEW);
+	//	glPopMatrix();
+	//	glMatrixMode(GL_PROJECTION);
+	//	glPopMatrix();
 
-		double min_scale = packer->min_scale_factor(), max_scale = packer->max_scale_factor();
-		glBegin(GL_TRIANGLES);
-		for (unsigned int i = 0; i < tiles.size(); i++)
-		{
-			double scale = tiles[i].factor;
-			if (show_inactive_ && !tiles[i].active)
-			{
-				r = 0.6f;
-				g = 0.6f;
-				b = 0.6f;
-			}
-			else
-				cur_color_map(scale, min_scale, max_scale, r, g, b);
+	//	double min_scale = packer->min_scale_factor(), max_scale = packer->max_scale_factor();
+	//	glBegin(GL_TRIANGLES);
+	//	for (unsigned int i = 0; i < tiles.size(); i++)
+	//	{
+	//		double scale = tiles[i].factor;
+	//		if (show_inactive_ && !tiles[i].active)
+	//		{
+	//			r = 0.6f;
+	//			g = 0.6f;
+	//			b = 0.6f;
+	//		}
+	//		else
+	//			cur_color_map(scale, min_scale, max_scale, r, g, b);
 
-			glColor3f(r, g, b);
-			unsigned int nb_verts = tiles[i].size();
-			Point_3 c = tiles[i].centroid();
-			for (unsigned int j = 0; j < nb_verts; j++)
-			{
-				glPoint_3(c);
-				glPoint_3(tiles[i].vertex(j));
-				glPoint_3(tiles[i].vertex((j+1)%nb_verts));
-			}
-		}
-		glEnd();
-		glShadeModel(old_shade_model);
-		glEnable(GL_LIGHTING);
-	}
+	//		glColor3f(r, g, b);
+	//		unsigned int nb_verts = tiles[i].size();
+	//		Point_3 c = tiles[i].centroid();
+	//		for (unsigned int j = 0; j < nb_verts; j++)
+	//		{
+	//			glPoint_3(c);
+	//			glPoint_3(tiles[i].vertex(j));
+	//			glPoint_3(tiles[i].vertex((j+1)%nb_verts));
+	//		}
+	//	}
+	//	glEnd();
+	//	glShadeModel(old_shade_model);
+	//	glEnable(GL_LIGHTING);
+	//}
 	void SPM_Graphics::draw_all_vertices()
 	{
-		const RDT_data_structure& rdt = packer->rpvd.get_rdt();
+		const RDT_data_structure& rdt = packer->get_rpvd().get_rdt();
 		
 		glDisable(GL_LIGHTING);
 		glColor3f(0.0f, 0.0f, 0.0f);

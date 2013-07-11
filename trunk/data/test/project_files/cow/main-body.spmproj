@@ -2,7 +2,7 @@
 
 < MeshFile >          ..\..\..\surfaces\cow-cut\main-body\main-body.obj        </ MeshFile >    
             
-< polygonfile >      ..\..\..\polygons\cow-voronoi\main-body.poly  </ PolygonFile >
+< polygonfile >      ..\..\..\polygons\cow-voronoi\main-body_4.poly  </ PolygonFile >
 
 < gamma > 1.0 </ gamma>
 
