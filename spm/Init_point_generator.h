@@ -31,7 +31,7 @@ public:
 	inline double density(unsigned int facet_idx) 
 	{
 		double cur = mesh.curvature_at_face(facet_idx);
-		return std::pow(cur, 4.0);
+		return std::pow(cur, 1.0);
 	}
 
 	inline double weight(unsigned int facet_idx);

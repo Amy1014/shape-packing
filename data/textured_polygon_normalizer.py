@@ -18,8 +18,8 @@ def polygonArea( pgnVertList ):
         area += math.sqrt(dot(crss, crss))
     return 0.5*area
 
-inDir = r"D:\research\Tiling\prog\newspm\data\polygons\bwg_stones"
-outDir = r"D:\research\Tiling\prog\newspm\data\polygons\bwg_stones_kitten\\"
+inDir = r"D:\research\Tiling\dataset\letters"
+outDir = r"D:\research\Tiling\dataset\letters_normalized\\"
 os.chdir(inDir)
 filenames = os.listdir(inDir)
 
@@ -40,6 +40,7 @@ for f in filenames:
             pgn_verts.append(array([x, y, 0.0]))
             text_coords.append((tx, ty))
         area = polygonArea(pgn_verts)
+        print f
         scale = math.sqrt(1.0/area)
         ofh.write(str(nbVert)+"\n")
         for j in range(0, nbVert):

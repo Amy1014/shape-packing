@@ -8,7 +8,7 @@ namespace Geex
 		double cur = mesh.curvature_at_face(facet_idx);
 		const Facet& f = mesh[facet_idx];
 		double area = f.area();
-		return area*density(cur); 
+		return std::sqrt(area)*1.0*density(cur); 
 	}
 
 	/************************************************************************/
@@ -159,7 +159,7 @@ namespace Geex
 			pnts.push_back(p);
 		}
 
-		const int lloyd_times = 10;
+		const int lloyd_times = 1;
 		std::cout<<"Starting lloyd, do it "<<lloyd_times<<" times...\n";
 		for (int i = 0; i < lloyd_times; i++)
 		{

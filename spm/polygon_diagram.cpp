@@ -187,10 +187,7 @@ namespace Geex
 					{	
 						Point_3 c;
 						if (current_edge->facet() == Facet_handle())
-						{
-							//std::cout<<"Caution: invalid surface mesh. poor sampling!.\n";
 							nb_lost_facets++;
-						}
 						else if (current_edge->facet()->is_delaunay)
 						{
 							Point_3 c = CGAL::circumcenter(v_pre->mp, v_nxt->mp, vg[j]->mp);
@@ -271,106 +268,6 @@ namespace Geex
 		}
 		std::cout<<"Number of lost facets (due to wrong RDT): "<<nb_lost_facets<<std::endl;
 	}
-	void RestrictedPolygonVoronoiDiagram::compute_approx_VD(std::vector<Plane_3>& clipping_planes, std::vector<Point_3>& ref_pnts)
-	{
-		if (nb_groups == 0)
-			return;
-		assert(clipping_planes.size() == nb_groups);
-		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != rdt_ds.vertices_end(); ++vit)
-		{
-			vit->vd_vertices.clear();
-			vit->contain_non_delaunay_facet = false;
-			vit->penetration = true;
-		}
-		int nb_lost_facets = 0;
-		smoothed_VD_regions.resize(nb_groups);
-		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
-		for (unsigned int i = 0; i < nb_groups; i++)
-		{
-			const VertGroup& vg = samp_pnts[i];
-			const Plane_3& pln = clipping_planes[i];
-			smoothed_VD_regions[i].clear();
-
-			for (unsigned int j = 0; j < vg.size(); j++)
-			{
-				std::vector<bool> is_triple_pnt;
-				Edge_circulator start_edge = vg[j]->vertex_begin();
-				Edge_circulator current_edge = start_edge;
-				do 
-				{
-					Vertex_handle v_pre = current_edge->prev()->vertex();
-					//Vertex_handle v_pre = current_edge->opposite()->vertex();
-					if ( v_pre->group_id == vg[j]->group_id)
-					{
-						vg[j]->penetration = false;
-						break;
-					}
-					++current_edge;
-				} while (current_edge != start_edge);
-				Edge_circulator end = current_edge;
-				do 
-				{
-					Vertex_handle v_pre = current_edge->prev()->vertex();
-					Vertex_handle v_nxt = current_edge->next()->vertex();
-					if ( v_pre->group_id != vg[j]->group_id || v_nxt->group_id != vg[j]->group_id)
-					{	
-						Point_3 c;
-						if (current_edge->facet() == Facet_handle())
-							nb_lost_facets++;
-						else
-						{
-							Point_3 c = CGAL::centroid(v_pre->mp, v_nxt->mp, vg[j]->mp);
-							if (v_nxt->group_id < 0 && v_pre->group_id < 0)
-								vg[j]->vd_vertices.push_back( v_nxt->mp );
-							else if (v_nxt->group_id < 0 && v_pre->group_id >= 0)
-							{
-								vg[j]->vd_vertices.push_back(v_nxt->mp);
-							}
-							else if (v_nxt->group_id >= 0 && v_pre->group_id < 0)
-							{
-								if (vg[j]->group_id != v_nxt->group_id)
-									vg[j]->vd_vertices.push_back(c);								
-							}
-							else
-								vg[j]->vd_vertices.push_back( c );
-							vg[j]->contain_non_delaunay_facet = true;
-							if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id
-								|| v_pre->group_id < 0 && v_nxt->group_id < 0)
-								is_triple_pnt.push_back(true);
-							else
-								is_triple_pnt.push_back(false);
-						}				
-					}
-					++current_edge;
-				} while (current_edge != end);
-				std::vector<Point_3>& vd_vertices = vg[j]->vd_vertices;
-				for (unsigned int k = 0; k < vd_vertices.size(); k++)
-				{
-					vd_vertices[k] = pln.projection(vd_vertices[k]);
-					if (is_triple_pnt[k])
-						smoothed_VD_regions[i].push_back(vd_vertices[k]);
-				}
-			}
-			std::vector<Point_2> conhull;
-			std::vector<Point_2> pnt2d;
-			pnt2d.reserve(smoothed_VD_regions[i].size());
-			Vector_3 base1 = pln.base1(), base2 = pln.base2();
-			cgal_vec_normalize(base1);
-			cgal_vec_normalize(base2);
-			Point_3 o = ref_pnts[i];
-			for (unsigned int k = 0; k < smoothed_VD_regions[i].size(); k++)
-			{
-				Vector_3 v(o, smoothed_VD_regions[i][k]);
-				pnt2d.push_back(Point_2(v*base1, v*base2));
-			}
-			CGAL::ch_graham_andrew(pnt2d.begin(), pnt2d.end(), std::back_insert_iterator<std::vector<Point_2>>(conhull));
-			smoothed_VD_regions[i].clear();
-			for (unsigned int k = 0; k < conhull.size(); k++)
-				smoothed_VD_regions[i].push_back(o + ( conhull[k].x()*base1 + conhull[k].y()*base2 ) );
-		}
-		std::cout<<"Number of lost facets (due to wrong RDT): "<<nb_lost_facets<<std::endl;
-	}
-
 	void RestrictedPolygonVoronoiDiagram::compute_mixed_VD(std::vector<Plane_3>& clipping_planes, std::vector<Point_3>& ref_pnts, std::vector<bool>& use_approx)
 	{
 		if (nb_groups == 0)
@@ -518,50 +415,64 @@ namespace Geex
 				Edge_circulator current_edge = start_edge;
 				do 
 				{						
-					Facet_handle f = current_edge->facet();
-					if (f == Facet_handle())
-						nb_lost_facets++;
-					else 
-					{
+					//Facet_handle f = current_edge->facet();
+					//if (f == Facet_handle())
+					//	nb_lost_facets++;
+					//else 
+					//{
 						Vertex_handle v_nxt = current_edge->next()->vertex();
 						Vertex_handle v_pre = current_edge->prev()->vertex();
-						if (v_pre->group_id < 0 && v_nxt->group_id < 0)
+						if (v_nxt->group_id != vg[j]->group_id || v_pre->group_id != vg[j]->group_id)
 						{
-							vg[j]->med_segs.push_back(Segment_3(v_pre->mp, v_nxt->mp));
-							smoothed_VD_regions[i].push_back(v_pre->mp);
+							if (current_edge->facet() == Facet_handle())
+								nb_lost_facets++;
+							else if (v_pre->group_id < 0 && v_nxt->group_id < 0)
+							{
+								vg[j]->med_segs.push_back(Segment_3(v_pre->mp, v_nxt->mp));
+								smoothed_VD_regions[i].push_back(v_pre->mp);
+							}
+							else if (v_pre->group_id < 0 && v_nxt->group_id != /*==*/ vg[j]->group_id )
+							{
+								vg[j]->med_segs.push_back(Segment_3(v_pre->mp, CGAL::midpoint(v_nxt->mp, vg[j]->mp)));
+							}
+							else if (v_nxt->group_id < 0 && v_pre->group_id != /*==*/ vg[j]->group_id)
+							{
+								vg[j]->med_segs.push_back(Segment_3(v_nxt->mp, CGAL::midpoint(vg[j]->mp, v_pre->mp)));
+							}
+							else if (v_pre->group_id < 0 && v_nxt->group_id == vg[j]->group_id )
+							{
+								//vg[j]->med_segs.push_back(Segment_3(v_pre->mp, CGAL::midpoint(v_nxt->mp, vg[j]->mp)));
+							}
+							else if (v_nxt->group_id < 0 && v_pre->group_id == vg[j]->group_id)
+							{
+								//vg[j]->med_segs.push_back(Segment_3(v_nxt->mp, CGAL::midpoint(vg[j]->mp, v_pre->mp)));
+							}
+							else if (v_pre->group_id == vg[j]->group_id && v_nxt->group_id != vg[j]->group_id)
+							{
+								Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, v_nxt->mp);
+								vg[j]->med_segs.push_back(Segment_3(end0, end1));
+							}
+							else if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id == vg[j]->group_id)
+							{
+								Point_3 end0 = CGAL::midpoint(v_nxt->mp, v_pre->mp), end1 = CGAL::midpoint(vg[j]->mp, v_pre->mp);
+								vg[j]->med_segs.push_back(Segment_3(end0, end1));
+							}
+							else if ( v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id == v_nxt->group_id )
+							{
+								Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, vg[j]->mp);
+								vg[j]->med_segs.push_back(Segment_3(end0, end1));
+							}
+							else if ( v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id )
+							{
+								Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, vg[j]->mp);
+								Point_3 c = CGAL::centroid(vg[j]->mp, v_pre->mp, v_nxt->mp);
+								vg[j]->med_segs.push_back(Segment_3(end0, c));
+								vg[j]->med_segs.push_back(Segment_3(c, end1));
+								smoothed_VD_regions[i].push_back(c);
+							}
 						}
-						else if (v_pre->group_id < 0 && v_nxt->group_id == vg[j]->group_id )
-						{
-							//vg[j]->med_segs.push_back(Segment_3(v_pre->mp, CGAL::midpoint(v_nxt->mp, v_pre->mp)));
-						}
-						else if (v_nxt->group_id < 0 && v_pre->group_id == vg[j]->group_id)
-						{
-							//vg[j]->med_segs.push_back(Segment_3(v_nxt->mp, CGAL::midpoint(v_nxt->mp, v_pre->mp)));
-						}
-						else if (v_pre->group_id == vg[j]->group_id && v_nxt->group_id != vg[j]->group_id)
-						{
-							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, v_nxt->mp);
-							vg[j]->med_segs.push_back(Segment_3(end0, end1));
-						}
-						else if (v_pre->group_id != vg[j]->group_id && v_nxt->group_id == vg[j]->group_id)
-						{
-							Point_3 end0 = CGAL::midpoint(v_nxt->mp, v_pre->mp), end1 = CGAL::midpoint(vg[j]->mp, v_pre->mp);
-							vg[j]->med_segs.push_back(Segment_3(end0, end1));
-						}
-						else if ( v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id == v_nxt->group_id )
-						{
-							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, vg[j]->mp);
-							vg[j]->med_segs.push_back(Segment_3(end0, end1));
-						}
-						else if ( v_pre->group_id != vg[j]->group_id && v_nxt->group_id != vg[j]->group_id && v_pre->group_id != v_nxt->group_id )
-						{
-							Point_3 end0 = CGAL::midpoint(vg[j]->mp, v_nxt->mp), end1 = CGAL::midpoint(v_pre->mp, vg[j]->mp);
-							Point_3 c = CGAL::centroid(vg[j]->mp, v_pre->mp, v_nxt->mp);
-							vg[j]->med_segs.push_back(Segment_3(end0, c));
-							vg[j]->med_segs.push_back(Segment_3(c, end1));
-							smoothed_VD_regions[i].push_back(c);
-						}
-					}	
+						
+					//}	
 					--current_edge;
 				} while (current_edge != start_edge);
 
@@ -760,17 +671,17 @@ namespace Geex
 		}
 	}
 
-	void RestrictedPolygonVoronoiDiagram::save_triangulation(const std::string fn)
+	void RestrictedPolygonVoronoiDiagram::save_triangulation(const std::string fn) const
 	{
 		std::ofstream os(fn.c_str());
 		std::vector<Point_3> pnts(rdt_ds.size_of_vertices());
-		for (Vertex_iterator vit = rdt_ds.vertices_begin(); vit != vertices_end(); ++vit)
+		for (Vertex_const_iterator vit = rdt_ds.vertices_begin(); vit != vertices_end(); ++vit)
 			pnts[vit->idx] = vit->mp;
 		for (unsigned int i = 0; i < pnts.size() ; i++)
 			os<<"v "<<pnts[i].x()<<' '<<pnts[i].y()<<' '<<pnts[i].z()<<'\n';
-		for (Facet_iterator fit = rdt_ds.facets_begin(); fit != rdt_ds.facets_end(); ++fit)
+		for (Facet_const_iterator fit = rdt_ds.facets_begin(); fit != rdt_ds.facets_end(); ++fit)
 		{
-			Halfedge_handle eh = fit->halfedge();
+			Halfedge_const_handle eh = fit->halfedge();
 			int i0 = eh->vertex()->idx;
 			eh = eh->next();
 			int i1 = eh->vertex()->idx;

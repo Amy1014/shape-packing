@@ -40,6 +40,37 @@ namespace Geex
 		modelMat = CmAffine::CreatePointSetMat(modelPtsSet);
 	}
 
+	Polygon_matcher::Polygon_matcher(const Polygon_2& model, unsigned int _nb_sampling /* = 100 */)
+	{
+		model_area = std::fabs(model.area());
+		nb_sampling = _nb_sampling;
+		// sample the model polygon
+		double perimeter = 0.0;
+		vector<double> edge_lens(model.size());
+		for (unsigned int i = 0; i < model.size(); i++)
+		{
+			edge_lens[i] = CGAL::sqrt(model.edge(i).squared_length());
+			perimeter += edge_lens[i];
+		}
+		modelPtsSet.reserve(nb_sampling);
+		model_tangent_vec.reserve(nb_sampling);
+		for (unsigned int i = 0; i < model.size(); i++)
+		{
+			int n = (edge_lens[i]/perimeter)*nb_sampling;
+			Point_2 src = model.edge(i).source(), tgt = model.edge(i).target();
+
+			Vector_2 tv(src, tgt);
+			cgal_vec_normalize(tv);
+
+			for (unsigned int j = 0; j < n+1; j++)
+			{				
+				Point_2 sp = CGAL::ORIGIN + ( (n+1-j)*(src - CGAL::ORIGIN) + j*(tgt - CGAL::ORIGIN) ) / (n+1);
+				modelPtsSet.push_back(cv::Point2d(sp.x(), sp.y()));
+				model_tangent_vec.push_back(tv);
+			}
+		}
+		modelMat = CmAffine::CreatePointSetMat(modelPtsSet);
+	}
 	Polygon_matcher::~Polygon_matcher()
 	{
 		modelPtsSet.clear();

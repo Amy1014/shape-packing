@@ -72,8 +72,9 @@ namespace Geex
 		ProjectIO& get_project_ioer() { return pio; }
 		bool& use_voronoi_cell() { return use_voronoi_cell_; }
 		double& replace_shrink_factor() { return replace_factor; }
+		const std::vector< std::vector<Packing_object> >& get_multigroup_tiles() const { return res_pack_objects; }
+		bool& sync_optimization() { return sync_opt; }
 
-		const std::vector<std::vector<Packing_object>>& get_multigroup_tiles() const { return res_pack_objects; }
 		const std::vector<TriMesh>& get_multigroup_submeshes() const { return mesh_segments; }
 
 		static Packer* instance() { return instance_; }
@@ -89,7 +90,6 @@ namespace Geex
 
 		void adjust(double factor); // adjust for demo
 
-		/** core functions **/
 		// hole detection
 		void detect_holes();
 		// hole filling
@@ -102,17 +102,11 @@ namespace Geex
 		void con_replace(); 
 
 		// discretize
-		void discretize_tiles();
-		double& max_scale_factor() { return max_scale; }
-		double& min_scale_factor() { return min_scale; }
-		int& discrete_levels() { return levels; }
 		//void split_large_tiles();
 		// driver
 		void pack(void (*post_action)() = NULL); 
 		// debug
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
-		void save_curvature_and_area(); // deleted for simplicity, see revision 67
-		void enlarge_one_polygon(unsigned int id, double f, double theta, double tx, double ty); // deleted for simplicity, see revision 67
 		//CDT& get_cdt() {  return cdt; }
 
 		void report();
@@ -126,7 +120,7 @@ namespace Geex
 
 		/** initialization **/
 		void random_init_tiles(unsigned int nb_init_polygons);	// put polygons according to curvature (if any) and in a uniform way
-		void put_polygons_on_facet(unsigned int facet_id, int n, unsigned int& pgn_lib_index);
+
 		/** geometry **/
 		void generate_RDT();
 
@@ -135,10 +129,6 @@ namespace Geex
 		void compute_clipped_VD(std::vector<bool> use_approx); // mixed computation of clipped voronoi diagram
 
 		vec3 approx_normal(unsigned int facet_idx);
-		
-		//Local_frame compute_local_frame(const Packing_object& tile);
-
-		/** optimization **/
 		
 		/** optimization **/
 		void lloyd(void (*post_action)() = NULL, bool enlarge = false);
@@ -187,24 +177,20 @@ namespace Geex
 		std::vector<Packing_object> pack_objects;
 		unsigned int samp_nb; // polygon sample number
 		std::vector<Ex_polygon_2> pgn_lib;
+		std::vector< std::vector<double> > sim_mat; //similarity matrix
 		TriMesh mesh;
 		double mesh_area;
 
 		/** for segmented mesh**/
-		//std::vector<std::vector<Packing_object>> res_pack_objects; // results on different sub-meshes
+		std::vector< std::vector<Packing_object> > res_pack_objects; // results on different sub-meshes
 		std::vector<TriMesh> mesh_segments; // multiple sub-meshes from segmentation
 		unsigned int sub_pack_id;
-		std::vector<std::vector<Ex_polygon_2>> pgn_lib_sets; // we have multiple polygon libraries
+		std::vector< std::vector<Ex_polygon_2> > pgn_lib_sets; // we have multiple polygon libraries
 
 		/** holes **/
 		std::vector<Hole> holes;
 		double frontier_edge_size;
 		double hole_face_size;
-
-		/** discretize **/
-		double max_scale;
-		double min_scale;
-		int levels;
 
 		/** optimization **/
 #ifdef _CILK_
@@ -222,12 +208,16 @@ namespace Geex
 		bool stop_update_DT;
 		double match_weight;
 		bool use_voronoi_cell_;
+		bool sync_opt;
+		double phony_upper_scale;
 
 		double area_coverage;
+		
+		/* geometry */
+		RestrictedPolygonVoronoiDiagram rpvd;
 
-		/** helper classes **/
 	private:
-
+		/** helper classes **/
 		class Discrete_barriers
 		{
 		public:
@@ -327,16 +317,6 @@ namespace Geex
 			}
 		};
 
-
-
-	public: // for debug
-		RestrictedPolygonVoronoiDiagram rpvd;
-		//CDT cdt;
-		//std::vector<Local_frame> local_frames;
-		//Packing_object backup;
-		std::vector<std::vector<Packing_object>> res_pack_objects;
-		bool sync_opt;
-		double phony_upper_scale;
 	};
 
 
