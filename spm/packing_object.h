@@ -27,6 +27,10 @@ namespace Geex
 		{
 			return o + ( p.x()*u + p.y()*v );
 		}
+		inline Vector_2 to_uv(const Vector_3& vec) const
+		{
+			return Vector_2(vec*u, vec*v);
+		}
 	};
 
 	struct Parameter // represent a 2D transformation parameter

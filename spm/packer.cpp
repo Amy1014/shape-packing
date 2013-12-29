@@ -49,6 +49,9 @@ namespace Geex
 			if (!pio.multi_meshes_specified())
 			{
 				pio>>mesh>>pgn_lib;
+				if (!pio.attribute_value("VectorField").empty())
+					mesh.load_vecfield(pio.attribute_value("VectorField"));
+				vector_field = mesh.with_vector_field();
 				initialize();
 				std::cout<<"Start computing RDT...\n";
 				generate_RDT();
@@ -187,8 +190,8 @@ namespace Geex
 	}
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
-		Init_point_generator *ipg = new CVT_point_generator(mesh, nb_init_polygons, pio.attribute_value("MeshFile"));
-		//Init_point_generator *ipg = new Density_point_generator(mesh, nb_init_polygons);
+		//Init_point_generator *ipg = new CVT_point_generator(mesh, nb_init_polygons, pio.attribute_value("MeshFile"));
+		Init_point_generator *ipg = new Density_point_generator(mesh, nb_init_polygons);
 		// choose polygons and distribute
 		unsigned int pgn_lib_idx = 0;
 		unsigned int nb_pnts = ipg->nb_points();
@@ -462,20 +465,9 @@ namespace Geex
 		}
 		std::cout<<"Minimum enlargement factor = "<<mink<<std::endl;
 
-		//if (!stop_update_DT)
-		//{
-			// first constrain rotation and translation
-			//constraint_transformation(solutions, lfs, false);
-			// second constrain enlargement
-			//if (mink < min_scalor && enlarge)
-			//	constraint_transformation(solutions, lfs, true);
-			//else
-				constraint_transformation(solutions, lfs, false);
-				//if (discrete_scaling)
-				//	constraint_transformation(solutions, lfs, true);
-		//}
-		//rpvd.save_triangulation("before_transform.obj");
-		//std::ofstream of("parameters.txt");
+		if (!vector_field)
+			constraint_transformation(solutions, lfs, false);
+
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -553,10 +545,12 @@ namespace Geex
 		//		if (opti_res[i] == SUCCESS && pack_objects[i].active)
 		//			solutions[i].k = mink;
 		//}
-		constraint_transformation(solutions, lfs, false);
+		if (!vector_field)
+			constraint_transformation(solutions, lfs, false);
 
 		std::cout<<"Minimum scale is "<<mink<<std::endl;
 		//if (mink <= 1.1)
+		if (!vector_field)
 			constraint_transformation(solutions, lfs, true);
 
  #ifdef _CILK_
@@ -603,16 +597,12 @@ namespace Geex
 #else
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
-		{	
-			//curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
 			transform_one_polygon(i, lfs[i], solutions[i]);
-		}
 		
 		bool stay_at_this_barrier = false;
 		int nb_potential_growth = 0;
 		for (unsigned int i = 0; i < has_growth_room.size(); i++)
 		{
-			//stay_at_this_barrier = stay_at_this_barrier || has_growth_room[i];
 			if (has_growth_room[i])
 				nb_potential_growth++;
 		}
@@ -650,6 +640,37 @@ namespace Geex
 			samp_pnts[j]->mp = to_cgal_pnt(mesh.project_to_mesh(to_geex_pnt(temp), dummyv));
 		}
 		pack_objects[id].facet_idx = fid;
+	}
+
+	void Packer::vecfield_align()
+	{
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			const Facet& f = mesh_domain[pack_objects[i].facet_idx];
+			const vec3 v0 = mesh_domain.vector_field_at(f.vertex_index[0]);
+			const vec3 v1 = mesh_domain.vector_field_at(f.vertex_index[1]);
+			const vec3 v2 = mesh_domain().vector_field_at(f.vertex_index[2]);
+			vec3 v = (v0 + v1 + v2) / 3.0;
+ 			Local_frame lf = pack_objects[i].local_frame();
+// 			Point_3 p(lf.o.x() + v.x, lf.o.y()+v.y, lf.o.z()+v.z);
+// 			Plane_3 tp(lf.o, lf.w);
+// 			Vector_3 av(lf.o, tp.projection(p));
+			Vector_3 av(v.x, v.y, v.z);
+			Line_3 axis;
+			CGAL::linear_least_squares_fitting_3(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), axis, CGAL::Dimension_tag<0>());
+			Vector_3 principle_dir = axis.to_vector();
+			Vector_2 principle_dir_2 = lf.to_uv(principle_dir);
+			Vector_2 av_2 = lf.to_uv(av);
+			cgal_vec_normalize(principle_dir_2);
+			cgal_vec_normalize(av_2);
+			double det = principle_dir_2.x()*av_2.y() - principle_dir_2.y()*av_2.x();
+			double cos_theta = principle_dir_2*av_2;
+			if (cos_theta > 1.0)	cos_theta = 1.0;
+			if (cos_theta < -1.0)	cos_theta = -1.0;
+			double theta = std::acos(cos_theta);
+			if (det < 0.0)	theta = -theta;
+			transform_one_polygon(i, lf, Parameter(1.0, theta, 0.0, 0.0));
+		}
 	}
 	void Packer::lloyd(void (*post_action)(), bool enlarge)
 	{
@@ -789,7 +810,11 @@ namespace Geex
 		}
 		print_area_coverage();	
 	}
+	
+	void Packer::vpack(void (*post_action)())
+	{
 
+	}
 	void Packer::constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, bool constrain_scale)
 	{
 		std::vector<double> min_factors(parameters.size(), 1.0);

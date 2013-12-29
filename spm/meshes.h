@@ -419,6 +419,7 @@ namespace Geex {
 		void load(const std::string& filename, Convex* planes = nil) ;
 		void load(std::istream& in, Convex* planes = nil) ;
 		bool load_feature(const std::string& filename) ;
+		void load_vecfield(const std::string& filename);
 
 		void save(const std::string& filename) ;
 		void save(std::ostream& out) ;
@@ -503,9 +504,14 @@ namespace Geex {
 
 		vec3 mesh_center() const { return mesh_cent; }
  
+		const vec3 vector_field_at(unsigned int idx) const { return vector_field[idx]; }
+		bool with_vector_field() const { return has_vector_field; }
+
 	protected:
 		int                       nb_vertices_ ;
 		std::vector<MeshVertex>   vertices_ ;
+		std::vector<vec3>			vector_field;
+		bool has_vector_field;
 		vec3                      bbox_[2] ; // bounding box of boundary mesh
 	private:
 		class PairIntIntCmp

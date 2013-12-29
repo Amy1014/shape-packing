@@ -179,6 +179,18 @@ namespace Geex
 // 		}
 // 		glEnd();
 // #endif
+
+		if (m.with_vector_field())
+		{
+			glColor3f(0.0f, 0.0f, 1.0f);
+			glBegin(GL_LINES);
+			for (unsigned int i = 0; i < m.nb_vertices(); i++)
+			{
+				glVertex(m.vertex(i).pos_);
+				glVertex(m.vertex(i).pos_ + m.vector_field_at(i));
+			}
+			glEnd();
+		}
 	}
 
 	void SPM_Graphics::draw_multi_submeshes()
