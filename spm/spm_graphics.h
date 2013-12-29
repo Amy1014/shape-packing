@@ -1,7 +1,7 @@
 #ifndef _SPM_GRAPHICS_H_
 #define  _SPM_GRAPHICS_H_
 
-#undef _DEMO_
+//#undef _DEMO_
 
 #ifdef WIN32
 #include <windows.h>

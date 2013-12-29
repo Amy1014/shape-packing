@@ -1,0 +1,19 @@
+< SpMProject >  Camel with green stone Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\camel_no_tail.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\green_stones_camel\    </ PolygonDir >
+
+< gamma > 2.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+
+< DensityFile >      ..\..\surfaces\camel_no_tail.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\polygons\green_stones_camel\    </ TextureImageDir >
+
+< OutputDir > ..\..\output\camel_no_tail </ OutputDir >

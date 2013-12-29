@@ -351,12 +351,18 @@ void TW_CALL tw_save_mat(void *clientData) { spm_app()->save_mat(); }
 
 int main(int argc, char** argv) 
 {
-	//Geex::ProjectIO pio(argv[1]);
-	//pio.debug_print();
-    Geex::initialize();
-    Geex::SPMApp app(argc, argv) ;
-	app.main_loop() ;
-    Geex::terminate() ;
+	try
+	{
+		Geex::initialize();
+		Geex::SPMApp app(argc, argv) ;
+		app.main_loop() ;
+		Geex::terminate() ;
+	}
+	catch (std::exception& e)
+	{
+		std::cout<<e.what()<<std::endl;
+
+	}
 	//system("pause");
 	return 0;
 }

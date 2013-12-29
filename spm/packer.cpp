@@ -23,7 +23,7 @@ namespace Geex
 		epsilon = 0.15;
 		match_weight = 0.0;
 
-		samp_nb = 20;
+		samp_nb = 10;
 
 		sub_pack_id = 0;
 
@@ -188,6 +188,7 @@ namespace Geex
 	void Packer::random_init_tiles(unsigned int nb_init_polygons)
 	{
 		Init_point_generator *ipg = new CVT_point_generator(mesh, nb_init_polygons, pio.attribute_value("MeshFile"));
+		//Init_point_generator *ipg = new Density_point_generator(mesh, nb_init_polygons);
 		// choose polygons and distribute
 		unsigned int pgn_lib_idx = 0;
 		unsigned int nb_pnts = ipg->nb_points();
@@ -243,10 +244,6 @@ namespace Geex
 			tangent_planes.push_back(Plane_3(c, n));
 			ref_pnts.push_back(c);
 		}
-		//if (approx)
-		//	rpvd.compute_approx_VD(tangent_planes, ref_pnts);
-		//else
-		//	rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
 		rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
 		rpvd.compute_midpoint_VD(tangent_planes, ref_pnts);
 		//std::cout<<"End computing.\n";
@@ -1222,12 +1219,11 @@ namespace Geex
 		CGAL::Timer replace_timer;
 		replace_timer.start();
 
-#ifdef _CILK_
-		//__cilkrts_set_param("nworkers", "24");
+//#ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
-#else
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
-#endif
+// #else
+// 		for (unsigned int i = 0; i < pack_objects.size(); i++)
+// #endif
 		{
 
 			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
@@ -1311,6 +1307,7 @@ namespace Geex
 			pack_objects[i].texture_id = match_pgn.texture_id;
 		}
 		replace_timer.stop();
+		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
 		compute_clipped_VD();
@@ -1339,7 +1336,7 @@ namespace Geex
 			}
 			disc_barr.set_current_barrier(min_size);
 		}
-		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
+		
 	}
 	void Packer::report()
 	{
