@@ -35,7 +35,8 @@ namespace Geex {
 	void TW_CALL tw_save_mat(void *);
 	//void TW_CALL tw_split(void*);
 	void TW_CALL tw_adjust(void *);
-	
+	void TW_CALL tw_vpack(void*);
+
     class SPMApp : public GeexApp 
 	{
     public:
@@ -46,11 +47,7 @@ namespace Geex {
 				prompt_and_exit("Error: No project configuration file input!");
 			prj_config_file = argv[1];
 
-// 			enlarge_id = -1;
 			enlarge_factor = 1.0;
-// 			enlarge_theta = 0.0;
-// 			enlarge_tx = 0.0;
-// 			enlarge_ty = 0.0;
 
 			lloyd_iter_times = 10;
 			pack_iter_times = 45;
@@ -88,7 +85,12 @@ namespace Geex {
 			for (int i = 0; i < pack_iter_times; i++)
 				spm()->pack(&update);
 		}
-
+		
+		void vpack()
+		{
+			spm()->vpack();
+			glut_viewer_redraw();
+		}
 		void idt_update()
 		{
 
@@ -132,11 +134,7 @@ namespace Geex {
 			spm()->replace();
 			post_update();
 		}
-		//void remove()
-		//{
-		//	spm()->remove_polygons();
-		//	spm()->redraw_triangulation();
-		//}
+		
 		//void ex_replace()
 		//{
 		//	spm()->ex_replace();
@@ -178,12 +176,6 @@ namespace Geex {
 		{
 			spm()->report();
 		}
-
-		//void discretize_tiles()
-		//{
-		//	spm()->discretize_tiles();
-		//	glut_viewer_redraw();
-		//}
 
 		void save_tiles()
 		{
@@ -250,6 +242,7 @@ namespace Geex {
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_optimization(), "group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Use Voronoi Cell", TW_TYPE_BOOL8, &spm()->use_voronoi_cell(), "group = 'Optimization' ");
+			TwAddButton(function_bar, "vPack", tw_vpack, NULL, "key=v group = 'Optimization'");
 			//TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
 			//TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
 			//TwAddButton(function_bar, "Fill holes", tw_fill, NULL, "key=f group = 'Hole' ");
@@ -296,11 +289,7 @@ namespace Geex {
 		int lloyd_iter_times;
 		int pack_iter_times;
 		//debug
-// 		int enlarge_id;
  		double enlarge_factor;
-// 		double enlarge_theta;
-// 		double enlarge_tx;
-// 		double enlarge_ty;
     } ;
 
 
@@ -311,6 +300,7 @@ void TW_CALL tw_adjust(void *clientData) { spm_app()->adjust(); }
 void TW_CALL tw_lloyd(void *clientData) {spm_app()->lloyd();}
 void update() { spm_app()->post_update(); }
 void TW_CALL tw_pack(void *clientData) { spm_app()->pack(); }
+void TW_CALL tw_vpack(void *clietData) { spm_app()->vpack(); }
 void TW_CALL tw_idt_update(void *clientData) { spm_app()->idt_update(); }
 void TW_CALL tw_replace(void *clientData) { spm_app()->replace(); }
 void TW_CALL tw_detect_holes(void *clientData) { spm_app()->detect_holes(); }

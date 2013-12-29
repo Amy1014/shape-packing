@@ -31,6 +31,7 @@ namespace Geex {
 	typedef CGAL::Aff_transformation_2<K>	Transformation_2;
 	typedef CGAL::Triangle_2<K>				Triangle_2;
 	typedef K::Point_3    Point_3;
+	typedef K::Line_3		Line_3;
 	typedef K::Vector_3   Vector_3;
 	typedef K::Segment_3	Segment_3;
 	typedef K::Ray_3		Ray_3;

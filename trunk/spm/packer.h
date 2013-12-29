@@ -12,7 +12,8 @@
 
 
 #include <CGAL/Timer.h>
-
+#include <CGAL/linear_least_squares_fitting_3.h>
+#include <CGAL/Dimension.h>
 #include <glut_viewer/glut_viewer.h>
 
 #ifdef _CILK_
@@ -105,6 +106,8 @@ namespace Geex
 		//void split_large_tiles();
 		// driver
 		void pack(void (*post_action)() = NULL); 
+		void vpack(void (*post_action)() = NULL);
+		
 		// debug
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
 		//CDT& get_cdt() {  return cdt; }
@@ -135,7 +138,7 @@ namespace Geex
 
 		bool discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
 
-	//	void split(std::set<unsigned int>& indices);
+		void vecfield_align();
 
 		// one Lloyd iteration
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
@@ -210,6 +213,7 @@ namespace Geex
 		bool use_voronoi_cell_;
 		bool sync_opt;
 		double phony_upper_scale;
+		bool vector_field;
 
 		double area_coverage;
 		

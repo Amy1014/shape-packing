@@ -57,7 +57,7 @@ namespace Geex {
 		featureAngleCriterion = 0.0;
 		highCurvatureCriterion = 0.05;
 		maxFacetWeight = minFacetWeight = 0.0;
-
+		has_vector_field = false;
 		//min_vert_curvature = max_vert_curvature = 0.0;
     }
 	TriMesh::~TriMesh() {
@@ -415,6 +415,20 @@ namespace Geex {
 		return true ;
 	}
 
+	void TriMesh::load_vecfield(const std::string& filename)
+	{
+		std::ifstream ifs(filename.c_str());
+		vector_field.reserve(nb_vertices());
+		for (unsigned int i = 0; i < nb_vertices(); i++)
+		{
+			double vx, vy, vz;
+			ifs >> vx >> vy >> vz;
+			vector_field.push_back(vec3(vx, vy, vz));
+			ifs >> vx >> vy >> vz;
+		}
+
+		has_vector_field = (vector_field.size() == nb_vertices());
+	}
 	void TriMesh::set_uniform_density() {
 		for(unsigned int i=0; i<vertices_.size(); ++i) 
 			vertices_[i].weight() = 1.f ;

@@ -1,0 +1,21 @@
+< SpMProject >  Water Fountain with Vector field Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\water_fountain.obj        </ MeshFile > 
+
+< DensityFile >      ..\..\surfaces\water_fountain.txt </ DensityFile >
+
+< VectorField > 	..\..\surfaces\water_fountain_principle_directions.txt </ VectorField >
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\quad_fountain\    </ PolygonDir >
+
+< TextureImageDir >      ..\..\polygons\quad_fountain\    </ TextureImageDir >
+
+< gamma > 2.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+
+< OutputDir > ..\..\output\fountain_quad </ OutputDir >
