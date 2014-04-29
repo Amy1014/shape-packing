@@ -104,7 +104,7 @@ public:
 	const VertGroup& sample_points_group(unsigned int polygon_id) const { return samp_pnts[polygon_id]; }
 	VertGroup& sample_points_group(unsigned int polygon_id) { return samp_pnts[polygon_id]; }
 	void delete_point_group(unsigned int group_id) { samp_pnts[group_id].clear();}
-	const std::vector<std::vector<Point_3>>& get_smoothed_voronoi_regions() const { return smoothed_VD_regions; }
+	const std::vector< std::vector<Point_3> >& get_smoothed_voronoi_regions() const { return smoothed_VD_regions; }
 	
 	Vertex_iterator vertices_begin() { return rdt_ds.vertices_begin(); }
 	Vertex_iterator vertices_end() { return rdt_ds.vertices_end(); }

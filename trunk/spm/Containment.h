@@ -72,9 +72,11 @@ namespace Geex {
 		void centralize_constraints(const Vector_2& trans);
 
 		void compute_constraints(const double * const x, double* c, int mc);  // interface for Knitro
-		void compute_translation_constraint(const double *const x, double *c);
+		void vcompute_constraints(const double * const x, double* c, int mc);
+
 		void compute_constraint_grads(const double * const x, double* jac);
-		void compute_translation_constraint_grads(const double *const x, double *jac);
+		void vcompute_constraint_grads(const double * const x, double* jac);
+
 		int get_constaint_list_size(){return const_list_.size();}
 
 		// for motion direction control
@@ -98,6 +100,8 @@ namespace Geex {
 
 	public:
 		std::vector<Constraint> const_list_;
+
+		double align_angle;
 
 		// extension
 		static double lambda;

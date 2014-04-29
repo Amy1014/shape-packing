@@ -12,6 +12,8 @@
 #include <glut_viewer/glut_viewer.h>
 #include <Geex/graphics/opengl.h>
 #include <cv.h>
+#include <CGAL/enum.h>
+#include <CGAL/partition_2.h>
 #include <highgui.h>
 #include "packer.h"
 #include "polygon_diagram.h"
@@ -49,6 +51,8 @@ namespace Geex
 
 		GLboolean& show_feature_lines() { return show_feature_lines_; }
 
+		GLboolean& show_vector_field() { return show_vector_field_ ; }
+
 		GLboolean& show_multi_tiles() { return show_multi_tiles_; }
 
 		GLboolean& show_polygons()	{ return show_polygons_; }
@@ -59,10 +63,10 @@ namespace Geex
 
 		GLboolean& show_smoothed_voronoi_cell() { return show_smoothed_voronoi_cell_; }
 
-		void redraw_voronoi_cell() { glDeleteLists(vc_displist, 1); }
+		void redraw_voronoi_cell() { if (glIsList(vc_displist))	glDeleteLists(vc_displist, 1); }
 
 		GLboolean& show_triangulation() { return show_triangulation_; }
-		void redraw_triangulation() { glDeleteLists(triangulation_displist, 1); }
+		void redraw_triangulation() { if (glIsList(triangulation_displist))	glDeleteLists(triangulation_displist, 1); }
 
 		GLboolean& show_vertices() { return show_vertices_; }
 
@@ -70,7 +74,8 @@ namespace Geex
 
 		GLboolean& show_hole_triangles() { return show_hole_triangles_; }
 		GLboolean& show_holes() { return show_holes_; }
-
+		GLboolean& show_vicinity() { return show_vicinity_; }
+		GLboolean& show_swapped_polygons() { return show_swapped_polygons_; }
 		GLboolean& show_curvatures() { return show_curvatures_; }
 
 		Polygon_draw_type& get_polygon_draw_type() { return how_to_draw_polygons; }
@@ -119,6 +124,8 @@ namespace Geex
 
 		void draw_hole_triangles();
 		void draw_holes();
+		void draw_vicinity();
+		void draw_swapped_polygons();
 		void draw_curvature();
 		void build_curv_color_list(); 
 		void build_texture_lib();
@@ -148,7 +155,7 @@ namespace Geex
 		GLboolean show_mesh_;
 		GLboolean show_multi_submeshes_;
 		GLboolean show_multi_tiles_;
-
+		GLboolean show_vector_field_;
 
 		GLboolean show_feature_lines_;
 
@@ -162,9 +169,10 @@ namespace Geex
 		GLboolean show_hole_triangles_;
 		GLboolean show_holes_;
 		GLboolean show_curvatures_;
+		GLboolean show_vicinity_;
 
 		GLboolean show_inactive_;
-
+		GLboolean show_swapped_polygons_;
 		GLboolean textured;
 		GLboolean alpha_texture;
 		std::vector<GLuint> texture_lib;

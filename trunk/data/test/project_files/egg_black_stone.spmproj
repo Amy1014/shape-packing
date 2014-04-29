@@ -6,6 +6,8 @@
             
 < PolygonDir >      ..\..\polygons\black_stones_egg\    </ PolygonDir >
 
+< NumberTiles > 316 </ NumberTiles >
+
 < gamma > 1.0 </ gamma >
 
 < PhysicalScales > 0.2 0.6 20 </ PhysicalScales >

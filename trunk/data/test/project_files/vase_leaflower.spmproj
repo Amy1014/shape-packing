@@ -1,0 +1,21 @@
+< SpMProject >  Vase with leaf_flower-shaped tiles </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\vase.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\leaf_flower\    </ PolygonDir >
+
+< NumberTiles > 1000 </ NumberTiles >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+
+< DensityFile >      ..\..\surfaces\vase.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\polygons\leaf_flower\    </ TextureImageDir >
+
+< OutputDir > ..\..\output\leaflower_vase </ OutputDir >

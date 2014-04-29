@@ -2,13 +2,13 @@
 
 < WithTexture >True</ WithTexture>   
 
-< MeshFile >          ..\..\surfaces\plane_remeshed.obj        </ MeshFile >  
+< MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile >  
 
-< DensityFile >      ..\..\surfaces\plane_remeshed.txt </ DensityFile >  
+< DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >  
             
 < PolygonDir >      ..\..\polygons\black_stones_plane\    </ PolygonDir >
 
-< NumberTiles > 180 </ NumberTiles >
+< NumberTiles > 800 </ NumberTiles >
 
 < TextureImageDir >  ..\..\polygons\black_stones_plane\  </ TextureImageDir >
 
@@ -18,4 +18,4 @@
 
 < gamma > 1.1 </ gamma>
 
-< OutputDir > ..\..\output\black_stones_plane </ OutputDir >
+< OutputDir > ..\..\output\black_stones_kitten </ OutputDir >

@@ -4,6 +4,8 @@
             
 < polygonfile >      ..\..\polygons\voronoi417_vase.poly      </ PolygonFile >
 
+
+
 < gamma > 1.0 </ gamma>
 
 < DensityFile >      ..\..\surfaces\vase.txt </ DensityFile >

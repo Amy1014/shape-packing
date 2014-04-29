@@ -52,14 +52,15 @@ namespace Geex
 			for (unsigned int j = 0; j < mesh.vertex(i).faces_.size(); j++)
 				neighbor_area += std::fabs(mesh[mesh.vertex(i).faces_.at(j)].area());
 			region_area[i] = neighbor_area;
-			total_weight += density(cur)*std::sqrt(neighbor_area);
+			//region_area[i] = std::pow(region_area[i], 0.75);
+			total_weight += density(cur)/**region_area[i]*/;
 		}
 		for (unsigned int i = 0; i < mesh.nb_vertices(); i++)
 		{
 			if (mesh.near_boundary(i) || mesh.is_on_feature(i))
 				continue;
 			double cur = mesh.curvature_at_vertex(i);
-			double nf = nb_init_pnts*(density(cur)*std::sqrt(region_area[i])/total_weight);
+			double nf = nb_init_pnts*(density(cur)/**region_area[i]*//total_weight);
 			//double nf = nb_init_polygons*(std::sqrt(cur_size_map(cur))/total_weight);
 			int n(nf+res);
 			if ( n >= 1 )

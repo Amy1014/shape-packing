@@ -1,12 +1,12 @@
-< SpMProject >  Egg with letter-shaped tiles </ SPMProject >
+< SpMProject >  Egg with shoe-shaped tiles </ SPMProject >
 
 < MeshFile >          ..\..\surfaces\egg.obj        </ MeshFile > 
 
 < WithTexture >True</ WithTexture>   
             
-< PolygonDir >      ..\..\polygons\letters_normalized\    </ PolygonDir >
+< PolygonDir >      ..\..\polygons\animal\    </ PolygonDir >
 
-< NumberTiles > 400 </ NumberTiles >
+< NumberTiles > 1000 </ NumberTiles >
 
 < gamma > 1.0 </ gamma >
 
@@ -16,6 +16,6 @@
 
 < DensityFile >      ..\..\surfaces\egg.txt </ DensityFile >
 
-< TextureImageDir >      ..\..\polygons\letters_egg\    </ TextureImageDir >
+< TextureImageDir >      ..\..\polygons\animal\    </ TextureImageDir >
 
-< OutputDir > ..\..\output\letters_egg </ OutputDir >
+< OutputDir > ..\..\output\animal_egg </ OutputDir >

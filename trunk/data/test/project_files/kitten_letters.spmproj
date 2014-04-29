@@ -1,20 +1,20 @@
-< SpMProject >  Kitten Cartoon Texture Test </ SPMProject >
+< SpMProject >  Kitten Letter Test </ SPMProject >
 
 < MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile > 
 
 < WithTexture >True</ WithTexture>   
             
-< PolygonDir >      ..\..\polygons\kitten_cartoon\    </ PolygonDir >
+< PolygonDir >      ..\..\polygons\letters_normalized\    </ PolygonDir >
 
-< NumberTiles > 1200 </ NumberTiles >
+< NumberTiles > 2500 </ NumberTiles >
 
 < DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
 
-< OutputDir > ..\..\output\kitten_cartoon </ OutputDir >
+< OutputDir > ..\..\output\kitten_letter </ OutputDir >
 
 < gamma > 1.1 </ gamma>
 
-< TextureImageDir >  ..\..\polygons\kitten_cartoon\  </ TextureImageDir >
+< TextureImageDir >  ..\..\polygons\letters_normalized\  </ TextureImageDir >
 
 < PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
 

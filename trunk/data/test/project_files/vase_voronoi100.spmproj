@@ -4,6 +4,8 @@
             
 < polygonfile >      ..\..\polygons\voronoi100_vase.poly      </ PolygonFile >
 
+< NumberTiles >	2000 </ NumberTiles>
+
 < gamma > 1.0 </ gamma>
 
 < DensityFile >      ..\..\surfaces\vase.txt </ DensityFile >

@@ -51,7 +51,7 @@
 #include <Geex/CVT/geometry.h>
 //#include "oriented_line.h"
 #include <Geex/CVT/ann_kdtree.h>
-//#include "spm_cgal.h"
+#include "spm_cgal.h"
 using CGAL::normal;
 using CGAL::MP_Float;
 using CGAL::to_double;
