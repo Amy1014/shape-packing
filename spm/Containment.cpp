@@ -194,14 +194,19 @@ void Containment::compute_constraints(const double * const x, double* c, int mc)
 	Transformation_2 aff(x[0]*fcos, -x[0]*fsin, x[2], x[0]*fsin,  x[0]*fcos, x[3]);
 	for (unsigned int i=0; i<const_list_.size(); i++)
 		c[i] =const_list_[i].transformed_signed_dist(aff, 1.0); // >=0	
-		//c[i] = const_list_[i].transformed_signed_area(aff);
+
 }
-void Containment::compute_translation_constraint(const double *const x, double *c)
+
+void Containment::vcompute_constraints(const double * const x, double* c, int mc)
 {
+	//double fcos  = cos(align_angle), fsin  = sin(align_angle); 
+	//Transformation_2 aff(x[0]*fcos, -x[0]*fsin, x[1], x[0]*fsin,  x[0]*fcos, x[2]);
 	Transformation_2 aff(x[0], 0.0, x[1], 0.0, x[0], x[2]);
-	for (unsigned int i = 0; i < const_list_.size(); i++)
-		c[i] = const_list_[i].transformed_signed_area(aff);
+	for (unsigned int i=0; i<const_list_.size(); i++)
+		c[i] =const_list_[i].transformed_signed_dist(aff, 1.0); // >=0	
 }
+
+
 void Containment::compute_constraint_grads(const double * const x, double* jac)
 {
 	double fcos  = cos(x[1]); 
@@ -224,12 +229,16 @@ void Containment::compute_constraint_grads(const double * const x, double* jac)
 		idx += 4;
 	}
 }
-void Containment::compute_translation_constraint_grads(const double *const x, double *jac)
+
+void Containment::vcompute_constraint_grads(const double * const x, double* jac)
 {
 	int idx = 0;
-	for (unsigned int i = 0; i < const_list_.size(); i++)
+	//double fcos  = cos(align_angle), fsin  = sin(align_angle); 
+	//Transformation_2 rotate(fcos, -fsin, 0, fsin,  fcos, 0);
+	for (int i=0; i<const_list_.size(); i++)
 	{
-		jac[idx] = (const_list_[i].p_-CGAL::ORIGIN)*const_list_[i].n_;
+		//jac[idx] = const_list_[i].n_*Vector_2(CGAL::ORIGIN, rotate(const_list_[i].p_));
+		jac[idx] = const_list_[i].n_*Vector_2(CGAL::ORIGIN, const_list_[i].p_);
 		jac[idx+1] = const_list_[i].n_.x();
 		jac[idx+2] = const_list_[i].n_.y();
 		idx += 3;

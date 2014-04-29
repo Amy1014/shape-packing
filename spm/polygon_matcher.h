@@ -18,6 +18,20 @@
 namespace Geex
 {
 
+	inline vec2 to_geex_pnt_2d(const Point_2& pt){
+		return vec2(pt.x(),pt.y());
+	}
+
+	inline Point_2 to_cgal_pnt_2d(const vec2& pt){
+		return Point_2(pt.x, pt.y);
+	}
+
+	typedef std::vector< std::pair<vec2, vec2> > HoleEdges;
+
+	double matching_score(const Polygon_2& poly_a, const Polygon_2& poly_b, double& tx, double& ty, double& scale, double& rotate);
+	double matching_score(const HoleEdges& poly_a, const Polygon_2& poly_b, double& tx, double& ty, double& scale, double& rotate);
+	void transform_poly(Polygon_2& poly, double tx, double ty, double scale, double rot_angle);
+
 template <class UserDataType>
 struct Match_info_item
 {

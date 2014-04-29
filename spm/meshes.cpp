@@ -423,10 +423,120 @@ namespace Geex {
 		{
 			double vx, vy, vz;
 			ifs >> vx >> vy >> vz;
-			vector_field.push_back(vec3(vx, vy, vz));
+			vec3 v0(vx, vy, vz);
 			ifs >> vx >> vy >> vz;
+			vec3 v1(vx, vy, vz);
+			if (std::fabs(v0.z) < std::fabs(v1.z))
+				vector_field.push_back(v0);
+			else
+				vector_field.push_back(v1);
 		}
-
+		// make the vector field follow the boundary
+		std::set<int> aligned;
+		for (unsigned int i = 0; i < size(); i++)
+		{
+			int v[] = {at(i).vertex_index[0], at(i).vertex_index[1], at(i).vertex_index[2]};
+			for (int j = 0; j < 3; j++)
+			{
+				if (vert_on_boundary[v[j]] && aligned.find(v[j]) == aligned.end())
+				{
+					vec3 ev;
+					if (vert_on_boundary[v[(j+1)%3]])	ev = vertices_[v[(j+1)%3]].pos_ - vertices_[v[j]].pos_;
+					if (vert_on_boundary[v[(j+2)%3]])	ev = vertices_[v[(j+2)%3]].pos_ - vertices_[v[j]].pos_;
+					ev = ev / ev.length();
+					vector_field[v[j]] = ev;
+					aligned.insert(v[j]);
+				}
+			}
+		}
+		// smooth the vector field
+		std::vector<vec3> vtx_normals(nb_vertices(), vec3(0.0, 0.0, 0.0));
+		for (unsigned int i = 0; i < size(); i++)
+		{
+			int v0 = at(i).vertex_index[0], v1 = at(i).vertex_index[1], v2 = at(i).vertex_index[2];
+			vec3 fn = at(i).normal();
+			vtx_normals[v0] += fn;
+			vtx_normals[v1] += fn;
+			vtx_normals[v2] += fn;
+		}
+		for (unsigned int i = 0; i < nb_vertices(); i++)
+		{
+			if (!vert_on_boundary[i])
+			{
+				vtx_normals[i] /= vtx_normals[i].length();
+				Point_3 v = to_cgal_pnt(vertices_[i].pos_);
+				Vector_3 vn = to_cgal_vec(vtx_normals[i]);
+				Plane_3 tan_pln(v, vn);
+				if (vtx_normals[i].x*vtx_normals[i].x + vtx_normals[i].y*vtx_normals[i].y <= 1.0e-16)
+				{
+					Point_3 oprj = tan_pln.projection(Point_3(0.0, 0.0, 0.0));
+					Vector_3 vo(v, oprj);
+					cgal_vec_normalize(vo);
+					Vector_3 vv = CGAL::cross_product(vn, vo);
+					cgal_vec_normalize(vv);
+					vector_field[i] = to_geex_vec(vv);
+				}
+				else
+				{
+					Plane_3 xoy(v, Vector_3(0.0, 0.0, 1.0)); // parallel to XOY and passing this vertex
+					CGAL::Object o = CGAL::intersection(tan_pln, xoy);
+					if (const Line_3* l = CGAL::object_cast<Line_3>(&o))
+					{
+						//Point_3 p = l->point();
+						//Vector_3 vp(v, p);
+						Vector_3 vp = l->to_vector();
+						cgal_vec_normalize(vp);
+// 						Vector_3 vv = CGAL::cross_product(vn, vp);
+// 						cgal_vec_normalize(vv);
+						vector_field[i] = to_geex_vec(vp);
+					}
+					else
+					{
+						std::cout<< "Two planes coincident!\n";
+						exit(0);
+					}
+				}
+			}	
+		}
+		vector_field[5311] = vec3(0.0, 0.0, 0.0);// cheating
+		// Laplacian smooth
+//  	const unsigned int N = 3;
+// 		std::vector<vec3> vtx_normals(nb_vertices(), vec3(0.0, 0.0, 0.0));
+// 		std::vector<Plane_3> tangent_planes;
+// 		tangent_planes.reserve(nb_vertices());
+// 		for (unsigned int i = 0; i < nb_vertices(); i++)
+// 		{
+// 			for (unsigned int j = 0; j < vertex(i).faces_.size(); j++)
+// 			{
+// 				const Facet& f = at(vertex(i).faces_[j]);
+// 				vtx_normals[i] += f.normal();
+// 			}
+// 			vtx_normals[i] /= vertex(i).faces_.size();
+// 			vtx_normals[i] = vtx_normals[i] / vtx_normals[i].length();
+// 			tangent_planes.push_back(Plane_3(to_cgal_pnt(vertex(i).pos_), to_cgal_vec(vtx_normals[i])));
+// 		}
+// 		
+//  		for (unsigned int n = 0; n < N; n++)
+//  		{
+//  			for (unsigned int i = 0; i < nb_vertices(); i++)
+//  			{
+//  				vec3 v(0.0, 0.0, 0.0);
+//  				for (unsigned int j = 0; j < vertex(i).faces_.size(); j++)
+//  				{
+//  					const Facet& f = at(vertex(i).faces_[j]);
+//  					int v0 = f.vertex_index[0], v1 = f.vertex_index[1], v2 = f.vertex_index[2];
+//  					if (v0 != i)	v += vector_field[v0];
+//  					if (v1 != i)	v += vector_field[v1];
+//  					if (v2 != i)	v += vector_field[v2];
+//  				}
+//  				v /= vertex(i).faces_.size()*2;
+// 				Point_3 pp = tangent_planes[i].projection(to_cgal_pnt(vertex(i).pos_ + v));
+// 				Vector_3 cgal_v(to_cgal_pnt(vertex(i).pos_), pp);
+// 				v = to_geex_vec(cgal_v);
+// 				//v.z = 0.0;
+//  				vector_field[i] = v/v.length();
+//  			}
+//  		}
 		has_vector_field = (vector_field.size() == nb_vertices());
 	}
 	void TriMesh::set_uniform_density() {
@@ -490,13 +600,13 @@ namespace Geex {
 			 curs[i] = std::max(std::fabs(min_cur[i]), std::fabs(max_cur[i]));
 			// curs[i] = (min_cur[i] + max_cur[i])/2.0;
 		// smooth the curvature
-//  		std::vector<double> cutoff_curs(curs);
-//  		unsigned int cutoff_n = nb_vertices()*0.98;
-//  		std::nth_element(cutoff_curs.begin(), cutoff_curs.begin()+cutoff_n, cutoff_curs.end());
-//  		double median = *(cutoff_curs.begin()+cutoff_n) ;
-//  		for (unsigned int i = 0; i < nb_vertices(); i++)
-//  			if (curs[i] > median)
-//  				curs[i] = median;
+  		std::vector<double> cutoff_curs(curs);
+  		unsigned int cutoff_n = nb_vertices()*0.5;
+  		std::nth_element(cutoff_curs.begin(), cutoff_curs.begin()+cutoff_n, cutoff_curs.end());
+  		double median = *(cutoff_curs.begin()+cutoff_n) ;
+  		for (unsigned int i = 0; i < nb_vertices(); i++)
+  			if (curs[i] > median)
+  				curs[i] = median;
 		std::vector<double> avgcurs(nb_vertices(), 0.0);
 		std::vector<int> nb_neighbors(nb_vertices(), 0);
 		for (unsigned int i = 0; i < size(); i++)

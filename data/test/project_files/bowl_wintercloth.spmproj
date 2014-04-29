@@ -1,0 +1,21 @@
+< SpMProject >  bowl-winterclothes </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\bowl.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\winter_clothes\    </ PolygonDir >
+
+< NumberTiles > 500 </ NumberTiles >
+
+< DensityFile >      ..\..\surfaces\bowl.txt </ DensityFile >
+
+< gamma > 2.0 < /gamma >
+
+< TextureImageDir >  ..\..\polygons\winter_clothes\  </ TextureImageDir >
+
+< OutputDir > ..\..\output\bowl_winterclothes </ OutputDir >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >

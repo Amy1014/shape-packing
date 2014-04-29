@@ -124,6 +124,16 @@ namespace Geex
 		std::vector<Point_2> texture_coords;
 		unsigned int texture_id;
 		//double normalize_factor;
+
+		Ex_polygon_2& operator*=(double scale)
+		{
+			Transformation_2 t(CGAL::SCALING, scale);
+			Polygon_2 p = CGAL::transform(t, *this);
+			this->clear();
+			for (Polygon_2::Vertex_const_iterator vit = p.vertices_begin(); vit != p.vertices_end(); ++vit)
+				this->push_back(*vit);
+			return *this;
+		}
 	};
 
 }

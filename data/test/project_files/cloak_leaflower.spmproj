@@ -1,0 +1,21 @@
+< SpMProject >  Pig Fruit Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\cloak.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\leaf_flower\    </ PolygonDir >
+
+< NumberTiles > 800 </ NumberTiles >
+
+< DensityFile >      ..\..\surfaces\cloak.txt </ DensityFile >
+
+< gamma > 2.0 < /gamma >
+
+< TextureImageDir >  ..\..\polygons\leaf_flower\  </ TextureImageDir >
+
+< OutputDir > ..\..\output\cloak_leaflower </ OutputDir >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >

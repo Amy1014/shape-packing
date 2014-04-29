@@ -32,10 +32,19 @@
 #include "utilities.h"
 #include "Init_point_generator.h"
 
+//namespace Task_assignment
+//{
+	#include "OptimalAssignment/iAuction.h"
+//}
+
+
+
 namespace Geex
 {
+	class SPM_Graphics;
 	class Packer
 	{
+		friend SPM_Graphics;
 
 		typedef enum {SUCCESS, FAILED} Optimization_res;
 		typedef enum {MORE_ENLARGEMENT, NO_MORE_ENLARGEMENT, BARRIER_PARTIAL_ACHIEVED, BARRIER_ALL_ACHIEVED} Lloyd_res;
@@ -50,7 +59,7 @@ namespace Geex
 
 	public:
 
-		typedef std::vector<std::pair<Vertex_handle, Vertex_handle>> Hole; // representing a hole, consisting of non-border edges
+		typedef std::vector< std::pair<Vertex_handle, Vertex_handle> > Hole; // representing a hole, consisting of non-border edges
 		
 		Packer();
 
@@ -75,8 +84,9 @@ namespace Geex
 		double& replace_shrink_factor() { return replace_factor; }
 		const std::vector< std::vector<Packing_object> >& get_multigroup_tiles() const { return res_pack_objects; }
 		bool& sync_optimization() { return sync_opt; }
-
+		bool& toggle_align_constraint() { return align_constraint; }
 		const std::vector<TriMesh>& get_multigroup_submeshes() const { return mesh_segments; }
+		bool& toggle_only_scale() { return only_allow_scale; }
 
 		static Packer* instance() { return instance_; }
 
@@ -89,28 +99,27 @@ namespace Geex
 
 		void save_tiles();
 
-		void adjust(double factor); // adjust for demo
+		void adjust(double factor);
+		void auto_adjust(); // scale to the smallest one
 
 		// hole detection
 		void detect_holes();
 		// hole filling
 		void fill_holes();
 
+		inline void activate_all() { std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate)); }
+
 		// replace
 		void replace();
-		void remove_polygons();// deleted for simplicity, see revision 67
-		void ex_replace(); // extended replace, deleted for simplicity, see revision 67
 		void con_replace(); 
-
-		// discretize
-		//void split_large_tiles();
+		
+		void swap();
+		void selective_swap();
 		// driver
 		void pack(void (*post_action)() = NULL); 
-		void vpack(void (*post_action)() = NULL);
 		
 		// debug
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
-		//CDT& get_cdt() {  return cdt; }
 
 		void report();
 
@@ -129,8 +138,6 @@ namespace Geex
 
 		void compute_clipped_VD(bool approx = false);
 
-		void compute_clipped_VD(std::vector<bool> use_approx); // mixed computation of clipped voronoi diagram
-
 		vec3 approx_normal(unsigned int facet_idx);
 		
 		/** optimization **/
@@ -139,6 +146,8 @@ namespace Geex
 		bool discrete_lloyd(void (*post_action)() = NULL, bool enlarge = false);
 
 		void vecfield_align();
+
+		double vecfield_align_angle(unsigned int idx);
 
 		// one Lloyd iteration
 		Lloyd_res one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs);
@@ -149,6 +158,11 @@ namespace Geex
 		static int callback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
 							const double * const x,	const double * const lambda, double * const obj, double * const c,
 							double * const objGrad,	double * const jac,	double * const hessian,	double * const hessVector, void * userParams);
+
+		static int vcallback(const int evalRequestCode, const int n, const int m, const int nnzJ, const int nnzH,
+							const double * const x,	const double * const lambda, double * const obj, double * const c,
+							double * const objGrad,	double * const jac,	double * const hessian,	double * const hessVector, void * userParams);
+
 		// optimize by Knitro
 		int KTR_optimize(double* io_k, double* io_theta, double* io_t1, double* io_t2, unsigned int idx);
 
@@ -165,13 +179,13 @@ namespace Geex
 		void curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id);
 
 		/** replace and hole filling**/
-		// remove one polygon and leave a hole
-		void remove_one_polygon(unsigned int id, Hole& hole, std::set<Facet_handle>& removed_facets); // deleted for simplicity, see revision 67
 		// fill one hole
 		void fill_one_hole(Hole& hl, Packing_object& filler); 
 
-		bool replace_one_polygon(unsigned int id, Hole& region, std::set<Facet_handle>& removed_facets); // deleted for simplicity, see revision 67
-
+		unsigned int group_swap(const std::vector<unsigned int>& indices); // do the swap among a group
+		void vacate_one_polygon(unsigned int id, Hole& hole);
+		void sortHoleEdge(const Hole& hole, std::vector<Vertex_handle>& sorted_loop);
+		
 	private:
 
 		static Packer *instance_;
@@ -192,6 +206,9 @@ namespace Geex
 
 		/** holes **/
 		std::vector<Hole> holes;
+		std::list< std::list<Segment_3> > vicinity_holes; // for debug
+		std::set<unsigned int> swapped_indices;
+		std::list<unsigned int> swapped_this_time; // for debug
 		double frontier_edge_size;
 		double hole_face_size;
 
@@ -214,8 +231,11 @@ namespace Geex
 		bool sync_opt;
 		double phony_upper_scale;
 		bool vector_field;
+		bool align_constraint;
 
 		double area_coverage;
+
+		bool only_allow_scale;
 		
 		/* geometry */
 		RestrictedPolygonVoronoiDiagram rpvd;

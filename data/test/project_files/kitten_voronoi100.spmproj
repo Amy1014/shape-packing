@@ -1,0 +1,17 @@
+< SpMProject >  Kitten Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\kitten.obj        </ MeshFile >    
+            
+< polygonfile >      ..\..\polygons\voronoi100_vase.poly      </ PolygonFile >
+
+< NumberTiles > 4000 </ NumberTiles >
+
+< gamma > 4.0 </ gamma >
+
+< PhysicalScales > 0.3 1.2 10 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 10 </ OptimizationScales >
+
+< DensityFile >      ..\..\surfaces\kitten.txt </ DensityFile >
+
+< OutputDir > ..\..\output\kitten_voronoi100 </ OutputDir >

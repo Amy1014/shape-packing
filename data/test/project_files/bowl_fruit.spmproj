@@ -1,0 +1,21 @@
+< SpMProject >  Pig Fruit Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\surfaces\bowl.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\polygons\pig_fruit\    </ PolygonDir >
+
+< NumberTiles > 500 </ NumberTiles >
+
+< DensityFile >      ..\..\surfaces\bowl.txt </ DensityFile >
+
+< gamma > 2.0 < /gamma >
+
+< TextureImageDir >  ..\..\polygons\pig_fruit\  </ TextureImageDir >
+
+< OutputDir > ..\..\output\bowl_fruit </ OutputDir >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >

@@ -1,12 +1,12 @@
 < SpMProject >  Pig Fruit Texture Test </ SPMProject >
 
-< MeshFile >          ..\..\surfaces\pig_remesh_2.obj        </ MeshFile > 
+< MeshFile >          ..\..\surfaces\pig_remesh_3.obj        </ MeshFile > 
 
 < WithTexture >True</ WithTexture>   
             
 < PolygonDir >      ..\..\polygons\pig_fruit_\    </ PolygonDir >
 
-< DensityFile >      ..\..\surfaces\pig_remesh_2.txt </ DensityFile >
+< DensityFile >      ..\..\surfaces\pig_remesh_3.txt </ DensityFile >
 
 < gamma > 2.0 < /gamma >
 
