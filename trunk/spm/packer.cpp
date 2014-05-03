@@ -1283,7 +1283,8 @@ namespace Geex
 			{				
 				min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
 			}
-			disc_barr.set_current_barrier(min_size);
+			//disc_barr.set_current_barrier(min_size);
+			disc_barr.set(min_size+0.05, 1.0, 2);
 		}
 	}
 
