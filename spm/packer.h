@@ -96,6 +96,7 @@ namespace Geex
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
 
 		void print_area_coverage();
+		double get_area_coverage() const { return area_coverage; }
 
 		void save_tiles();
 
@@ -116,7 +117,7 @@ namespace Geex
 		void swap();
 		void selective_swap();
 		// driver
-		void pack(void (*post_action)() = NULL); 
+		bool pack(void (*post_action)() = NULL); 
 		
 		// debug
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
@@ -268,6 +269,14 @@ namespace Geex
 				std::vector<double>::iterator it = std::unique(this->grades.begin(), this->grades.end());
 				this->grades.resize(std::distance(this->grades.begin(), it));
 				current_barrier = this->grades.begin();
+			}
+			void set(double bar_val)
+			{
+				std::vector<double>::iterator it;
+				for (it = grades.begin(); it != grades.end(); ++it)
+					if (*it >= bar_val)	
+						break;
+				current_barrier = it;
 			}
 			bool beyond_range() { return current_barrier == grades.end(); }
 			bool get_current_barrier(double& res)

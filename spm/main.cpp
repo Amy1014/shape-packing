@@ -10,6 +10,7 @@
 #include "spm_cgal.h"
 #include "SPM.h"
 #include "project_io.h"
+#include <glut_viewer/glut_viewer.h>
 
 namespace Geex {
 	void TW_CALL tw_lloyd(void *clientData);
@@ -40,6 +41,7 @@ namespace Geex {
 	void TW_CALL tw_activate(void*);
 	void TW_CALL tw_auto_scale(void*);
 	void TW_CALL tw_print_pdf(void *clientData);
+	void TW_CALL tw_execute_strategy(void *clientData);
 
     class SPMApp : public GeexApp 
 	{
@@ -51,10 +53,10 @@ namespace Geex {
 				prompt_and_exit("Error: No project configuration file input!");
 			prj_config_file = argv[1];
 
-			enlarge_factor = 0.98;
+			enlarge_factor = 0.95;
 
-			lloyd_iter_times = 10;
-			pack_iter_times = 45;
+			lloyd_iter_times = 5;
+			pack_iter_times = 10;
        }
 
         SPM* spm() { return static_cast<SPM*>(scene()) ; }
@@ -71,7 +73,7 @@ namespace Geex {
 			for (int i = 0; i < lloyd_iter_times; i++)
 			{
 				spm()->interface_lloyd(&update);
-				glut_viewer_redraw();
+				//glut_viewer_redraw();
 			}
 
 		}
@@ -190,6 +192,25 @@ namespace Geex {
 			spm()->save_materials();
 		}
 
+		void run_strategy()
+		{
+			bool not_finished = true;
+			while (not_finished)
+			{
+				for (int i = 0; i < lloyd_iter_times; i++)
+					spm()->interface_lloyd(&update);
+				double pre_cov_rate = 0.0, cur_cov_rate = spm()->get_area_coverage();
+				for (int i = 0; i < pack_iter_times; i++)
+				{
+					not_finished = spm()->pack(&update);
+					if (!not_finished)	break;
+					pre_cov_rate = cur_cov_rate;
+					cur_cov_rate = spm()->get_area_coverage();
+				}
+				if (std::fabs(cur_cov_rate-pre_cov_rate) < 1e-5 && not_finished)
+					adjust();
+			}
+		}
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -237,10 +258,11 @@ namespace Geex {
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Pack Iter", TW_TYPE_INT32, &pack_iter_times, "min=1 group = 'Optimization'");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
-			TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_optimization(), "group = 'Optimization' ");
+			//TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_optimization(), "group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Use Voronoi Cell", TW_TYPE_BOOL8, &spm()->use_voronoi_cell(), "group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Align Constraint", TW_TYPE_BOOL8, &spm()->toggle_align_constraint(), "group = 'Optimization' ");
-			
+			TwAddButton(function_bar, "Strategy", tw_execute_strategy, NULL, "key=s group='Optimization'");
+
 			//TwAddButton(function_bar, "vPack", tw_vpack, NULL, "key=v group = 'Optimization'");
 			//TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
 			TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
@@ -291,6 +313,7 @@ void TW_CALL tw_auto_scale(void* cd) { spm_app()->auto_adjust(); }
 void TW_CALL tw_lloyd(void *clientData) {spm_app()->lloyd();}
 void update() { spm_app()->post_update(); }
 void TW_CALL tw_pack(void *clientData) { spm_app()->pack(); }
+void TW_CALL tw_execute_strategy(void *clientData) { spm_app()->run_strategy(); }
 
 void TW_CALL tw_idt_update(void *clientData) { spm_app()->idt_update(); }
 void TW_CALL tw_replace(void *clientData) { spm_app()->replace(); }
@@ -362,6 +385,7 @@ int main(int argc, char** argv)
 {
 	try
 	{
+		glut_viewer_set_screen_size(1000, 1000);
 		Geex::initialize();
 		Geex::SPMApp app(argc, argv) ;
 		app.main_loop() ;

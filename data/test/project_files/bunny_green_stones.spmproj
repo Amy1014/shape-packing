@@ -10,7 +10,7 @@
 
 < PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
 
-< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+< OptimizationScales > 0.7 1.0 10 </ OptimizationScales >
 
 < DensityFile >      ..\..\surfaces\bunny_smoothed.txt </ DensityFile >
 
