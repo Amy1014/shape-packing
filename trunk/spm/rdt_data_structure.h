@@ -42,10 +42,11 @@ namespace Geex
 		std::vector<Point_3> vd_vertices;
 		std::vector<Segment_3> med_segs;
 
-// #ifdef _DEMO_
+#ifndef _NDEMO_
+#pragma message("Demo code")
  		std::vector<Point_3> no_prj_vd_vertices;
  		std::vector<Segment_3> no_prj_med_segs; // just for demo
-// #endif
+#endif
 		//std::vector<bool> is_triple_pnt;
 		bool contain_non_delaunay_facet;
 		bool penetration;

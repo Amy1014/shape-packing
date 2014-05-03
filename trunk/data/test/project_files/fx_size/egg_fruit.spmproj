@@ -1,0 +1,21 @@
+< SpMProject >  Egg with Fruit Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\egg.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\..\polygons\fx_size\fruit_egg\    </ PolygonDir >
+
+< ExpectedCoverage > 0.68 </ ExpectedCoverage >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.0 20 </ OptimizationScales >
+
+< DensityFile >      ..\..\..\surfaces\egg.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\..\polygons\pig_fruit\    </ TextureImageDir >
+
+< OutputDir > ..\..\..\output\fruit_egg\fx_size </ OutputDir >

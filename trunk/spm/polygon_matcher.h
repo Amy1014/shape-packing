@@ -121,7 +121,8 @@ Match_info_item<UserDataType> Polygon_matcher::affine_match(const Polygon_2& ins
 
 	double theta =	CmAffine::GetAffine2D(instanceMat, modelMat, AA, shift);
 
-	double scale = std::sqrt(model_area/std::fabs(instance.area()));
+	//double scale = std::sqrt(model_area/std::fabs(instance.area()));
+	double scale = 1.0;
 
 	double *r = AA->data.db;
 	r[0]  = scale*std::cos(theta); r[1] = -scale*std::sin(theta);

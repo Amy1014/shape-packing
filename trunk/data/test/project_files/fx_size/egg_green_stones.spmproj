@@ -1,0 +1,19 @@
+< SpMProject >  Egg with black stone Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\egg.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\..\polygons\fx_size\green_stone_egg\    </ PolygonDir >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.0 10 </ OptimizationScales >
+
+< DensityFile >      ..\..\..\surfaces\egg.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\..\polygons\green_stones_egg\    </ TextureImageDir >
+
+< OutputDir > ..\..\..\output\green_stones_egg\fx_size </ OutputDir >

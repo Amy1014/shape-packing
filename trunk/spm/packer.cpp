@@ -83,9 +83,6 @@ namespace Geex
 
 		if (phy_disc_barr.nb_levels() != 0 && opt_disc_barr.nb_levels() != 0)
 			disc_barr.set(phy_disc_barr, opt_disc_barr);
-
-// 		if (vector_field)
-// 			vecfield_align();
 	}
 
 	void Packer::pack_next_submesh() // start a new packing process
@@ -203,10 +200,19 @@ namespace Geex
 		// distribute polygons by different strategies
 		// 1. random 
 		unsigned int nb_init_polygons;
+		float expected_coverage = 0.7f;
+		if (!pio.attribute_value("ExpectedCoverage").empty())
+		{
+			std::istringstream iss(pio.attribute_value("ExpectedCoverage"));
+			iss >> expected_coverage;
+		}
 		if (nb_tiles > 0)
 			nb_init_polygons = nb_tiles;
 		else
-			nb_init_polygons = mesh_area / mean_pgn_area * 0.85;
+		{
+			std::cout<<"Expected Coverage = "<<expected_coverage<<std::endl;
+			nb_init_polygons = mesh_area / mean_pgn_area * expected_coverage;
+		}
 		std::cout<<nb_init_polygons<<" polygons are expected.\n";
 		random_init_tiles(nb_init_polygons);
 		std::cout<<pack_objects.size()<<" polygons are loaded initially.\n";
@@ -270,7 +276,8 @@ namespace Geex
 			double min_size = std::numeric_limits<double>::max();
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{				
-				min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
+				//min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
+				min_size = std::min(min_size, pack_objects[i].factor);
 			}
 			disc_barr.set_current_barrier(min_size);
 		}
@@ -465,13 +472,13 @@ namespace Geex
 		}
 		
 		if (try_times == try_time_limit)
-			return FAILED;
-		else
 		{
-			//std::cout<<"k = "<<solution.k<<", theta = "<<solution.theta<<", tx = "<<solution.tx<<", ty = "<<solution.ty<<std::endl;
-			//solution.theta = ctm.align_angle;
-			return SUCCESS;
+			solution.k = 1.0;
+			solution.theta = solution.tx = solution.ty = 0.0;
+			return FAILED;
 		}
+		else
+			return SUCCESS;
 	}
 
 	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs)
@@ -564,7 +571,7 @@ namespace Geex
   		if (vector_field && !align_constraint)
   			vecfield_align();
 
-		double min_factor = 1.05; // to determine convergence
+		double min_factor = 1.005; // to determine convergence
 
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
@@ -586,31 +593,29 @@ namespace Geex
 		double mink = std::numeric_limits<double>::max();
 		int nb_failures = 0;
 		// suppress the inactive and optimization failure ones
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
-		{
-			if (opti_res[i] == SUCCESS && pack_objects[i].active)
-				mink = std::min(solutions[i].k, mink);
-			else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
-				solutions[i].k = 1.0;
-			else if (opti_res[i] != SUCCESS)
-			{
-				nb_failures++;
-				solutions[i].k = 1.0;
-				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
-			}
-		}
+		//for (unsigned int i = 0; i < pack_objects.size(); i++)
+		//{
+		//	if (opti_res[i] == SUCCESS && pack_objects[i].active)
+		//		mink = std::min(solutions[i].k, mink);
+		//	else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
+		//		solutions[i].k = 1.0;
+		//	else if (opti_res[i] != SUCCESS)
+		//	{
+		//		nb_failures++;
+		//		solutions[i].k = 1.0;
+		//		solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
+		//	}
+		//}
 
-		std::cout<<"number of failures: "<<nb_failures<<std::endl;
+		//std::cout<<"number of failures: "<<nb_failures<<std::endl;
 		
 		if (!only_allow_scale)
 			constraint_transformation(solutions, lfs, false);
 		else
 			for (unsigned int i = 0; i < solutions.size(); i++)
 				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
-
-		std::cout<<"Minimum scale is "<<mink<<std::endl;
 		//if (!vector_field)
-			constraint_transformation(solutions, lfs, true);
+		constraint_transformation(solutions, lfs, true);
 
  #ifdef _CILK_
  		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -619,32 +624,46 @@ namespace Geex
  		for (unsigned int i = 0; i < pack_objects.size(); i++)
  			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
  #endif
+		// after a series of filtering, compute the minimum scale factor
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			if (opti_res[i] == SUCCESS && pack_objects[i].active)
+				mink = std::min(solutions[i].k, mink);
+			else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
+				solutions[i].k = 1.0;
+		}
+		for (size_t i = 0; i < pack_objects.size(); i++)
+			if (opti_res[i] == SUCCESS && pack_objects[i].active)
+				solutions[i].k = mink;
+		std::cout<<"Minimum scale is "<<mink<<std::endl;
+		std::cout<<"number of failures: "<<nb_failures<<std::endl;
+
 		// check state of each tile
 		std::vector<bool> has_growth_room(pack_objects.size());
 		if (enlarge)
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
 				pack_objects[i].reach_barrier = false;
-				double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
-				double rel_factor = pack_objects[i].rel_factor(cur);
+				//double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
+				//double rel_factor = pack_objects[i].rel_factor(cur);
 				
-				if (pack_objects[i].active && rel_factor*solutions[i].k > barrier_factor)
+				if (pack_objects[i].active && pack_objects[i].factor*solutions[i].k > barrier_factor)
 				{
 					//if (pack_objects[i].factor < nxt_barrier)
-						//solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
-					if (rel_factor < nxt_barrier)
-						solutions[i].k = barrier_factor / rel_factor;
-					else
-						solutions[i].k = 1.0;
+						solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
+					//if (rel_factor < nxt_barrier)
+					//	solutions[i].k = barrier_factor / rel_factor;
+					//else
+					//	solutions[i].k = 1.0;
 					has_growth_room[i] = false;
 					pack_objects[i].reach_barrier = true;
 				}
-				else if (pack_objects[i].active && solutions[i].k < min_factor)
-					has_growth_room[i] = false;
-				else if (pack_objects[i].active && solutions[i].k >= min_factor)
+				//else if (pack_objects[i].active && solutions[i].k < min_factor)
+				//	has_growth_room[i] = false;
+				else// if (pack_objects[i].active && solutions[i].k >= min_factor)
 					has_growth_room[i] = true;
-				else 
-					has_growth_room[i] = false;
+				//else 
+				//	has_growth_room[i] = false;
 			}		
 		else
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -659,15 +678,11 @@ namespace Geex
 
 
 		bool stay_at_this_barrier = false;
-		int nb_potential_growth = 0;
-		for (unsigned int i = 0; i < has_growth_room.size(); i++)
-		{
-			if (has_growth_room[i])
-				nb_potential_growth++;
-		}
-		double perc = nb_potential_growth/(double)pack_objects.size();
-		std::cout<<"percentage of potential growth: "<<perc*100.0<<'%'<<std::endl;
-		stay_at_this_barrier = (perc > 0.005); // if only few tiles can be enlarged
+		size_t nb_potential_growth = std::count(has_growth_room.begin(), has_growth_room.end(), true);
+		float perc = nb_potential_growth/(float)pack_objects.size();
+		std::cout<<"percentage of potential growth: "<<perc*100.0f<<'%'<<std::endl;
+		//stay_at_this_barrier = (perc > 0.005); // if only few tiles can be enlarged
+		stay_at_this_barrier = (perc > 0);
 		if (!enlarge)
 		{
 			return true;
@@ -827,14 +842,19 @@ namespace Geex
 			std::cout<<"============ discrete lloyd iteration "<<times++<<" ============\n";
 			
 			double nxt_barrier;
-			if (!disc_barr.get_next_barrier(nxt_barrier))
-				nxt_barrier = 1.0e20;
+			//if (!disc_barr.get_next_barrier(nxt_barrier))
+			//{
+				//nxt_barrier = 1.0e20;
+			//	std::cout<<"====== The largest barrier has been achieved ======\n";
+			//	break;
+			//}
+			std::cout<<"current = "<<current_barrier<<std::endl;
 			stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, nxt_barrier);
 			
 			if (!stay_at_this_barrier)  // go to the next barrier
 			{
 				disc_barr.go_to_next_barrier();
-				std::cout<<"go to next barrier\n";
+				std::cout<<"go to next barrier"<<std::endl;
 			}
 
 			// check whether to use approximate voronoi region
@@ -853,27 +873,28 @@ namespace Geex
 			if (post_action != NULL)
 				post_action();
 		}
-		return !stay_at_this_barrier;
+		return true;
 	}
 	
 	void Packer::interface_lloyd(void (*post_action)())
 	{
-		if (!sync_opt)
-			lloyd(post_action, false);
-		else
+		//if (!sync_opt)
+		//	lloyd(post_action, false);
+		//else
 			discrete_lloyd(post_action, false);
 	}
-	void Packer::pack(void (*post_action)())
+	bool Packer::pack(void (*post_action)())
 	{	
-		if (!sync_opt)
-			lloyd(post_action, true);
-		else
-		{
-			if (sync_opt && disc_barr.get_max() != phony_upper_scale)
-				disc_barr.append(phony_upper_scale);
-			discrete_lloyd(post_action, true);
-		}
+		//if (!sync_opt)
+		//	lloyd(post_action, true);
+		//else
+		//{
+			//if (sync_opt && disc_barr.get_max() != phony_upper_scale)
+			//	disc_barr.append(phony_upper_scale);
+			bool not_finished = discrete_lloyd(post_action, true);
+		//}
 		print_area_coverage();	
+		return not_finished;
 	}
 
 	void Packer::constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, bool constrain_scale)
@@ -1313,7 +1334,7 @@ namespace Geex
 		}
 
 		filler.align(lf.w, lf.o);
-		double shrink_factor = 0.2;
+		double shrink_factor = 1.0;
 
 		Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
 			( Transformation_3(CGAL::SCALING, shrink_factor) *
@@ -1703,9 +1724,9 @@ namespace Geex
 	}
 	void Packer::report()
 	{
-		double max_factor = std::numeric_limits<double>::min();
+		double max_factor = -std::numeric_limits<double>::max();
 		double min_factor = std::numeric_limits<double>::max();
-		double cur_max_factor = std::numeric_limits<double>::min();
+		double cur_max_factor = -std::numeric_limits<double>::max();
 		double cur_min_factor = std::numeric_limits<double>::max();
 		double a_min, c_min, a_max, c_max;
 		unsigned int min_idx, max_idx;
@@ -1757,13 +1778,13 @@ namespace Geex
 		std::cout<<"\t-- Maximum factor: "<<max_factor<<std::endl;
 		std::cout<<"\t-- Minimum factor: "<<min_factor<<std::endl;
 		std::cout<<"\t-- Mean factor: "<<mean_factor<<std::endl;
-		std::cout<<"Curvature relative size: \n";
-		std::cout<<"\t-- Maximum factor: "<<cur_max_factor<<" : "<<a_max<<", "<<c_max<<", "<<max_idx<<std::endl;
-		std::cout<<"\t-- Minimum factor: "<<cur_min_factor<<" : "<<a_min<<", "<<c_min<<", "<<min_idx<<std::endl;
-		std::cout<<"\t-- Mean factor: "<<cur_mean_factor<<std::endl;
-		std::cout<<"Polygon variety:\n";
-		std::cout<<"\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
-		std::cout<<"\t-- Number of polygon types: "<<frequency.size()<<std::endl;
+		//std::cout<<"Curvature relative size: \n";
+		//std::cout<<"\t-- Maximum factor: "<<cur_max_factor<<" : "<<a_max<<", "<<c_max<<", "<<max_idx<<std::endl;
+		//std::cout<<"\t-- Minimum factor: "<<cur_min_factor<<" : "<<a_min<<", "<<c_min<<", "<<min_idx<<std::endl;
+		//std::cout<<"\t-- Mean factor: "<<cur_mean_factor<<std::endl;
+		//std::cout<<"Polygon variety:\n";
+		//std::cout<<"\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
+		//std::cout<<"\t-- Number of polygon types: "<<frequency.size()<<std::endl;
 		//std::ofstream freq_file("usage-frequency.txt");
 		//for (std::map<unsigned int, unsigned int>::const_iterator it = frequency.begin(); it != frequency.end(); ++it)
 		//	freq_file<<it->first<<' '<<it->second<<std::endl;
