@@ -6,6 +6,8 @@
             
 < PolygonDir >      ..\..\..\polygons\fx_size\green_stone_egg\    </ PolygonDir >
 
+< ExpectedCoverage > 0.75 </ ExpectedCoverage >
+
 < gamma > 1.0 </ gamma >
 
 < PhysicalScales > 0.2 0.6 20 </ PhysicalScales >

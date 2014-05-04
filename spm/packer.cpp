@@ -1281,10 +1281,11 @@ namespace Geex
 			double min_size = std::numeric_limits<double>::max();
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{				
-				min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
+				//min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
+				min_size = std::min(min_size, pack_objects[i].factor);
 			}
 			//disc_barr.set_current_barrier(min_size);
-			disc_barr.set(min_size+0.05, 1.0, 2);
+			disc_barr.set(0.9, 1.0, 2);
 		}
 	}
 
