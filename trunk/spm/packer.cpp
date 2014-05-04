@@ -1262,17 +1262,24 @@ namespace Geex
 		std::cout<<"Start filling holes...\n";
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 			pack_objects[i].active = false;
+		size_t nb_filled = 0;
 		for (unsigned int i = 0; i < holes.size(); i++)
 		{
 			pack_objects.push_back(Packing_object());
-			fill_one_hole(holes[i], pack_objects.back());
-			pack_objects.back().activate();
+			bool success = fill_one_hole(holes[i], pack_objects.back());
+			if (success)
+			{
+				pack_objects.back().activate();
+				nb_filled++;
+			}
+			else
+				pack_objects.pop_back();
 		}
 		generate_RDT();
 		stop_update_DT = false;
 		use_voronoi_cell_ = false;
 		compute_clipped_VD();
-		std::cout<<"End filling holes.\n";
+		std::cout<<"End filling holes: "<<nb_filled<<" holes were filled.\n";
 		std::for_each(holes.begin(), holes.end(), std::mem_fun_ref(&Hole::clear));
 		holes.clear();
 		//std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
@@ -1289,7 +1296,7 @@ namespace Geex
 		}
 	}
 
-	void Packer::fill_one_hole(Hole& hl, Packing_object& filler)
+	bool Packer::fill_one_hole(Hole& hl, Packing_object& filler)
 	{
 		std::vector<Segment_2> hole_bd_2d;
 		std::vector<Point_3> hole_verts;
@@ -1322,8 +1329,27 @@ namespace Geex
 		for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
 			match_res.push(pm.affine_match(pgn_lib[idx], idx));
 		// choose the result with the smallest match error now
-		Match_info_item<unsigned int> matcher = match_res.top();
-
+		//Match_info_item<unsigned int> matcher = match_res.top();
+		Match_info_item<unsigned int> matcher;
+		bool found = false;
+		while (!match_res.empty())
+		{
+			matcher = match_res.top();
+			match_res.pop();
+			Polygon_2 sniffer_pgn = CGAL::transform(matcher.t, pgn_lib[matcher.val]);
+			std::vector<Segment_2>::const_iterator pit;
+			for (pit = hole_bd_2d.begin(); pit != hole_bd_2d.end(); ++pit)
+			{
+				if (sniffer_pgn.has_on_bounded_side(pit->source()) || sniffer_pgn.has_on_bounded_side(pit->target()))
+					break;
+			}
+			if (pit == hole_bd_2d.end())	
+			{
+				found = true;
+				break;
+			}
+		}
+		if (!found)	return false;
 		const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
 		Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
 
@@ -1348,6 +1374,7 @@ namespace Geex
 		filler.lib_idx = matcher.val;
 		filler.texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
 		filler.texture_id = match_pgn.texture_id;	
+		return true;
 	}
 
 	void Packer::con_replace()

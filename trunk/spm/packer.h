@@ -181,7 +181,7 @@ namespace Geex
 
 		/** replace and hole filling**/
 		// fill one hole
-		void fill_one_hole(Hole& hl, Packing_object& filler); 
+		bool fill_one_hole(Hole& hl, Packing_object& filler); 
 
 		unsigned int group_swap(const std::vector<unsigned int>& indices); // do the swap among a group
 		void vacate_one_polygon(unsigned int id, Hole& hole);
