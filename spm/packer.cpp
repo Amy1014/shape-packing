@@ -1133,6 +1133,7 @@ namespace Geex
 	void Packer::replace()
 	{
 		std::cout<<"Start replacing...\n";
+		std::map< int, Match_info_item<unsigned int> > replace_map;
 		for (size_t i = 0; i < holes.size(); i++)
 		{
 			// collect the tiles surrounding a hole
@@ -1142,12 +1143,115 @@ namespace Geex
 				nghb_tiles.insert(holes[i][j].first->group_id);
 				nghb_tiles.insert(holes[i][j].second->group_id);
 			}
+			std::map<Match_info_item<unsigned int>, int, Match_measure> match_idx;
+			for (std::set<int>::const_iterator it = nghb_tiles.begin(); it != nghb_tiles.end(); ++it)
+			{
+				if (*it < 0)	continue;
+				// extract the surrounding space
+				Hole hl;
+				vacate_one_polygon(*it, hl);
+				std::vector<Segment_2> hole_bd_2d;
+				std::vector<Point_3> hole_verts;
+				hole_verts.reserve(hl.size()*2);
+				for (unsigned int j = 0; j < hl.size(); j++)
+				{
+					hole_verts.push_back(hl[j].first->mp);
+					hole_verts.push_back(hl[j].second->mp);
+				}
+				Point_3 hole_cent = CGAL::centroid(hole_verts.begin(), hole_verts.end(), CGAL::Dimension_tag<0>());
+				vec3 v, prj_cent;
+				int fid;
+				prj_cent = mesh.project_to_mesh(to_geex_pnt(hole_cent), v, fid);
+				Local_frame lf;
+				lf.o = to_cgal_pnt(prj_cent);
+				lf.w = to_cgal_vec(v);
+				cgal_vec_normalize(lf.w);
+				Plane_3 prj_plane(lf.o, lf.w);
+				lf.u = prj_plane.base1();
+				cgal_vec_normalize(lf.u);
+				lf.v = CGAL::cross_product(lf.w, lf.u);
+				for (unsigned int j = 0; j < hl.size(); j++)
+				{
+					Point_2 s = lf.to_uv( prj_plane.projection(hl[j].first->point()) );
+					Point_2 t = lf.to_uv( prj_plane.projection(hl[j].second->point()) );
+					hole_bd_2d.push_back( Segment_2(s, t) );
+				}
+				Polygon_matcher pm(hole_bd_2d, 100);
+				std::priority_queue<Match_info_item<unsigned int>, std::vector< Match_info_item<unsigned int> >, Match_measure> match_res;
+				for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+					match_res.push(pm.affine_match(pgn_lib[idx], idx));
+				// choose the result with the smallest match error now
+				Match_info_item<unsigned int> matcher = match_res.top();
+				match_idx[matcher] = *it;
+			}
+			// the best matching one
+			std::map<Match_info_item<unsigned int>, int, Match_measure>::reverse_iterator best_match = match_idx.rbegin();
+			replace_map[best_match->second] = best_match->first;
+		}
+		for (std::map< int, Match_info_item<unsigned int> >::iterator it = replace_map.begin(); it != replace_map.end(); ++it)
+		{
+			Packing_object& filler = pack_objects[it->first];
+			Hole hl;
+			vacate_one_polygon(it->first, hl);
+			std::vector<Segment_2> hole_bd_2d;
+			std::vector<Point_3> hole_verts;
+			hole_verts.reserve(hl.size()*2);
+			for (unsigned int j = 0; j < hl.size(); j++)
+			{
+				hole_verts.push_back(hl[j].first->mp);
+				hole_verts.push_back(hl[j].second->mp);
+			}
+			Point_3 hole_cent = CGAL::centroid(hole_verts.begin(), hole_verts.end(), CGAL::Dimension_tag<0>());
+			vec3 v, prj_cent;
+			int fid;
+			prj_cent = mesh.project_to_mesh(to_geex_pnt(hole_cent), v, fid);
+			Local_frame lf;
+			lf.o = to_cgal_pnt(prj_cent);
+			lf.w = to_cgal_vec(v);
+			cgal_vec_normalize(lf.w);
+			Plane_3 prj_plane(lf.o, lf.w);
+			lf.u = prj_plane.base1();
+			cgal_vec_normalize(lf.u);
+			lf.v = CGAL::cross_product(lf.w, lf.u);
+			for (unsigned int j = 0; j < hl.size(); j++)
+			{
+				Point_2 s = lf.to_uv( prj_plane.projection(hl[j].first->point()) );
+				Point_2 t = lf.to_uv( prj_plane.projection(hl[j].second->point()) );
+				hole_bd_2d.push_back( Segment_2(s, t) );
+			}
+			filler.clear();
+			Match_info_item<unsigned int>& matcher = it->second;
+			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
+			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
+			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
+			{
+				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
+				filler.push_back(p);
+			}
+			filler.align(lf.w, lf.o);
+			//std::transform(filler.vertices_begin(), filler.vertices_end(), filler.vertices_begin(), rescalor);
+			filler.factor = 1.0;
+			filler.facet_idx = fid;
+			filler.lib_idx = matcher.val;
+			filler.texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
+			filler.texture_id = match_pgn.texture_id;
 		}
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
 		compute_clipped_VD();
 		stop_update_DT = false;
-		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
+		use_voronoi_cell_ = false;
+		std::for_each(holes.begin(), holes.end(), std::mem_fun_ref(&Hole::clear));
+		holes.clear();
+		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
+		if (sync_opt)
+		{
+			double min_size = std::numeric_limits<double>::max();
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+				min_size = std::min(min_size, pack_objects[i].factor);
+			disc_barr.set_current_barrier(min_size);
+		}
+		//std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
 
 	void Packer::curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id)
