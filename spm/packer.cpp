@@ -1204,7 +1204,6 @@ namespace Geex
 			Packing_object& filler = pack_objects[it->first];
 			Hole hl;
 			vacate_one_polygon(it->first, hl);
-			std::vector<Segment_2> hole_bd_2d;
 			std::vector<Point_3> hole_verts;
 			hole_verts.reserve(hl.size()*2);
 			for (unsigned int j = 0; j < hl.size(); j++)
@@ -1224,12 +1223,6 @@ namespace Geex
 			lf.u = prj_plane.base1();
 			cgal_vec_normalize(lf.u);
 			lf.v = CGAL::cross_product(lf.w, lf.u);
-			for (unsigned int j = 0; j < hl.size(); j++)
-			{
-				Point_2 s = lf.to_uv( prj_plane.projection(hl[j].first->point()) );
-				Point_2 t = lf.to_uv( prj_plane.projection(hl[j].second->point()) );
-				hole_bd_2d.push_back( Segment_2(s, t) );
-			}
 			filler.clear();
 			Match_info_item<unsigned int>& matcher = it->second;
 			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
