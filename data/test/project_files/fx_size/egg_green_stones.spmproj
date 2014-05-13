@@ -4,9 +4,9 @@
 
 < WithTexture >True</ WithTexture>   
             
-< PolygonDir >      ..\..\..\polygons\fx_size\green_stone_egg\    </ PolygonDir >
+< PolygonDir >      ..\..\..\polygons\fx_size\green_stone_egg_mixed\    </ PolygonDir >
 
-< ExpectedCoverage > 0.75 </ ExpectedCoverage >
+< ExpectedCoverage > 0.7 </ ExpectedCoverage >
 
 < gamma > 1.0 </ gamma >
 
@@ -16,6 +16,6 @@
 
 < DensityFile >      ..\..\..\surfaces\egg.txt </ DensityFile >
 
-< TextureImageDir >      ..\..\..\polygons\green_stones_egg\    </ TextureImageDir >
+< TextureImageDir >      ..\..\..\polygons\fx_size\green_stones_egg_mixed\    </ TextureImageDir >
 
 < OutputDir > ..\..\..\output\green_stones_egg\fx_size </ OutputDir >

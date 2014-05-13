@@ -691,4 +691,22 @@ namespace Geex
 		}
 	}
 
+	void RestrictedPolygonVoronoiDiagram::get_neighbor_indices(size_t idx, std::set<size_t>& neighbors)
+	{
+		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
+		const VertGroup& vg = samp_pnts[idx];
+		for (size_t i = 0; i < vg.size(); i++)
+		{
+			Edge_circulator start_edge = vg[i]->vertex_begin();
+			Edge_circulator current_edge = start_edge;
+			do 
+			{
+				Vertex_handle v_adj = current_edge->opposite()->vertex();
+				if (v_adj->group_id != vg[i]->group_id)
+					neighbors.insert(v_adj->group_id);
+				++current_edge;
+			} while (current_edge != start_edge);
+		}
+	}
+
 }

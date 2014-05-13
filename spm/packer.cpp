@@ -578,7 +578,13 @@ namespace Geex
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 #endif
 		{
-			opti_res[i] = optimize_one_polygon(i, lfs[i], solutions[i]);
+			if (pack_objects[i].active)
+				opti_res[i] = optimize_one_polygon(i, lfs[i], solutions[i]);
+			else
+			{
+				solutions[i].k = 1.0;
+				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
+			}
 		}
 		// check whether the tile has already been close to its voronoi region
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
@@ -626,8 +632,8 @@ namespace Geex
 		{
 			if (opti_res[i] == SUCCESS && pack_objects[i].active)
 				mink = std::min(solutions[i].k, mink);
-			else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
-				solutions[i].k = 1.0;
+			//else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
+			//	solutions[i].k = 1.0;
 		}
 		for (size_t i = 0; i < pack_objects.size(); i++)
 			if (opti_res[i] == SUCCESS && pack_objects[i].active)
@@ -640,31 +646,36 @@ namespace Geex
 		if (enlarge)
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
-				pack_objects[i].reach_barrier = false;
+				//pack_objects[i].reach_barrier = false;
 				//double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
 				//double rel_factor = pack_objects[i].rel_factor(cur);
 				
-				if (pack_objects[i].active && pack_objects[i].factor*solutions[i].k > barrier_factor)
+				if (pack_objects[i].active)
 				{
 					//if (pack_objects[i].factor < nxt_barrier)
+					if (pack_objects[i].factor*solutions[i].k > barrier_factor)
+					{
 						solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
 					//if (rel_factor < nxt_barrier)
 					//	solutions[i].k = barrier_factor / rel_factor;
 					//else
 					//	solutions[i].k = 1.0;
-					has_growth_room[i] = false;
-					pack_objects[i].reach_barrier = true;
+						has_growth_room[i] = false;
+					}
+					else
+						has_growth_room[i] = true;
+					//pack_objects[i].reach_barrier = true;
 				}
 				//else if (pack_objects[i].active && solutions[i].k < min_factor)
 				//	has_growth_room[i] = false;
 				else// if (pack_objects[i].active && solutions[i].k >= min_factor)
-					has_growth_room[i] = true;
+					has_growth_room[i] = false;
 				//else 
 				//	has_growth_room[i] = false;
 			}		
-		else
-			for (unsigned int i = 0; i < pack_objects.size(); i++)
-				pack_objects[i].reach_barrier = true;
+		//else
+		//	for (unsigned int i = 0; i < pack_objects.size(); i++)
+		//		pack_objects[i].reach_barrier = true;
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -1298,15 +1309,30 @@ namespace Geex
 		for (unsigned int i = 0; i < holes.size(); i++)
 		{
 			pack_objects.push_back(Packing_object());
+			std::set<size_t> hole_neighbors;
+			for (size_t j = 0; j < holes[i].size(); j++)
+			{
+				rpvd.get_neighbor_indices(holes[i][j].first->group_id, hole_neighbors);
+				rpvd.get_neighbor_indices(holes[i][j].second->group_id, hole_neighbors);
+			}
 			bool success = fill_one_hole(holes[i], pack_objects.back());
 			if (success)
 			{
 				pack_objects.back().activate();
 				nb_filled++;
+				for (std::set<size_t>::const_iterator it = hole_neighbors.begin(); it != hole_neighbors.end(); ++it)
+					pack_objects[*it].activate();
 			}
 			else
 				pack_objects.pop_back();
 		}
+		for (size_t i = 0; i < pack_objects.size(); i++)
+			if (pack_objects[i].active)
+			{
+				Local_frame lf = pack_objects[i].local_frame();
+				Parameter scale(0.9, 0.0, 0.0, 0.0);
+				transform_one_polygon(i, lf, scale);
+			}
 		generate_RDT();
 		stop_update_DT = false;
 		use_voronoi_cell_ = false;
@@ -1396,7 +1422,7 @@ namespace Geex
 		}
 
 		filler.align(lf.w, lf.o);
-		double shrink_factor = 0.8;
+		double shrink_factor = 1.0;
 
 		Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
 			( Transformation_3(CGAL::SCALING, shrink_factor) *
