@@ -180,6 +180,7 @@ namespace Geex {
 		void report()
 		{
 			spm()->report();
+			post_update();
 		}
 
 		void save_tiles()
@@ -221,10 +222,7 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Curvature", TW_TYPE_BOOL8, &spm()->show_curvatures(), "group = 'Surface' ");
 			TwAddVarRW(graphics_bar, "Feature", TW_TYPE_BOOL8, &spm()->show_feature_lines(), "group = 'Surface' ");
 			TwAddVarRW(graphics_bar, "Vector Field", TW_TYPE_BOOL8, &spm()->show_vector_field(), "group = 'Surface'");
-			//TwAddVarRW(graphics_bar, "Red", TW_TYPE_FLOAT, &spm()->tunable_red, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
-			//TwAddVarRW(graphics_bar, "Green", TW_TYPE_FLOAT, &spm()->tunable_green, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
-			//TwAddVarRW(graphics_bar, "Blue", TW_TYPE_FLOAT, &spm()->tunable_blue, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
-			
+
 			TwEnumVal draw_polygon_mode[] = {
 				{spm()->OUTLINE_DRAW, "Outline"}, {spm()->FILL_DRAW, "Fill"}, {spm()->TEXTURE_DRAW, "Texture"}, { spm()->DISCRETE_SCALE_DRAWE, "Discrete"}
 			};
@@ -276,7 +274,7 @@ namespace Geex {
 			TwAddButton(function_bar, "Auto Scale", tw_auto_scale, NULL, "group = 'Hole'");
 			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
 			TwAddVarRW(function_bar, "factor", TW_TYPE_DOUBLE, &spm()->replace_shrink_factor(), "min=0.05 group = 'Replace' ");
-			//TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
+			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
 			TwAddButton(function_bar, "swap", tw_swap, NULL, "key=w group = 'Replace' ");
 			TwAddButton(function_bar, "sel swap", tw_selective_swap, NULL, "group = 'Replace' ");
 			TwAddButton(function_bar, "ext-replace", tw_con_replace, NULL, "key = x group = 'Replace' ");
