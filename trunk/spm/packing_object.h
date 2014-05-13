@@ -115,7 +115,7 @@ namespace Geex
 		std::vector<Point_2> texture_coord;
 		unsigned int texture_id;
 		bool active;
-		bool reach_barrier;
+		//bool reach_barrier;
 		//int group_id;
 	};
 
