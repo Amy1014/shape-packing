@@ -1,0 +1,21 @@
+< SpMProject >  Egg with Letter Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\egg.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\..\polygons\letters_egg\    </ PolygonDir >
+
+< ExpectedCoverage > 0.65 </ ExpectedCoverage >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.0 20 </ OptimizationScales >
+
+< DensityFile >      ..\..\..\surfaces\egg.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\..\polygons\letters_egg\    </ TextureImageDir >
+
+< OutputDir > ..\..\..\output\letters_egg\fx_size </ OutputDir >

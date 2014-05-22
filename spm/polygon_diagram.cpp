@@ -623,11 +623,11 @@ namespace Geex
 
 				//fe->facet()->is_delaunay = fe->opposite()->facet()->is_delaunay = true;
 			}
-			else
-			{
+			//else
+			//{
 				//e->facet()->is_delaunay = true;
 				//oe->facet()->is_delaunay = true;
-			}
+			//}
 
 		}
 		std::cout<<"Number of unflippable edges: "<<nb_unflippable_edges<<std::endl;
@@ -691,7 +691,7 @@ namespace Geex
 		}
 	}
 
-	void RestrictedPolygonVoronoiDiagram::get_neighbor_indices(size_t idx, std::set<size_t>& neighbors)
+	void RestrictedPolygonVoronoiDiagram::get_neighbor_indices(size_t idx, std::set<int>& neighbors)
 	{
 		typedef RDT_data_structure::Halfedge_around_vertex_circulator Edge_circulator;
 		const VertGroup& vg = samp_pnts[idx];
@@ -702,7 +702,7 @@ namespace Geex
 			do 
 			{
 				Vertex_handle v_adj = current_edge->opposite()->vertex();
-				if (v_adj->group_id != vg[i]->group_id)
+				if (v_adj->group_id != vg[i]->group_id && v_adj->group_id >= 0)
 					neighbors.insert(v_adj->group_id);
 				++current_edge;
 			} while (current_edge != start_edge);

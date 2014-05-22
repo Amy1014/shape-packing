@@ -6,7 +6,7 @@
             
 < PolygonDir >      ..\..\..\polygons\fx_size\fruit_egg\    </ PolygonDir >
 
-< ExpectedCoverage > 0.68 </ ExpectedCoverage >
+< ExpectedCoverage > 0.66 </ ExpectedCoverage >
 
 < gamma > 1.0 </ gamma >
 
