@@ -1,0 +1,21 @@
+< SpMProject >  Cloak with Leaflower Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\cloak.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\..\polygons\fx_size\leaflower_cloak\    </ PolygonDir >
+
+< ExpectedCoverage > 0.62 </ ExpectedCoverage >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.0 20 </ OptimizationScales >
+
+< DensityFile >      ..\..\..\surfaces\cloak.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\..\polygons\leaf_flower\    </ TextureImageDir >
+
+< OutputDir > ..\..\..\output\cloak_leaflower\fx_size </ OutputDir >

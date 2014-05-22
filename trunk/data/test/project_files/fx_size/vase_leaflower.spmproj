@@ -1,0 +1,21 @@
+< SpMProject >  Vase with Leaflower Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\vase.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\..\polygons\fx_size\leaflower_vase\    </ PolygonDir >
+
+< ExpectedCoverage > 0.6 </ ExpectedCoverage >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.0 20 </ OptimizationScales >
+
+< DensityFile >      ..\..\..\surfaces\vase.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\..\polygons\leaf_flower\    </ TextureImageDir >
+
+< OutputDir > ..\..\..\output\vase_leaflower\fx_size </ OutputDir >

@@ -1,0 +1,21 @@
+< SpMProject >  Hypersheet with Green Stone Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\hypersheet.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\..\polygons\fx_size\green_stone_hypersheet\    </ PolygonDir >
+
+< ExpectedCoverage > 0.60 </ ExpectedCoverage >
+
+< gamma > 1.0 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.0 20 </ OptimizationScales >
+
+< DensityFile >      ..\..\..\surfaces\hypersheet.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\..\polygons\fx_size\green_stone_egg_mixed\    </ TextureImageDir >
+
+< OutputDir > ..\..\..\output\green_stone_egg_mixed\fx_size </ OutputDir >

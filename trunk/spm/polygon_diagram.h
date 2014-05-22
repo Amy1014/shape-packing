@@ -125,7 +125,7 @@ public:
 
 	unsigned int number_of_groups() const { return nb_groups; }
 
-	void get_neighbor_indices(size_t idx, std::set<size_t>& neighbors);
+	void get_neighbor_indices(size_t idx, std::set<int>& neighbors);
 
 	// for debug
 	const RDT_data_structure& get_rdt() const { return rdt_ds; }
