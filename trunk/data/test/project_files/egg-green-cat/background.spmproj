@@ -1,0 +1,22 @@
+< SpMProject >  Cow left eye </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\egg-cat\background\background.obj </ MeshFile >    
+            
+< WithTexture >True</ WithTexture>  
+
+< PolygonDir >      ..\..\..\polygons\egg-green-cat\background\    </ PolygonDir >
+
+< TextureImageDir >      ..\..\..\polygons\fx_size\green_stone_egg_mixed\    </ TextureImageDir >
+
+< ExpectedCoverage > 0.7 </ ExpectedCoverage >
+
+< gamma > 8.0 </ gamma>
+
+< DensityFile >      ..\..\..\surfaces\egg-cat\background\background.txt </ DensityFile >
+
+< PhysicalScales > 0.3 0.5 10 </ PhysicalScales >
+
+< OptimizationScales > 0.6 1.0 20 </ OptimizationScales >
+
+< OutputDir > ..\..\..\output\egg-green-cat\background </ OutputDir >
+

@@ -1,0 +1,21 @@
+< SpMProject >  Kitten with cartoon Texture Test </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\kitten.obj        </ MeshFile > 
+
+< WithTexture >True</ WithTexture>   
+            
+< PolygonDir >      ..\..\..\polygons\fx_size\cartoon_kitten\    </ PolygonDir >
+
+< ExpectedCoverage > 0.55 </ ExpectedCoverage >
+
+< gamma > 0.05 </ gamma >
+
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
+
+< OptimizationScales > 0.7 1.0 20 </ OptimizationScales >
+
+< DensityFile >      ..\..\..\surfaces\kitten.txt </ DensityFile >
+
+< TextureImageDir >      ..\..\..\polygons\fx_size\cartoon_kitten\    </ TextureImageDir >
+
+< OutputDir > ..\..\..\output\kitten_cartoon\fx_size </ OutputDir >

@@ -1,0 +1,22 @@
+< SpMProject > strip-4 </ SPMProject >
+
+< MeshFile >  ..\..\..\surfaces\egg-strip\strip-4\strip-4.obj </ MeshFile > 
+
+< WithTexture >True</ WithTexture>  
+
+< PolygonDir >      ..\..\..\polygons\egg-strip\bwg_stones_\    </ PolygonDir >
+
+< TextureImageDir >      ..\..\..\polygons\bwg_stones\    </ TextureImageDir >
+
+< ExpectedCoverage > 0.75 </ ExpectedCoverage >
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >  ..\..\..\surfaces\egg-strip\strip-4\strip-4.txt </ DensityFile > 
+
+< PhysicalScales > 0.3 0.5 10 </ PhysicalScales >
+
+< OptimizationScales > 0.6 1.0 20 </ OptimizationScales >
+
+< OutputDir > ..\..\..\output\egg-strip\strip-4\bwg_stones\ </ OutputDir >
+

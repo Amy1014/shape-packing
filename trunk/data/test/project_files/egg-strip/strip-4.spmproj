@@ -2,15 +2,17 @@
 
 < MeshFile >  ..\..\..\surfaces\egg-strip\strip-4\strip-4.obj </ MeshFile > 
 
-< PolygonFile >  ..\..\..\polygons\egg-strip\strip-4.poly </ PolygonFile > 
+< PolygonFile >  ..\..\..\polygons\egg-strip\strip-306.poly </ PolygonFile > 
+
+< ExpectedCoverage > 0.63 </ ExpectedCoverage >
 
 < gamma > 1.0 </ gamma>
 
 < DensityFile >  ..\..\..\surfaces\egg-strip\strip-4\strip-4.txt </ DensityFile > 
 
-< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+< PhysicalScales > 0.3 0.5 10 </ PhysicalScales >
 
-< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+< OptimizationScales > 0.6 1.0 20 </ OptimizationScales >
 
 < OutputDir > ..\..\..\output\egg-strip\strip-4</ OutputDir >
 
