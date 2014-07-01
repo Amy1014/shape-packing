@@ -1,0 +1,21 @@
+< SpMProject >  Cow left cat-body </ SPMProject >
+
+< MeshFile >          ..\..\..\surfaces\egg-cat\cat-body\cat-body.obj </ MeshFile >    
+            
+< WithTexture >True</ WithTexture>  
+
+< PolygonDir >      ..\..\..\polygons\egg-green-cat\background\    </ PolygonDir >
+
+< TextureImageDir >      ..\..\..\polygons\fx_size\green_stone_egg\    </ TextureImageDir >
+
+< ExpectedCoverage > 0.65 </ ExpectedCoverage >
+
+< gamma > 1.0 </ gamma>
+
+< DensityFile >      ..\..\..\surfaces\egg-cat\cat-body\cat-body.txt </ DensityFile >
+
+< PhysicalScales > 0.3 0.5 10 </ PhysicalScales >
+
+< OptimizationScales > 0.6 1.0 20 </ OptimizationScales >
+
+< OutputDir > ..\..\..\output\egg-green-cat\body </ OutputDir >

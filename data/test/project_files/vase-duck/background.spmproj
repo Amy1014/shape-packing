@@ -1,15 +1,17 @@
-< SpMProject >  Cow left eye </ SPMProject >
+< SpMProject >  Vase background with voronoi tiles </ SPMProject >
 
 < MeshFile >          ..\..\..\surfaces\vase-duck\background\background.obj </ MeshFile >    
             
 < polygonfile >      ..\..\..\polygons\vase-duck\background.poly     </ PolygonFile >
 
+< ExpectedCoverage > 0.725 </ ExpectedCoverage >
+
 < gamma > 1.0 </ gamma>
 
 < DensityFile >      ..\..\..\surfaces\vase-duck\background\background.txt </ DensityFile >
 
-< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
 
-< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+< OptimizationScales > 0.7 1.0 20 </ OptimizationScales >
 
-< OutputDir > ..\..\..\output\vase-duck\background </ OutputDir >
+< OutputDir > ..\..\..\output\vase-duck\background\fx_size </ OutputDir >

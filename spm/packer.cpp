@@ -54,6 +54,23 @@ namespace Geex
 			if (!pio.multi_meshes_specified())
 			{
 				pio>>mesh>>pgn_lib;
+				/*std::cout<<"filter the polygons\n";
+				std::map<double, Ex_polygon_2> area_polygon;
+				for (size_t k = 0; k < pgn_lib.size(); k++)
+					area_polygon[std::fabs(pgn_lib[k].area())] = pgn_lib[k];
+				pgn_lib.clear();
+				std::map<double, Ex_polygon_2>::iterator it = area_polygon.begin();
+				std::advance(it, 80);
+				for (; it != area_polygon.end(); ++it)
+					pgn_lib.push_back(it->second);
+				std::ofstream ofs("voronoi_207.poly");
+				ofs << pgn_lib.size() << std::endl;
+				for (size_t k = 0; k < pgn_lib.size(); k++)
+				{
+					ofs << pgn_lib[k].size() << std::endl;
+					for (size_t l = 0; l < pgn_lib[k].size(); l++)
+						ofs << pgn_lib[k].vertex(l).x()<<' '<<pgn_lib[k].vertex(l).y()<<std::endl;
+				}*/
 				if (!pio.attribute_value("VectorField").empty())
 					mesh.load_vecfield(pio.attribute_value("VectorField"));
 				vector_field = mesh.with_vector_field();
@@ -65,6 +82,7 @@ namespace Geex
 			else
 			{
 				pio>>pgn_lib;
+
 				pio>>mesh_segments;
 			}
 		}
@@ -224,6 +242,17 @@ namespace Geex
 		//std::ofstream pos_ofs("init_pos.txt");
 		//std::ofstream fid_ofs("init_fid.txt");
 		//Init_point_generator *ipg = new CVT_point_generator(mesh, nb_init_polygons, pio.attribute_value("MeshFile"));
+
+		/* for rigid size version, curvature sensitive initialization */
+		std::vector<double> vtx_cur(mesh.nb_vertices());
+		for (size_t i = 0; i < mesh.nb_vertices(); i++)
+			vtx_cur[i] = -mesh.curvature_at_vertex(i);
+		std::sort(vtx_cur.begin(), vtx_cur.end());
+		std::map<double, size_t> area_idx;
+		for (size_t i = 0; i < pgn_lib.size(); i++)
+			area_idx[std::fabs(pgn_lib[i].area())] = i;
+		/**************************************************************/
+
 		Init_point_generator *ipg = new Density_point_generator(mesh, nb_init_polygons);
 		// choose polygons and distribute
 		unsigned int pgn_lib_idx = 0;
@@ -237,6 +266,17 @@ namespace Geex
 			int f_idx;
 			vec3 n;
 			mesh.project_to_mesh(to_geex_pnt(pos), n, f_idx);
+
+			/* for rigid size version, curvature sensitive initialization */
+			double fcur = mesh.curvature_at_face(f_idx);
+			std::vector<double>::iterator cur_it = std::lower_bound(vtx_cur.begin(), vtx_cur.end(), -fcur);
+			size_t cur_rank = cur_it - vtx_cur.begin();
+			std::map<double, size_t>::iterator it = area_idx.begin();
+			std::advance(it, float(cur_rank)/vtx_cur.size()*pgn_lib.size());
+			if (it == area_idx.end())	--it;
+			pgn_lib_idx = it->second;
+			/**************************************************************/			
+
 			const Facet& f = mesh[f_idx];
 			vec3 gx_normal = approx_normal(f_idx);
 			const Ex_polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
@@ -250,6 +290,7 @@ namespace Geex
 			pack_objects.back().facet_idx = f_idx;
 			pack_objects.back().texture_id = pgn_2.texture_id;
 			pack_objects.back().texture_coord.assign(pgn_2.texture_coords.begin(), pgn_2.texture_coords.end());
+
 			pgn_lib_idx++;
 
 			//pos_ofs << pos.x() << ' ' << pos.y() << ' ' << pos.z() << std::endl;
@@ -1337,7 +1378,7 @@ namespace Geex
 			if (pack_objects[i].active)
 			{
 				Local_frame lf = pack_objects[i].local_frame();
-				Parameter scale(0.8, 0.0, 0.0, 0.0);
+				Parameter scale(replace_factor, 0.0, 0.0, 0.0);
 				transform_one_polygon(i, lf, scale);
 			}
 		std::cout<<"End filling holes: "<<nb_filled<<" holes were filled.\n";
@@ -1431,7 +1472,16 @@ namespace Geex
 		CGAL::Timer replace_timer;
 		replace_timer.start();
 		
-		//unsigned int N = pack_objects.size()*match_weight
+		/* for rigid size version, curvature sensitive initialization */
+// 		std::vector<double> vtx_cur(mesh.nb_vertices());
+// 		for (size_t i = 0; i < mesh.nb_vertices(); i++)
+// 			vtx_cur[i] = -mesh.curvature_at_vertex(i);
+// 		std::sort(vtx_cur.begin(), vtx_cur.end());
+// 		std::map<double, size_t> area_idx;
+// 		for (size_t i = 0; i < pgn_lib.size(); i++)
+// 			area_idx[std::fabs(pgn_lib[i].area())] = i;
+		/**************************************************************/
+
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -1473,7 +1523,17 @@ namespace Geex
 			}
 
 			// choose the result with the smallest match error now 
+
 			double shrink_factor = replace_factor;
+
+			/* for rigid size version, curvature sensitive initialization */
+// 			double fcur = mesh.curvature_at_face(pack_objects[i].facet_idx);
+// 			std::vector<double>::iterator cur_it = std::lower_bound(vtx_cur.begin(), vtx_cur.end(), -fcur);
+// 			size_t cur_rank = cur_it - vtx_cur.begin();
+// 			std::map<double, size_t>::iterator it = area_idx.begin();
+// 			std::advance(it, float(cur_rank)/vtx_cur.size()*pgn_lib.size());
+			/************************************************************************/
+
 
 			Match_info_item<unsigned int> matcher = match_res.top();
 			// recompute the right transformation

@@ -6,14 +6,16 @@
             
 < PolygonDir >      ..\..\polygons\green_stones_hypersheet\    </ PolygonDir >
 
-< gamma > 1.0 </ gamma >
+< ExpectedCoverage > 0.6 </ ExpectedCoverage >
+
+< gamma > 0.4 </ gamma >
 
 < PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
 
-< OptimizationScales > 0.7 1.2 10 </ OptimizationScales >
+< OptimizationScales > 0.7 1.0 10 </ OptimizationScales >
 
 < DensityFile >      ..\..\surfaces\hypersheet.txt </ DensityFile >
 
 < TextureImageDir >      ..\..\polygons\green_stones_hypersheet\    </ TextureImageDir >
 
-< OutputDir > ..\..\output\green_stones_hypersheet </ OutputDir >
+< OutputDir > ..\..\output\green_stones_hypersheet\fx_size </ OutputDir >

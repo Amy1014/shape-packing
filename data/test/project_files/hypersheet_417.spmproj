@@ -2,14 +2,16 @@
 
 < MeshFile >          ..\..\surfaces\hypersheet.obj        </ MeshFile >    
             
-< polygonfile >      ..\..\polygons\voronoi417_hypersheet.poly      </ PolygonFile >
+< polygonfile >      ..\..\polygons\voronoi_207_hypersheet.poly      </ PolygonFile >
+
+< ExpectedCoverage > 0.525 </ ExpectedCoverage >
 
 < gamma > 1.0 </ gamma>
 
 < DensityFile >      ..\..\surfaces\hypersheet.txt </ DensityFile >
 
-< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+< PhysicalScales > 0.2 0.6 20 </ PhysicalScales >
 
-< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+< OptimizationScales > 0.7 1.0 10 </ OptimizationScales >
 
-< OutputDir > ..\..\output\hypersheet </ OutputDir >
+< OutputDir > ..\..\output\hypersheet\fx_size </ OutputDir >
