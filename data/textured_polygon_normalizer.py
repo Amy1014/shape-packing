@@ -18,8 +18,8 @@ def polygonArea( pgnVertList ):
         area += math.sqrt(dot(crss, crss))
     return 0.5*area
 
-inDir = r"D:\research\Tiling\dataset\letters"
-outDir = r"D:\research\Tiling\dataset\letters_normalized\\"
+inDir = r"D:\research\Tiling\prog\newspm\data\polygons\paris"
+outDir = r"D:\research\Tiling\prog\newspm\data\polygons\paris_norm\\"
 os.chdir(inDir)
 filenames = os.listdir(inDir)
 

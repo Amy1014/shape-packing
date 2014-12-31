@@ -1,0 +1,21 @@
+< SpMProject >  Plane Black stones for comparison </ SPMProject >
+
+< WithTexture >True</ WithTexture>   
+
+< MeshFile >          ..\..\surfaces\sphere.obj        </ MeshFile >     
+
+< DensityFile >      ..\..\surfaces\sphere.txt </ DensityFile >
+            
+< PolygonDir >      ..\..\polygons\paris_norm\    </ PolygonDir >
+
+< TextureImageDir >  ..\..\polygons\paris_norm\  </ TextureImageDir >
+
+< NumberTiles > 50 </ NumberTiles >
+
+< PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
+
+< OptimizationScales > 1.2 2.4 15 </ OptimizationScales >
+
+< gamma > 1.1 </ gamma>
+
+< OutputDir > ..\..\output\paris_plane </ OutputDir >

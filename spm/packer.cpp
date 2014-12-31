@@ -23,7 +23,7 @@ namespace Geex
 		epsilon = 0.15;
 		match_weight = 0.0;
 
-		samp_nb = 20;
+		samp_nb = 30;
 
 		sub_pack_id = 0;
 
@@ -283,7 +283,7 @@ namespace Geex
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
 			double s = std::min(fa/pa, pa/fa);
-			s = 0.1*std::sqrt(s);
+			s = 0.2*std::sqrt(s);
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), pos, s));
 			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
@@ -366,7 +366,9 @@ namespace Geex
 			tangent_planes.push_back(Plane_3(c, n));
 			ref_pnts.push_back(c);
 		}
+		//std::cout<<"Computing Voronoi cell\n";
 		rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
+		//std::cout<<"Computing CAT cell\n";
 		rpvd.compute_midpoint_VD(tangent_planes, ref_pnts);
 		//std::cout<<"End computing.\n";
 	}
