@@ -15,15 +15,15 @@ namespace Geex
 		rot_lower_bd = -PI/6.0;
 		rot_upper_bd = PI/6.0;
 
-		frontier_edge_size = 0.4;
-		hole_face_size = 0.4;
+		frontier_edge_size = 1.0;
+		hole_face_size = 1.0;
 
 		stop_update_DT = false;
 
 		epsilon = 0.15;
 		match_weight = 0.0;
 
-		samp_nb = 30;
+		samp_nb = 20;
 
 		sub_pack_id = 0;
 
@@ -35,6 +35,8 @@ namespace Geex
 
 		vector_field = false;
 		align_constraint = false;
+
+		allow_rotation = false;
 
 		only_allow_scale = false;
 	}
@@ -54,23 +56,6 @@ namespace Geex
 			if (!pio.multi_meshes_specified())
 			{
 				pio>>mesh>>pgn_lib;
-				/*std::cout<<"filter the polygons\n";
-				std::map<double, Ex_polygon_2> area_polygon;
-				for (size_t k = 0; k < pgn_lib.size(); k++)
-					area_polygon[std::fabs(pgn_lib[k].area())] = pgn_lib[k];
-				pgn_lib.clear();
-				std::map<double, Ex_polygon_2>::iterator it = area_polygon.begin();
-				std::advance(it, 80);
-				for (; it != area_polygon.end(); ++it)
-					pgn_lib.push_back(it->second);
-				std::ofstream ofs("voronoi_207.poly");
-				ofs << pgn_lib.size() << std::endl;
-				for (size_t k = 0; k < pgn_lib.size(); k++)
-				{
-					ofs << pgn_lib[k].size() << std::endl;
-					for (size_t l = 0; l < pgn_lib[k].size(); l++)
-						ofs << pgn_lib[k].vertex(l).x()<<' '<<pgn_lib[k].vertex(l).y()<<std::endl;
-				}*/
 				if (!pio.attribute_value("VectorField").empty())
 					mesh.load_vecfield(pio.attribute_value("VectorField"));
 				vector_field = mesh.with_vector_field();
@@ -82,7 +67,6 @@ namespace Geex
 			else
 			{
 				pio>>pgn_lib;
-
 				pio>>mesh_segments;
 			}
 		}
@@ -101,6 +85,9 @@ namespace Geex
 
 		if (phy_disc_barr.nb_levels() != 0 && opt_disc_barr.nb_levels() != 0)
 			disc_barr.set(phy_disc_barr, opt_disc_barr);
+
+// 		if (vector_field)
+// 			vecfield_align();
 	}
 
 	void Packer::pack_next_submesh() // start a new packing process
@@ -148,11 +135,11 @@ namespace Geex
 		sim_mat.resize(pgn_lib.size());
 		std::for_each( sim_mat.begin(), sim_mat.end(), std::bind2nd(std::mem_fun1_ref(&std::vector<double>::resize), pgn_lib.size()) );
 
-//#ifdef _CILK_ 
-//		cilk_for (unsigned int i = 0; i < pgn_lib.size(); i++)
-//#else 
+#ifdef _CILK_ 
+		cilk_for (unsigned int i = 0; i < pgn_lib.size(); i++)
+#else 
 		for (unsigned int i = 0; i < pgn_lib.size(); i++)
-//#endif 		
+#endif 		
 		{
 			Polygon_matcher pm(pgn_lib[i]);
 			for (unsigned int j = 0; j < pgn_lib.size(); j++)
@@ -215,22 +202,17 @@ namespace Geex
 			for (unsigned int i = 0; i < pgn_lib.size(); i++)
 				pgn_lib[i] *= adjust_factor;
 		}
+
+		// only for the image packing purpose
+		std::random_shuffle(pgn_lib.begin(), pgn_lib.end());
+
 		// distribute polygons by different strategies
 		// 1. random 
 		unsigned int nb_init_polygons;
-		float expected_coverage = 0.7f;
-		if (!pio.attribute_value("ExpectedCoverage").empty())
-		{
-			std::istringstream iss(pio.attribute_value("ExpectedCoverage"));
-			iss >> expected_coverage;
-		}
 		if (nb_tiles > 0)
 			nb_init_polygons = nb_tiles;
 		else
-		{
-			std::cout<<"Expected Coverage = "<<expected_coverage<<std::endl;
-			nb_init_polygons = mesh_area / mean_pgn_area * expected_coverage;
-		}
+			nb_init_polygons = mesh_area / mean_pgn_area * 0.85;
 		std::cout<<nb_init_polygons<<" polygons are expected.\n";
 		random_init_tiles(nb_init_polygons);
 		std::cout<<pack_objects.size()<<" polygons are loaded initially.\n";
@@ -242,17 +224,6 @@ namespace Geex
 		//std::ofstream pos_ofs("init_pos.txt");
 		//std::ofstream fid_ofs("init_fid.txt");
 		//Init_point_generator *ipg = new CVT_point_generator(mesh, nb_init_polygons, pio.attribute_value("MeshFile"));
-
-		/* for rigid size version, curvature sensitive initialization */
-		std::vector<double> vtx_cur(mesh.nb_vertices());
-		for (size_t i = 0; i < mesh.nb_vertices(); i++)
-			vtx_cur[i] = -mesh.curvature_at_vertex(i);
-		std::sort(vtx_cur.begin(), vtx_cur.end());
-		std::map<double, size_t> area_idx;
-		for (size_t i = 0; i < pgn_lib.size(); i++)
-			area_idx[std::fabs(pgn_lib[i].area())] = i;
-		/**************************************************************/
-
 		Init_point_generator *ipg = new Density_point_generator(mesh, nb_init_polygons);
 		// choose polygons and distribute
 		unsigned int pgn_lib_idx = 0;
@@ -266,31 +237,19 @@ namespace Geex
 			int f_idx;
 			vec3 n;
 			mesh.project_to_mesh(to_geex_pnt(pos), n, f_idx);
-
-			/* for rigid size version, curvature sensitive initialization */
-			double fcur = mesh.curvature_at_face(f_idx);
-			std::vector<double>::iterator cur_it = std::lower_bound(vtx_cur.begin(), vtx_cur.end(), -fcur);
-			size_t cur_rank = cur_it - vtx_cur.begin();
-			std::map<double, size_t>::iterator it = area_idx.begin();
-			std::advance(it, float(cur_rank)/vtx_cur.size()*pgn_lib.size());
-			if (it == area_idx.end())	--it;
-			pgn_lib_idx = it->second;
-			/**************************************************************/			
-
 			const Facet& f = mesh[f_idx];
 			vec3 gx_normal = approx_normal(f_idx);
 			const Ex_polygon_2& pgn_2 = pgn_lib[pgn_lib_idx%pgn_lib.size()];
 			// shrink factor
 			double fa = std::fabs(f.area()), pa = std::fabs(pgn_2.area());
 			double s = std::min(fa/pa, pa/fa);
-			s = 0.2*std::sqrt(s);
+			s = 0.25*std::sqrt(s);
 			Polygon_2 init_polygon = CGAL::transform(Transformation_2(CGAL::SCALING, s), pgn_2);
 			pack_objects.push_back(Packing_object(init_polygon, to_cgal_vec(gx_normal), pos, s));
 			pack_objects.back().lib_idx = pgn_lib_idx%pgn_lib.size();
 			pack_objects.back().facet_idx = f_idx;
 			pack_objects.back().texture_id = pgn_2.texture_id;
 			pack_objects.back().texture_coord.assign(pgn_2.texture_coords.begin(), pgn_2.texture_coords.end());
-
 			pgn_lib_idx++;
 
 			//pos_ofs << pos.x() << ' ' << pos.y() << ' ' << pos.z() << std::endl;
@@ -305,12 +264,9 @@ namespace Geex
 			return;
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
-			if (pack_objects[i].active)
-			{
-				Local_frame lf = pack_objects[i].local_frame();
-				Parameter scale(factor, 0.0, 0.0, 0.0);
-				transform_one_polygon(i, lf, scale);
-			}
+			Local_frame lf = pack_objects[i].local_frame();
+			Parameter scale(factor, 0.0, 0.0, 0.0);
+			transform_one_polygon(i, lf, scale);
 		}
 		generate_RDT();
 		compute_clipped_VD();
@@ -320,8 +276,7 @@ namespace Geex
 			double min_size = std::numeric_limits<double>::max();
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{				
-				//min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
-				min_size = std::min(min_size, pack_objects[i].factor);
+				min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
 			}
 			disc_barr.set_current_barrier(min_size);
 		}
@@ -331,7 +286,9 @@ namespace Geex
 	{
 		double min_scale = std::numeric_limits<double>::max();
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
 			min_scale = std::min(min_scale, pack_objects[i].factor);
+		}
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
 			Local_frame lf = pack_objects[i].local_frame();
@@ -344,13 +301,14 @@ namespace Geex
 		if (sync_opt)
 		{
 			double min_size = std::numeric_limits<double>::max();
-			for (unsigned int i = 0; i < pack_objects.size(); i++)			
-				//min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
-				min_size = std::min(min_size, pack_objects[i].factor);
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+			{				
+				min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
+			}
 			disc_barr.set_current_barrier(min_size);
 		}
 
-		//activate_all();
+		activate_all();
 	}
 	void Packer::compute_clipped_VD(bool approx)
 	{
@@ -366,9 +324,7 @@ namespace Geex
 			tangent_planes.push_back(Plane_3(c, n));
 			ref_pnts.push_back(c);
 		}
-		//std::cout<<"Computing Voronoi cell\n";
 		rpvd.compute_clipped_VD(tangent_planes, ref_pnts);
-		//std::cout<<"Computing CAT cell\n";
 		rpvd.compute_midpoint_VD(tangent_planes, ref_pnts);
 		//std::cout<<"End computing.\n";
 	}
@@ -379,7 +335,7 @@ namespace Geex
 		rpvd.begin_insert();
 		rpvd.insert_polygons(pack_objects.begin(), pack_objects.end(), samp_nb);
 		//rpvd.insert_polygons(pack_objects.begin(), pack_objects.end());
-		rpvd.insert_bounding_points(10);
+		rpvd.insert_bounding_points(1);
 		CGAL::Timer t;
 		t.start();
 		rpvd.end_insert();
@@ -515,13 +471,13 @@ namespace Geex
 		}
 		
 		if (try_times == try_time_limit)
-		{
-			solution.k = 1.0;
-			solution.theta = solution.tx = solution.ty = 0.0;
 			return FAILED;
-		}
 		else
+		{
+			//std::cout<<"k = "<<solution.k<<", theta = "<<solution.theta<<", tx = "<<solution.tx<<", ty = "<<solution.ty<<std::endl;
+			//solution.theta = ctm.align_angle;
 			return SUCCESS;
+		}
 	}
 
 	Packer::Lloyd_res Packer::one_lloyd(bool enlarge, std::vector<Parameter>& solutions, std::vector<Local_frame>& lfs)
@@ -614,7 +570,7 @@ namespace Geex
   		if (vector_field && !align_constraint)
   			vecfield_align();
 
-		double min_factor = 1.005; // to determine convergence
+		double min_factor = 1.05; // to determine convergence
 
 		std::vector<Optimization_res> opti_res(pack_objects.size());
 #ifdef _CILK_
@@ -626,12 +582,7 @@ namespace Geex
 		{
 			opti_res[i] = optimize_one_polygon(i, lfs[i], solutions[i]);
 		}
-		for (size_t i = 0; i < pack_objects.size(); i++)
-			if (!pack_objects[i].active)
-			{
-				solutions[i].k = 1.0;
-				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
-			}
+
 		// check whether the tile has already been close to its voronoi region
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 		{
@@ -642,86 +593,69 @@ namespace Geex
 		double mink = std::numeric_limits<double>::max();
 		int nb_failures = 0;
 		// suppress the inactive and optimization failure ones
-		//for (unsigned int i = 0; i < pack_objects.size(); i++)
-		//{
-		//	if (opti_res[i] == SUCCESS && pack_objects[i].active)
-		//		mink = std::min(solutions[i].k, mink);
-		//	else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
-		//		solutions[i].k = 1.0;
-		//	else if (opti_res[i] != SUCCESS)
-		//	{
-		//		nb_failures++;
-		//		solutions[i].k = 1.0;
-		//		solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
-		//	}
-		//}
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+		{
+			if (opti_res[i] == SUCCESS && pack_objects[i].active)
+				mink = std::min(solutions[i].k, mink);
+			else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
+				solutions[i].k = 1.0;
+			else if (opti_res[i] != SUCCESS)
+			{
+				nb_failures++;
+				solutions[i].k = 1.0;
+				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
+			}
+		}
 
-		//std::cout<<"number of failures: "<<nb_failures<<std::endl;
+		std::cout<<"number of failures: "<<nb_failures<<std::endl;
 		
 		if (!only_allow_scale)
 			constraint_transformation(solutions, lfs, false);
 		else
 			for (unsigned int i = 0; i < solutions.size(); i++)
 				solutions[i].theta = solutions[i].tx = solutions[i].ty = 0.0;
-		//if (!vector_field)
-		constraint_transformation(solutions, lfs, true);
 
-//  #ifdef _CILK_
-//  		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
-//  			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
-//  #else
-//  		for (unsigned int i = 0; i < pack_objects.size(); i++)
-//  			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
-//  #endif
-		// after a series of filtering, compute the minimum scale factor
-		for (unsigned int i = 0; i < pack_objects.size(); i++)
-		{
-			if (opti_res[i] == SUCCESS && pack_objects[i].active)
-				mink = std::min(solutions[i].k, mink);
-			//else if (opti_res[i] == SUCCESS && !pack_objects[i].active)
-			//	solutions[i].k = 1.0;
-		}
-		for (size_t i = 0; i < pack_objects.size(); i++)
-			if (opti_res[i] == SUCCESS && pack_objects[i].active)
-				solutions[i].k = mink;
 		std::cout<<"Minimum scale is "<<mink<<std::endl;
-		std::cout<<"number of failures: "<<nb_failures<<std::endl;
+		//if (!vector_field)
+			constraint_transformation(solutions, lfs, true);
 
+ #ifdef _CILK_
+ 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+ 			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
+ #else
+ 		for (unsigned int i = 0; i < pack_objects.size(); i++)
+ 			curv_constrained_transform(solutions[i], pack_objects[i].facet_idx, i);
+ #endif
 		// check state of each tile
 		std::vector<bool> has_growth_room(pack_objects.size());
 		if (enlarge)
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{
-				//pack_objects[i].reach_barrier = false;
-				//double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
-				//double rel_factor = pack_objects[i].rel_factor(cur);
+				pack_objects[i].reach_barrier = false;
+				double cur = mesh.curvature_at_face(pack_objects[i].facet_idx);
+				double rel_factor = pack_objects[i].rel_factor(cur);
 				
-				if (pack_objects[i].active)
+				if (pack_objects[i].active && rel_factor*solutions[i].k > barrier_factor)
 				{
 					//if (pack_objects[i].factor < nxt_barrier)
-					if (pack_objects[i].factor*solutions[i].k > barrier_factor)
-					{
-						solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
-					//if (rel_factor < nxt_barrier)
-					//	solutions[i].k = barrier_factor / rel_factor;
-					//else
-					//	solutions[i].k = 1.0;
-						has_growth_room[i] = false;
-					}
+						//solutions[i].k = barrier_factor / pack_objects[i].factor; // restrict it at this barrier
+					if (rel_factor < nxt_barrier)
+						solutions[i].k = barrier_factor / rel_factor;
 					else
-						has_growth_room[i] = true;
-					//pack_objects[i].reach_barrier = true;
-				}
-				//else if (pack_objects[i].active && solutions[i].k < min_factor)
-				//	has_growth_room[i] = false;
-				else// if (pack_objects[i].active && solutions[i].k >= min_factor)
+						solutions[i].k = 1.0;
 					has_growth_room[i] = false;
-				//else 
-				//	has_growth_room[i] = false;
+					pack_objects[i].reach_barrier = true;
+				}
+				else if (pack_objects[i].active && solutions[i].k < min_factor)
+					has_growth_room[i] = false;
+				else if (pack_objects[i].active && solutions[i].k >= min_factor)
+					has_growth_room[i] = true;
+				else 
+					has_growth_room[i] = false;
 			}		
-		//else
-		//	for (unsigned int i = 0; i < pack_objects.size(); i++)
-		//		pack_objects[i].reach_barrier = true;
+		else
+			for (unsigned int i = 0; i < pack_objects.size(); i++)
+				pack_objects[i].reach_barrier = true;
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -732,11 +666,15 @@ namespace Geex
 
 
 		bool stay_at_this_barrier = false;
-		size_t nb_potential_growth = std::count(has_growth_room.begin(), has_growth_room.end(), true);
-		float perc = nb_potential_growth/(float)pack_objects.size();
-		std::cout<<"percentage of potential growth: "<<perc*100.0f<<'%'<<std::endl;
-		//stay_at_this_barrier = (perc > 0.005); // if only few tiles can be enlarged
-		stay_at_this_barrier = (perc > 0);
+		int nb_potential_growth = 0;
+		for (unsigned int i = 0; i < has_growth_room.size(); i++)
+		{
+			if (has_growth_room[i])
+				nb_potential_growth++;
+		}
+		double perc = nb_potential_growth/(double)pack_objects.size();
+		std::cout<<"percentage of potential growth: "<<perc*100.0<<'%'<<std::endl;
+		stay_at_this_barrier = (perc > 0.005); // if only few tiles can be enlarged
 		if (!enlarge)
 		{
 			return true;
@@ -782,6 +720,8 @@ namespace Geex
  			Local_frame lf = pack_objects[i].local_frame();
 			Vector_3 av(v.x, v.y, v.z);
 			Line_3 axis;
+			//CGAL::linear_least_squares_fitting_3(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), axis, CGAL::Dimension_tag<0>());
+			//Vector_3 principle_dir = axis.to_vector();
 			Vector_3 principle_dir;
 			double longest_edge_len = -std::numeric_limits<double>::max();
 			for (unsigned int j = 0 ; j < pack_objects[i].size(); j++)
@@ -894,19 +834,14 @@ namespace Geex
 			std::cout<<"============ discrete lloyd iteration "<<times++<<" ============\n";
 			
 			double nxt_barrier;
-			//if (!disc_barr.get_next_barrier(nxt_barrier))
-			//{
-				//nxt_barrier = 1.0e20;
-			//	std::cout<<"====== The largest barrier has been achieved ======\n";
-			//	break;
-			//}
-			std::cout<<"current = "<<current_barrier<<std::endl;
+			if (!disc_barr.get_next_barrier(nxt_barrier))
+				nxt_barrier = 1.0e20;
 			stay_at_this_barrier = discrete_one_lloyd(enlarge, solutions, local_frames, current_barrier, nxt_barrier);
 			
 			if (!stay_at_this_barrier)  // go to the next barrier
 			{
 				disc_barr.go_to_next_barrier();
-				std::cout<<"go to next barrier"<<std::endl;
+				std::cout<<"go to next barrier\n";
 			}
 
 			// check whether to use approximate voronoi region
@@ -925,28 +860,27 @@ namespace Geex
 			if (post_action != NULL)
 				post_action();
 		}
-		return true;
+		return !stay_at_this_barrier;
 	}
 	
 	void Packer::interface_lloyd(void (*post_action)())
 	{
-		//if (!sync_opt)
-		//	lloyd(post_action, false);
-		//else
+		if (!sync_opt)
+			lloyd(post_action, false);
+		else
 			discrete_lloyd(post_action, false);
 	}
-	bool Packer::pack(void (*post_action)())
+	void Packer::pack(void (*post_action)())
 	{	
-		//if (!sync_opt)
-		//	lloyd(post_action, true);
-		//else
-		//{
-			//if (sync_opt && disc_barr.get_max() != phony_upper_scale)
-			//	disc_barr.append(phony_upper_scale);
-			bool not_finished = discrete_lloyd(post_action, true);
-		//}
+		if (!sync_opt)
+			lloyd(post_action, true);
+		else
+		{
+			if (sync_opt && disc_barr.get_max() != phony_upper_scale)
+				disc_barr.append(phony_upper_scale);
+			discrete_lloyd(post_action, true);
+		}
 		print_area_coverage();	
-		return not_finished;
 	}
 
 	void Packer::constraint_transformation(vector<Parameter>& parameters, vector<Local_frame>& lfs, bool constrain_scale)
@@ -1108,14 +1042,14 @@ namespace Geex
 					Point_3 c = CGAL::ORIGIN + (Vector_3(CGAL::ORIGIN, v0->point())+Vector_3(CGAL::ORIGIN, v1->point())+Vector_3(CGAL::ORIGIN, v2->point()))/3.0;
 					int idx = v0->group_id;
 					Point_2 c_2d = lf[idx].to_uv(c);
-					if (polygon_2d[idx].has_on_unbounded_side(c_2d))
+					if (polygon_2d[idx].has_on_unbounded_side(c_2d)) // only the triangles outside the polygon will be considered as seed faces
 						fit->vacant = true;
 					else
 						fit->vacant = false;
 				}
 			}
 			else
-			{	
+			{	// all the triangles formed between different polygons considered as seeds
 				fit->vacant = true;
 				double	d01 = CGAL::squared_distance(v0->mp, v1->mp),
 						d02 = CGAL::squared_distance(v0->mp, v2->mp),
@@ -1190,118 +1124,88 @@ namespace Geex
 	void Packer::replace()
 	{
 		std::cout<<"Start replacing...\n";
-		std::map< int, Match_info_item<unsigned int> > replace_map;
-		for (size_t i = 0; i < holes.size(); i++)
+		CGAL::Timer replace_timer;
+		replace_timer.start();
+		
+#ifdef _CILK_
+		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
+#else
+		for (unsigned int i = 0; i < pack_objects.size(); i++)
+#endif
 		{
-			// collect the tiles surrounding a hole
-			std::set<int> nghb_tiles;
-			for (size_t j = 0; j < holes[i].size(); j++)
+			const RestrictedPolygonVoronoiDiagram::VertGroup& samp_pnts = rpvd.sample_points_group(i);
+
+			Local_frame lf = pack_objects[i].local_frame();
+
+			std::vector<Segment_2> region2d;
+
+			bool penetration = false;
+			
+			for (unsigned int j = 0; j < samp_pnts.size(); j++)
 			{
-				nghb_tiles.insert(holes[i][j].first->group_id);
-				nghb_tiles.insert(holes[i][j].second->group_id);
-			}
-			std::map<Match_info_item<unsigned int>, int, Match_measure> match_idx;
-			for (std::set<int>::const_iterator it = nghb_tiles.begin(); it != nghb_tiles.end(); ++it)
-			{
-				if (*it < 0)	continue;
-				// extract the surrounding space
-				Hole hl;
-				vacate_one_polygon(*it, hl);
-				std::vector<Segment_2> hole_bd_2d;
-				std::vector<Point_3> hole_verts;
-				hole_verts.reserve(hl.size()*2);
-				for (unsigned int j = 0; j < hl.size(); j++)
+				const std::vector<Point_3>& bisec_pnts = samp_pnts[j]->vd_vertices;
+				if (bisec_pnts.size() >= 2)
 				{
-					hole_verts.push_back(hl[j].first->mp);
-					hole_verts.push_back(hl[j].second->mp);
+					for (unsigned int k = 0; k < bisec_pnts.size()-1; k++)
+					{
+						const Point_3& s = bisec_pnts[k];
+						const Point_3& t = bisec_pnts[k+1];
+						region2d.push_back(Segment_2(lf.to_uv(s), lf.to_uv(t)));
+					}
 				}
-				Point_3 hole_cent = CGAL::centroid(hole_verts.begin(), hole_verts.end(), CGAL::Dimension_tag<0>());
-				vec3 v, prj_cent;
-				int fid;
-				prj_cent = mesh.project_to_mesh(to_geex_pnt(hole_cent), v, fid);
-				Local_frame lf;
-				lf.o = to_cgal_pnt(prj_cent);
-				lf.w = to_cgal_vec(v);
-				cgal_vec_normalize(lf.w);
-				Plane_3 prj_plane(lf.o, lf.w);
-				lf.u = prj_plane.base1();
-				cgal_vec_normalize(lf.u);
-				lf.v = CGAL::cross_product(lf.w, lf.u);
-				for (unsigned int j = 0; j < hl.size(); j++)
-				{
-					Point_2 s = lf.to_uv( prj_plane.projection(hl[j].first->point()) );
-					Point_2 t = lf.to_uv( prj_plane.projection(hl[j].second->point()) );
-					hole_bd_2d.push_back( Segment_2(s, t) );
-				}
-				Polygon_matcher pm(hole_bd_2d, 100);
-				std::priority_queue<Match_info_item<unsigned int>, std::vector< Match_info_item<unsigned int> >, Match_measure> match_res;
-				for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
-					match_res.push(pm.affine_match(pgn_lib[idx], idx));
-				// choose the result with the smallest match error now
-				Match_info_item<unsigned int> matcher = match_res.top();
-				match_idx[matcher] = *it;
+				penetration |= samp_pnts[j]->penetration;
 			}
-			// the best matching one
-			std::map<Match_info_item<unsigned int>, int, Match_measure>::reverse_iterator best_match = match_idx.rbegin();
-			replace_map[best_match->second] = best_match->first;
-		}
-		for (std::map< int, Match_info_item<unsigned int> >::iterator it = replace_map.begin(); it != replace_map.end(); ++it)
-		{
-			Packing_object& filler = pack_objects[it->first];
-			Hole hl;
-			vacate_one_polygon(it->first, hl);
-			std::vector<Point_3> hole_verts;
-			hole_verts.reserve(hl.size()*2);
-			for (unsigned int j = 0; j < hl.size(); j++)
-			{
-				hole_verts.push_back(hl[j].first->mp);
-				hole_verts.push_back(hl[j].second->mp);
-			}
-			Point_3 hole_cent = CGAL::centroid(hole_verts.begin(), hole_verts.end(), CGAL::Dimension_tag<0>());
-			vec3 v, prj_cent;
-			int fid;
-			prj_cent = mesh.project_to_mesh(to_geex_pnt(hole_cent), v, fid);
-			Local_frame lf;
-			lf.o = to_cgal_pnt(prj_cent);
-			lf.w = to_cgal_vec(v);
-			cgal_vec_normalize(lf.w);
-			Plane_3 prj_plane(lf.o, lf.w);
-			lf.u = prj_plane.base1();
-			cgal_vec_normalize(lf.u);
-			lf.v = CGAL::cross_product(lf.w, lf.u);
-			filler.clear();
-			Match_info_item<unsigned int>& matcher = it->second;
+			Polygon_matcher pm(region2d, 200);
+			std::priority_queue<Match_info_item<unsigned int>, std::vector<Match_info_item<unsigned int>>, Match_measure> match_res;
+			for (unsigned int idx = 0; idx < pgn_lib.size(); idx++)
+				match_res.push(pm.affine_match(pgn_lib[idx], idx, match_weight));
+			
+			// choose the result with the smallest match error now
+			Match_info_item<unsigned int> matcher = match_res.top();
+
 			const Ex_polygon_2& match_pgn = pgn_lib[matcher.val];
 			Polygon_2 transformed_pgn2d = CGAL::transform(matcher.t, match_pgn);
+
+			pack_objects[i].clear();
+			
 			for (unsigned int j = 0; j < transformed_pgn2d.size(); j++)
 			{
 				Point_3 p = lf.to_xy(transformed_pgn2d.vertex(j));
-				filler.push_back(p);
+				pack_objects[i].push_back(p);
 			}
-			filler.align(lf.w, lf.o);
-			//std::transform(filler.vertices_begin(), filler.vertices_end(), filler.vertices_begin(), rescalor);
-			filler.factor = 1.0;
-			filler.facet_idx = fid;
-			filler.lib_idx = matcher.val;
-			filler.texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
-			filler.texture_id = match_pgn.texture_id;
+
+			Point_3 c = pack_objects[i].centroid();
+			vec3 v;
+			int fid;
+			vec3 prjp = mesh.project_to_mesh(to_geex_pnt(c), v, fid);
+
+			v = approx_normal(fid);
+			pack_objects[i].align(to_cgal_vec(v), to_cgal_pnt(prjp));
+
+			double shrink_factor;
+			if (penetration)
+				shrink_factor = 0.3;
+			else
+				shrink_factor = 0.6;
+
+			Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, to_cgal_pnt(prjp))) *
+										( Transformation_3(CGAL::SCALING, shrink_factor) *
+										Transformation_3(CGAL::TRANSLATION, Vector_3(to_cgal_pnt(prjp), CGAL::ORIGIN)) );	
+
+			std::transform(pack_objects[i].vertices_begin(), pack_objects[i].vertices_end(), pack_objects[i].vertices_begin(), rescalor);
+			//
+			pack_objects[i].lib_idx = matcher.val;
+			pack_objects[i].factor = matcher.scale*shrink_factor;
+			pack_objects[i].facet_idx = fid;
+			pack_objects[i].texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
+			pack_objects[i].texture_id = match_pgn.texture_id;
 		}
+		replace_timer.stop();
 		// rebuild the restricted delaunay triangulation and voronoi cell
 		generate_RDT();
 		compute_clipped_VD();
 		stop_update_DT = false;
-		use_voronoi_cell_ = false;
-		std::for_each(holes.begin(), holes.end(), std::mem_fun_ref(&Hole::clear));
-		holes.clear();
-		std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
-		if (sync_opt)
-		{
-			double min_size = std::numeric_limits<double>::max();
-			for (unsigned int i = 0; i < pack_objects.size(); i++)
-				min_size = std::min(min_size, pack_objects[i].factor);
-			disc_barr.set_current_barrier(min_size);
-		}
-		//std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
+		std::cout<<"End replacing. Computation time: "<< replace_timer.time()<<" seconds.\n";
 	}
 
 	void Packer::curv_constrained_transform(Parameter& para, int fid, unsigned int pgn_id)
@@ -1344,46 +1248,17 @@ namespace Geex
 		std::cout<<"Start filling holes...\n";
 		for (unsigned int i = 0; i < pack_objects.size(); i++)
 			pack_objects[i].active = false;
-		size_t nb_filled = 0;
 		for (unsigned int i = 0; i < holes.size(); i++)
 		{
 			pack_objects.push_back(Packing_object());
-			std::set<int> hole_neighbors;
-			for (size_t j = 0; j < holes[i].size(); j++)
-			{
-				if (holes[i][j].first->group_id >= 0)
-					rpvd.get_neighbor_indices(holes[i][j].first->group_id, hole_neighbors);
-				if (holes[i][j].second->group_id >= 0)
-					rpvd.get_neighbor_indices(holes[i][j].second->group_id, hole_neighbors);
-			}
-			bool success = fill_one_hole(holes[i], pack_objects.back());
-			if (success)
-			{
-				pack_objects.back().activate();
-				nb_filled++;
-				for (std::set<int>::const_iterator it = hole_neighbors.begin(); it != hole_neighbors.end(); ++it)
-				{
-					//std::cout<<*it<<' ';
-					if (*it >= 0)
-						pack_objects[*it].activate();
-				}
-				//std::cout<<std::endl;
-			}
-			else
-				pack_objects.pop_back();
+			fill_one_hole(holes[i], pack_objects.back());
+			pack_objects.back().activate();
 		}
 		generate_RDT();
 		stop_update_DT = false;
 		use_voronoi_cell_ = false;
 		compute_clipped_VD();
-		for (size_t i = 0; i < pack_objects.size(); i++)
-			if (pack_objects[i].active)
-			{
-				Local_frame lf = pack_objects[i].local_frame();
-				Parameter scale(replace_factor, 0.0, 0.0, 0.0);
-				transform_one_polygon(i, lf, scale);
-			}
-		std::cout<<"End filling holes: "<<nb_filled<<" holes were filled.\n";
+		std::cout<<"End filling holes.\n";
 		std::for_each(holes.begin(), holes.end(), std::mem_fun_ref(&Hole::clear));
 		holes.clear();
 		//std::for_each(pack_objects.begin(), pack_objects.end(), std::mem_fun_ref(&Packing_object::activate));
@@ -1392,15 +1267,13 @@ namespace Geex
 			double min_size = std::numeric_limits<double>::max();
 			for (unsigned int i = 0; i < pack_objects.size(); i++)
 			{				
-				//min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
-				min_size = std::min(min_size, pack_objects[i].factor);
+				min_size = std::min(pack_objects[i].rel_factor(mesh.curvature_at_face(pack_objects[i].facet_idx)), min_size);
 			}
 			disc_barr.set_current_barrier(min_size);
-			//disc_barr.set(0.9, 1.0, 2);
 		}
 	}
 
-	bool Packer::fill_one_hole(Hole& hl, Packing_object& filler)
+	void Packer::fill_one_hole(Hole& hl, Packing_object& filler)
 	{
 		std::vector<Segment_2> hole_bd_2d;
 		std::vector<Point_3> hole_verts;
@@ -1447,14 +1320,8 @@ namespace Geex
 		}
 
 		filler.align(lf.w, lf.o);
-		double shrink_factor = 1.0;
-		// if the tile is near the boundary, contract it more
-		for (size_t j = 0; j < hl.size(); j++)
-			if (hl[j].first->group_id < 0 || hl[j].second->group_id < 0)
-			{
-				shrink_factor = 0.6;
-				break;
-			}
+		double shrink_factor = 0.2;
+
 		Transformation_3 rescalor = Transformation_3(CGAL::TRANSLATION, Vector_3(CGAL::ORIGIN, lf.o)) *
 			( Transformation_3(CGAL::SCALING, shrink_factor) *
 			Transformation_3(CGAL::TRANSLATION, Vector_3(lf.o, CGAL::ORIGIN)) );	
@@ -1465,7 +1332,6 @@ namespace Geex
 		filler.lib_idx = matcher.val;
 		filler.texture_coord.assign(match_pgn.texture_coords.begin(), match_pgn.texture_coords.end());
 		filler.texture_id = match_pgn.texture_id;	
-		return true;
 	}
 
 	void Packer::con_replace()
@@ -1474,16 +1340,7 @@ namespace Geex
 		CGAL::Timer replace_timer;
 		replace_timer.start();
 		
-		/* for rigid size version, curvature sensitive initialization */
-// 		std::vector<double> vtx_cur(mesh.nb_vertices());
-// 		for (size_t i = 0; i < mesh.nb_vertices(); i++)
-// 			vtx_cur[i] = -mesh.curvature_at_vertex(i);
-// 		std::sort(vtx_cur.begin(), vtx_cur.end());
-// 		std::map<double, size_t> area_idx;
-// 		for (size_t i = 0; i < pgn_lib.size(); i++)
-// 			area_idx[std::fabs(pgn_lib[i].area())] = i;
-		/**************************************************************/
-
+		//unsigned int N = pack_objects.size()*match_weight
 #ifdef _CILK_
 		cilk_for (unsigned int i = 0; i < pack_objects.size(); i++)
 #else
@@ -1525,17 +1382,7 @@ namespace Geex
 			}
 
 			// choose the result with the smallest match error now 
-
 			double shrink_factor = replace_factor;
-
-			/* for rigid size version, curvature sensitive initialization */
-// 			double fcur = mesh.curvature_at_face(pack_objects[i].facet_idx);
-// 			std::vector<double>::iterator cur_it = std::lower_bound(vtx_cur.begin(), vtx_cur.end(), -fcur);
-// 			size_t cur_rank = cur_it - vtx_cur.begin();
-// 			std::map<double, size_t>::iterator it = area_idx.begin();
-// 			std::advance(it, float(cur_rank)/vtx_cur.size()*pgn_lib.size());
-			/************************************************************************/
-
 
 			Match_info_item<unsigned int> matcher = match_res.top();
 			// recompute the right transformation
@@ -1863,9 +1710,9 @@ namespace Geex
 	}
 	void Packer::report()
 	{
-		double max_factor = -std::numeric_limits<double>::max();
+		double max_factor = std::numeric_limits<double>::min();
 		double min_factor = std::numeric_limits<double>::max();
-		double cur_max_factor = -std::numeric_limits<double>::max();
+		double cur_max_factor = std::numeric_limits<double>::min();
 		double cur_min_factor = std::numeric_limits<double>::max();
 		double a_min, c_min, a_max, c_max;
 		unsigned int min_idx, max_idx;
@@ -1917,13 +1764,13 @@ namespace Geex
 		std::cout<<"\t-- Maximum factor: "<<max_factor<<std::endl;
 		std::cout<<"\t-- Minimum factor: "<<min_factor<<std::endl;
 		std::cout<<"\t-- Mean factor: "<<mean_factor<<std::endl;
-		//std::cout<<"Curvature relative size: \n";
-		//std::cout<<"\t-- Maximum factor: "<<cur_max_factor<<" : "<<a_max<<", "<<c_max<<", "<<max_idx<<std::endl;
-		//std::cout<<"\t-- Minimum factor: "<<cur_min_factor<<" : "<<a_min<<", "<<c_min<<", "<<min_idx<<std::endl;
-		//std::cout<<"\t-- Mean factor: "<<cur_mean_factor<<std::endl;
-		//std::cout<<"Polygon variety:\n";
-		//std::cout<<"\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
-		//std::cout<<"\t-- Number of polygon types: "<<frequency.size()<<std::endl;
+		std::cout<<"Curvature relative size: \n";
+		std::cout<<"\t-- Maximum factor: "<<cur_max_factor<<" : "<<a_max<<", "<<c_max<<", "<<max_idx<<std::endl;
+		std::cout<<"\t-- Minimum factor: "<<cur_min_factor<<" : "<<a_min<<", "<<c_min<<", "<<min_idx<<std::endl;
+		std::cout<<"\t-- Mean factor: "<<cur_mean_factor<<std::endl;
+		std::cout<<"Polygon variety:\n";
+		std::cout<<"\t-- Number of polygon types from input: "<<pgn_lib.size()<<std::endl;
+		std::cout<<"\t-- Number of polygon types: "<<frequency.size()<<std::endl;
 		//std::ofstream freq_file("usage-frequency.txt");
 		//for (std::map<unsigned int, unsigned int>::const_iterator it = frequency.begin(); it != frequency.end(); ++it)
 		//	freq_file<<it->first<<' '<<it->second<<std::endl;
@@ -1947,12 +1794,24 @@ namespace Geex
 #endif
 	}
 
+	void Packer::save_scale_factors() const
+	{
+		std::ofstream ofs("scale_factors.txt");
+		std::map<size_t, double> libidx_scale;
+		for (size_t i = 0; i < pack_objects.size(); i++)
+		{
+			libidx_scale[pack_objects[i].texture_id] = pack_objects[i].factor;
+		}
+		for (std::map<size_t, double>::const_iterator it = libidx_scale.begin(); it != libidx_scale.end(); ++it)
+			ofs << it->first << ' ' << it->second << endl;
+	}
+
 	void Packer::save_tiles()
 	{
 		std::string obj_fn = pio.attribute_value("OutputDir") + "/tiles.obj";
 		std::ofstream ofile(obj_fn.c_str());
 		unsigned int vtx_idx = 1;
-		std::vector<std::vector<unsigned int>> global_vtx_idx;
+		std::vector< std::vector<unsigned int> > global_vtx_idx;
 		global_vtx_idx.reserve(pack_objects.size());
 		if (!pio.texture_specified())
 		{
@@ -2100,7 +1959,7 @@ namespace Geex
 		int i, j, k; // convenience variables
 
 		/*problem size and mem allocation */
- 		if (vector_field && !align_constraint)
+ 		if (vector_field && !align_constraint || !allow_rotation)
  			n = 3;
  		else
 			n = 4;
@@ -2127,7 +1986,7 @@ namespace Geex
 		objType = KTR_OBJTYPE_LINEAR;
 		objGoal = KTR_OBJGOAL_MAXIMIZE;
 		/* bounds and constraints type */
- 		if (vector_field && !align_constraint)
+ 		if (vector_field && !align_constraint || !allow_rotation)
  		{
  			xLoBnds[0] = 0.0;
  			xUpBnds[0] = KTR_INFBOUND;
@@ -2187,7 +2046,7 @@ namespace Geex
 		if (KTR_set_int_param_by_name(kc, "maxit", 500) != 0)
 			return -1 ;
 		/* register the callback function */
-		if (vector_field)
+		if (vector_field || !allow_rotation)
 		{
 			if (KTR_set_func_callback(kc, vcallback) != 0)
 				return -1 ;
@@ -2221,7 +2080,7 @@ namespace Geex
 		if(nStatus == 0)
 		{	
 			*io_k =  x[0];
-			if (vector_field && !align_constraint)
+			if (vector_field && !align_constraint || !allow_rotation)
 			{
  				*io_theta = 0.0;
  				*io_t1 = x[1];
@@ -2402,5 +2261,126 @@ namespace Geex
 				}
 			}
 		}
+	}
+
+	void Packer::save_CAT()
+	{
+		if (pio.texture_specified())
+		{
+			std::string obj_fn = pio.attribute_value("OutputDir") + "/CAT.obj";
+			std::ofstream ofile(obj_fn.c_str());
+			unsigned int vtx_idx = 1;
+			std::vector<std::string> texture_files;
+			pio.read_texture_files(texture_files);
+			std::vector<std::string> texture_names;
+			for (unsigned int i = 0; i < texture_files.size(); i++)
+			{
+				unsigned int last_slash_pos = texture_files[i].rfind('/');
+				if (last_slash_pos == std::string::npos)
+					last_slash_pos = texture_files[i].rfind('\\');
+				if (last_slash_pos == std::string::npos)
+					last_slash_pos = 0;
+				std::string fn(texture_files[i], last_slash_pos+1);
+				unsigned int dot_pos = fn.find('.');
+				std::string texture_name(fn, 0, dot_pos);
+				texture_names.push_back(texture_name);
+			}
+			ofile << "mtllib "<<"mat.mtl\n";
+			for (size_t i = 0; i < rpvd.number_of_groups(); i++)
+			{
+				unsigned int cent_idx = vtx_idx;
+				vtx_idx++; // for the centroid
+				const RestrictedPolygonVoronoiDiagram::VertGroup& vg = rpvd.sample_points_group(i);
+				std::map< Point_3, size_t > vert_idx;
+				std::map< Point_3, Point_2 > vert_tex;
+				std::list<Point_3> vert_inorder;
+				Point_3 c = pack_objects[i].centroid();
+				Vector_3 n = pack_objects[i].norm();
+				std::list<Point_2> rect_texcoord;
+				for (size_t j = 0; j < pack_objects[i].texture_coord.size(); j++)
+				{
+					const Point_2& tp =  pack_objects[i].texture_coord.at(j);
+					rect_texcoord.push_back(Point_2(tp.x(), 1 - tp.y()));
+				}
+				Point_2 tc = CGAL::centroid(rect_texcoord.begin(), rect_texcoord.end(), CGAL::Dimension_tag<0>());
+				// compute the transformation from vertex coord to texture coord
+				size_t sz  = pack_objects[i].size();
+				double dp = std::sqrt(CGAL::squared_distance(pack_objects[i].vertex(0), pack_objects[i].vertex(sz/2)));
+				std::list<Point_2>::iterator midit = rect_texcoord.begin();
+				std::advance(midit, sz/2);
+				double dt = std::sqrt(CGAL::squared_distance(rect_texcoord.front(), *midit));
+				double sc = (midit->x() - rect_texcoord.front().x())/(pack_objects[i].vertex(sz/2).x() - pack_objects[i].vertex(0).x());
+				sc += (midit->y() - rect_texcoord.front().y())/(pack_objects[i].vertex(sz/2).y() - pack_objects[i].vertex(0).y());
+				sc /= 2;
+				double tx = rect_texcoord.front().x() - pack_objects[i].vertex(0).x()*sc;
+				double ty = rect_texcoord.front().y() - pack_objects[i].vertex(0).y()*sc;
+				for (size_t j = 0; j < vg.size(); j++)
+				{
+					const std::vector<Segment_3>& med_segs = vg[j]->med_segs;
+					for (size_t k = 0; k < med_segs.size(); k++)
+					{
+						const Point_3 src = med_segs[k].source();
+						const Point_3 dst = med_segs[k].target();
+						if (vert_idx.find(src) == vert_idx.end())
+						{
+							vert_idx[src] = vtx_idx++;
+							vert_tex[src] = Point_2(src.x()/c.x()*tc.x(), src.y()/c.y()*tc.y());
+							vert_inorder.push_back(src);
+						}
+						if (vert_idx.find(dst) == vert_idx.end())
+						{
+							vert_idx[dst] = vtx_idx++;
+							vert_tex[dst] = Point_2(dst.x()/c.x()*tc.x(), dst.y()/c.y()*tc.y());
+							vert_inorder.push_back(dst);
+						}
+					}
+				}
+				// output the index
+				ofile << "# tile "<<i+1<<std::endl;
+				ofile <<"vn " << n.x() << ' ' << n.y() <<' ' << n.z() << std::endl;
+				ofile << "v " << c.x() << ' ' << c.y() << ' ' << c.z() << std::endl;
+				ofile << "vt " << tc.x() << ' ' << tc.y() << std::endl;
+				std::set< std::pair<Point_3, Point_3> > s; // record whether an edge has been output
+				for (std::list<Point_3>::const_iterator it = vert_inorder.begin(); it != vert_inorder.end(); ++it)
+				{
+					ofile << "v " << it->x() << ' ' << it->y() << ' ' << it->z() << std::endl;
+					//const Point_2& tp = vert_tex[*it];
+					Point_2 tp(sc*it->x() + tx, sc*it->y() + ty);
+					ofile << "vt " << tp.x() << ' ' << tp.y() << std::endl;
+				}
+				for (size_t j = 0; j < vg.size(); j++)
+				{
+					const std::vector<Segment_3>& med_segs = vg[j]->med_segs;
+					for (size_t k = 0; k < med_segs.size(); k++)
+					{
+						const Point_3 src = med_segs[k].source();
+						const Point_3 dst = med_segs[k].target();
+						if (s.find(std::make_pair(src, dst)) == s.end())
+						{
+							s.insert(std::make_pair(src, dst));
+							s.insert(std::make_pair(dst, src));
+							ofile << "usemtl "<< texture_names[pack_objects[i].texture_id] << std::endl;
+							ofile << "f " << cent_idx << '/' << cent_idx << '/' << i + 1 << ' ';
+							Vector_3 cp = CGAL::cross_product(Vector_3(c, src), Vector_3(c, dst));
+							if (cp * n > 0)
+							{
+								unsigned int idx = vert_idx[src];
+								ofile << idx << '/' << idx << '/' << i + 1 << ' ';
+								idx = vert_idx[dst];
+								ofile << idx << '/' << idx << '/' << i + 1 << std::endl;
+							}	
+							else
+							{
+								unsigned int idx = vert_idx[dst];
+								ofile << idx << '/' << idx << '/' << i + 1 << ' ';
+								idx = vert_idx[src];
+								ofile << idx << '/' << idx << '/' << i + 1 << std::endl;
+							}
+						}
+					}
+				}				
+			}
+		}
+
 	}
 }

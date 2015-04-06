@@ -10,7 +10,7 @@
 
 < TextureImageDir >  ..\..\polygons\paris_norm\  </ TextureImageDir >
 
-< NumberTiles > 20 </ NumberTiles >
+< NumberTiles > 15 </ NumberTiles >
 
 < PhysicalScales > 0.3 1.2 15 </ PhysicalScales >
 

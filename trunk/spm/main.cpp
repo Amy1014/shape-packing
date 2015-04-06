@@ -10,7 +10,6 @@
 #include "spm_cgal.h"
 #include "SPM.h"
 #include "project_io.h"
-#include <glut_viewer/glut_viewer.h>
 
 namespace Geex {
 	void TW_CALL tw_lloyd(void *clientData);
@@ -41,7 +40,8 @@ namespace Geex {
 	void TW_CALL tw_activate(void*);
 	void TW_CALL tw_auto_scale(void*);
 	void TW_CALL tw_print_pdf(void *clientData);
-	void TW_CALL tw_execute_strategy(void *clientData);
+	void TW_CALL tw_save_scale(void*);
+	void TW_CALL tw_save_CAT(void*);
 
     class SPMApp : public GeexApp 
 	{
@@ -53,10 +53,10 @@ namespace Geex {
 				prompt_and_exit("Error: No project configuration file input!");
 			prj_config_file = argv[1];
 
-			enlarge_factor = 0.95;
+			enlarge_factor = 0.98;
 
 			lloyd_iter_times = 5;
-			pack_iter_times = 10;
+			pack_iter_times = 5;
        }
 
         SPM* spm() { return static_cast<SPM*>(scene()) ; }
@@ -73,7 +73,7 @@ namespace Geex {
 			for (int i = 0; i < lloyd_iter_times; i++)
 			{
 				spm()->interface_lloyd(&update);
-				//glut_viewer_redraw();
+				glut_viewer_redraw();
 			}
 
 		}
@@ -180,7 +180,6 @@ namespace Geex {
 		void report()
 		{
 			spm()->report();
-			post_update();
 		}
 
 		void save_tiles()
@@ -188,30 +187,21 @@ namespace Geex {
 			spm()->save_tiles();
 		}
 
+		void save_scale()
+		{
+			spm()->save_scale_factors();
+		}
+
 		void save_mat()
 		{
 			spm()->save_materials();
 		}
-
-		void run_strategy()
+		
+		void save_CAT()
 		{
-			bool not_finished = true;
-			while (not_finished)
-			{
-				for (int i = 0; i < lloyd_iter_times; i++)
-					spm()->interface_lloyd(&update);
-				double pre_cov_rate = 0.0, cur_cov_rate = spm()->get_area_coverage();
-				for (int i = 0; i < pack_iter_times; i++)
-				{
-					not_finished = spm()->pack(&update);
-					if (!not_finished)	break;
-					pre_cov_rate = cur_cov_rate;
-					cur_cov_rate = spm()->get_area_coverage();
-				}
-				if (std::fabs(cur_cov_rate-pre_cov_rate) < 1e-5 && not_finished)
-					adjust();
-			}
+			spm()->save_CAT();
 		}
+
         void init_gui() 
 		{
             GeexApp::init_gui() ;
@@ -222,7 +212,10 @@ namespace Geex {
 			TwAddVarRW(graphics_bar, "Curvature", TW_TYPE_BOOL8, &spm()->show_curvatures(), "group = 'Surface' ");
 			TwAddVarRW(graphics_bar, "Feature", TW_TYPE_BOOL8, &spm()->show_feature_lines(), "group = 'Surface' ");
 			TwAddVarRW(graphics_bar, "Vector Field", TW_TYPE_BOOL8, &spm()->show_vector_field(), "group = 'Surface'");
-
+			//TwAddVarRW(graphics_bar, "Red", TW_TYPE_FLOAT, &spm()->tunable_red, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
+			//TwAddVarRW(graphics_bar, "Green", TW_TYPE_FLOAT, &spm()->tunable_green, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
+			//TwAddVarRW(graphics_bar, "Blue", TW_TYPE_FLOAT, &spm()->tunable_blue, "min = 0.0 max = 1.0 step = 0.01 group = 'Color' ");
+			
 			TwEnumVal draw_polygon_mode[] = {
 				{spm()->OUTLINE_DRAW, "Outline"}, {spm()->FILL_DRAW, "Fill"}, {spm()->TEXTURE_DRAW, "Texture"}, { spm()->DISCRETE_SCALE_DRAWE, "Discrete"}
 			};
@@ -251,16 +244,16 @@ namespace Geex {
 			}
 
 			TwBar* function_bar = TwNewBar("Functions");
-			TwDefine("Functions position='16 320' size='200 500' alpha=200");
+			TwDefine("Functions position='16 320' size='200 600' alpha=200");
 			TwAddVarRW(function_bar, "Lloyd Iter", TW_TYPE_INT32, &lloyd_iter_times, "min=1 group = 'Optimization' ");
 			TwAddButton(function_bar, "Lloyd", tw_lloyd, NULL, "key=l group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Pack Iter", TW_TYPE_INT32, &pack_iter_times, "min=1 group = 'Optimization'");
 			TwAddButton(function_bar, "Pack", tw_pack, NULL, "key=p group = 'Optimization' ");
-			//TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_optimization(), "group = 'Optimization' ");
+			TwAddVarRW(function_bar, "Synchronize", TW_TYPE_BOOL8, &spm()->sync_optimization(), "group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Use Voronoi Cell", TW_TYPE_BOOL8, &spm()->use_voronoi_cell(), "group = 'Optimization' ");
 			TwAddVarRW(function_bar, "Align Constraint", TW_TYPE_BOOL8, &spm()->toggle_align_constraint(), "group = 'Optimization' ");
-			TwAddButton(function_bar, "Strategy", tw_execute_strategy, NULL, "key=s group='Optimization'");
-
+			TwAddVarRW(function_bar, "Allow Rotation", TW_TYPE_BOOL8, &spm()->toggle_allow_rotation(), "group = 'Optimization'");
+			
 			//TwAddButton(function_bar, "vPack", tw_vpack, NULL, "key=v group = 'Optimization'");
 			//TwAddButton(function_bar, "iDT", tw_idt_update, NULL, "key=i group = 'Geometry' ");
 			TwAddButton(function_bar, "Detect Holes", tw_detect_holes, NULL, "key=d group = 'Hole' ");
@@ -274,7 +267,7 @@ namespace Geex {
 			TwAddButton(function_bar, "Auto Scale", tw_auto_scale, NULL, "group = 'Hole'");
 			TwAddVarRW(function_bar, "weight", TW_TYPE_DOUBLE, &spm()->get_match_weight(), "min=0.0 group = 'Replace' ");
 			TwAddVarRW(function_bar, "factor", TW_TYPE_DOUBLE, &spm()->replace_shrink_factor(), "min=0.05 group = 'Replace' ");
-			TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
+			//TwAddButton(function_bar, "replace", tw_replace, NULL, "key=r group = 'Replace' ");
 			TwAddButton(function_bar, "swap", tw_swap, NULL, "key=w group = 'Replace' ");
 			TwAddButton(function_bar, "sel swap", tw_selective_swap, NULL, "group = 'Replace' ");
 			TwAddButton(function_bar, "ext-replace", tw_con_replace, NULL, "key = x group = 'Replace' ");
@@ -290,6 +283,8 @@ namespace Geex {
 			TwAddButton(function_bar, "save tiles", tw_save_tiles, NULL, "key=S group='File'");
 			TwAddButton(function_bar, "save mat", tw_save_mat, NULL, "key=M group='File'");
 			TwAddButton(function_bar, "save eps", tw_print_pdf, NULL, "group='File'");
+			TwAddButton(function_bar, "save scale", tw_save_scale, NULL, "group='File'");
+			TwAddButton(function_bar, "save CAT", tw_save_CAT, NULL, "group='File'");
 			toggle_skybox_CB() ;
             glut_viewer_add_toggle('b', glut_viewer_is_enabled_ptr(GLUT_VIEWER_BACKGROUND), "switch Color/BW") ;
             glut_viewer_add_toggle('T', &viewer_properties_->visible(), "viewer properties") ;
@@ -311,7 +306,6 @@ void TW_CALL tw_auto_scale(void* cd) { spm_app()->auto_adjust(); }
 void TW_CALL tw_lloyd(void *clientData) {spm_app()->lloyd();}
 void update() { spm_app()->post_update(); }
 void TW_CALL tw_pack(void *clientData) { spm_app()->pack(); }
-void TW_CALL tw_execute_strategy(void *clientData) { spm_app()->run_strategy(); }
 
 void TW_CALL tw_idt_update(void *clientData) { spm_app()->idt_update(); }
 void TW_CALL tw_replace(void *clientData) { spm_app()->replace(); }
@@ -350,7 +344,8 @@ void TW_CALL tw_report(void* clientData) { spm_app()->report(); }
 //void TW_CALL tw_discretize_tiles(void *clientData) { spm_app()->discretize_tiles(); }
 void TW_CALL tw_save_tiles(void* clientData) { spm_app()->save_tiles(); }
 void TW_CALL tw_save_mat(void *clientData) { spm_app()->save_mat(); }
-
+void TW_CALL tw_save_scale(void *clientData) { spm_app()->save_scale(); }
+void TW_CALL tw_save_CAT(void* clientData) { spm_app()->save_CAT(); }
 void TW_CALL tw_print_pdf(void *clientData)
 {
 	std::cout << "Print to file MyFile.pdf ...";
@@ -383,7 +378,6 @@ int main(int argc, char** argv)
 {
 	try
 	{
-		glut_viewer_set_screen_size(1000, 1000);
 		Geex::initialize();
 		Geex::SPMApp app(argc, argv) ;
 		app.main_loop() ;
