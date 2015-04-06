@@ -87,6 +87,7 @@ namespace Geex
 		bool& toggle_align_constraint() { return align_constraint; }
 		const std::vector<TriMesh>& get_multigroup_submeshes() const { return mesh_segments; }
 		bool& toggle_only_scale() { return only_allow_scale; }
+		bool& toggle_allow_rotation() { return allow_rotation; }
 
 		static Packer* instance() { return instance_; }
 
@@ -96,9 +97,10 @@ namespace Geex
 		void get_bbox(real& x_min, real& y_min, real& z_min, real& x_max, real& y_max, real& z_max);
 
 		void print_area_coverage();
-		double get_area_coverage() const { return area_coverage; }
+		void save_scale_factors() const;
 
 		void save_tiles();
+		void save_CAT();
 
 		void adjust(double factor);
 		void auto_adjust(); // scale to the smallest one
@@ -117,7 +119,7 @@ namespace Geex
 		void swap();
 		void selective_swap();
 		// driver
-		bool pack(void (*post_action)() = NULL); 
+		void pack(void (*post_action)() = NULL); 
 		
 		// debug
 		void update_iDT() { rpvd.iDT_update(); compute_clipped_VD();}
@@ -181,7 +183,7 @@ namespace Geex
 
 		/** replace and hole filling**/
 		// fill one hole
-		bool fill_one_hole(Hole& hl, Packing_object& filler); 
+		void fill_one_hole(Hole& hl, Packing_object& filler); 
 
 		unsigned int group_swap(const std::vector<unsigned int>& indices); // do the swap among a group
 		void vacate_one_polygon(unsigned int id, Hole& hole);
@@ -233,6 +235,7 @@ namespace Geex
 		double phony_upper_scale;
 		bool vector_field;
 		bool align_constraint;
+		bool allow_rotation;
 
 		double area_coverage;
 
@@ -269,14 +272,6 @@ namespace Geex
 				std::vector<double>::iterator it = std::unique(this->grades.begin(), this->grades.end());
 				this->grades.resize(std::distance(this->grades.begin(), it));
 				current_barrier = this->grades.begin();
-			}
-			void set(double bar_val)
-			{
-				std::vector<double>::iterator it;
-				for (it = grades.begin(); it != grades.end(); ++it)
-					if (*it >= bar_val)	
-						break;
-				current_barrier = it;
 			}
 			bool beyond_range() { return current_barrier == grades.end(); }
 			bool get_current_barrier(double& res)

@@ -164,15 +164,15 @@ namespace Geex
 			vec3 n = m[i].normal();
 			glBegin(GL_TRIANGLES);
 			glNormal(n);
-#ifndef _NDEMO_
+//#ifdef _DEMO_
 			glVertex((m[i].vertex[0]-mc)*(1-3.0e-3) + mc) ;
 			glVertex((m[i].vertex[1]-mc)*(1-3.0e-3) + mc) ;
 			glVertex((m[i].vertex[2]-mc)*(1-3.0e-3) + mc) ;
- #else
- 			glVertex(m[i].vertex[0]) ;
- 			glVertex(m[i].vertex[1]) ;
- 			glVertex(m[i].vertex[2]) ;
- #endif
+// #else
+// 			glVertex(m[i].vertex[0]) ;
+// 			glVertex(m[i].vertex[1]) ;
+// 			glVertex(m[i].vertex[2]) ;
+// #endif
 			glEnd();
 			
 			//glDisable(GL_LIGHTING);
@@ -339,21 +339,22 @@ namespace Geex
 		{
 			Vector_3 n = tiles[i].norm();
 			glNormal3d(n.x(), n.y(), n.z());
-			glBegin(GL_TRIANGLES);
-			Point_3 c = tiles[i].centroid();
-			for (unsigned int j = 0; j < tiles[i].size(); j++)
-			{
-#ifndef _NDEMO_
-				glPoint_3(c + 1.0e-2*n);
-				glPoint_3(tiles[i].vertex(j) + 1.0e-2*n);
- 				glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()) + 1.0e-2*n);
-#else
-				glPoint_3(c);
-				glPoint_3(tiles[i].vertex(j));
-				glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()));
-#endif
-			}
-			glEnd();
+//			glBegin(GL_TRIANGLES);
+//			Point_3 c = tiles[i].centroid();
+//			Vector_3 n = tiles[i].norm();
+//			for (unsigned int j = 0; j < tiles[i].size(); j++)
+//			{
+//#ifdef _DEMO_
+//				glPoint_3(c + 1.0e-2*n);
+//				glPoint_3(tiles[i].vertex(j) + 1.0e-2*n);
+// 				glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()) + 1.0e-2*n);
+//#else
+//				glPoint_3(c);
+//				glPoint_3(tiles[i].vertex(j));
+//				glPoint_3(tiles[i].vertex((j+1)%tiles[i].size()));
+//#endif
+//			}
+//			glEnd();
 			typedef CGAL::Partition_traits_2< CGAL::Exact_predicates_inexact_constructions_kernel >::Polygon_2 Partition_polygon;
 
 			std::list<Partition_polygon> convex_partitions;
@@ -1018,15 +1019,15 @@ namespace Geex
 		const vector<Packing_object>& tiles = packer->get_tiles();
 		glLineWidth(1.5f);
 
-#ifdef _NDEMO_
-		///////////		Line Draw		//////////////////
+//#ifndef _DEMO_
+		/////////////		Line Draw		//////////////////
  		glDisable(GL_LIGHTING);
- 		glColor3f(1.0f, 1.0f, 0.0f);
+ 		glColor3f(0.1f, 0.1f, 0.1f);
  		for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
  		{
  			const RestrictedPolygonVoronoiDiagram::VertGroup& vg = rpvd.sample_points_group(i);
- 			Point_3 c = tiles[i].centroid();
- 			Vector_3 n = tiles[i].norm();
+ 			//Point_3 c = tiles[i].centroid();
+ 			//Vector_3 n = tiles[i].norm();
  		
  			glBegin(GL_LINES);
  			for (unsigned int j = 0; j < vg.size(); j++)
@@ -1043,50 +1044,50 @@ namespace Geex
  			
  		}
  		glEnable(GL_LIGHTING);
-		////////////////////////////////////////////////////
-#else
+		//////////////////////////////////////////////////////
+//#else
 //		/////////////////////////////// For demo /////////////////////////////////////
-		GLfloat mat_diff[] = {tunable_red, tunable_green, tunable_blue, 1.0};
- 		glCullFace(GL_FRONT) ;
- 		glShadeModel(GL_SMOOTH);
- 		glPushMatrix();
- 		//glMaterialfv(GL_FRONT, GL_DIFFUSE, surf_diff);
-		glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diff);
- 		glMaterialfv(GL_FRONT, GL_SPECULAR, surf_spec);
- 		GLfloat shn[] = { 1500.0f };
- 		glMaterialfv(GL_FRONT, GL_SHININESS, shn);
- 		/////////////////////////////////////////////////////////////////////////		
- 		for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
- 		{
- 			const RestrictedPolygonVoronoiDiagram::VertGroup& vg = rpvd.sample_points_group(i);
- 			Point_3 c = tiles[i].centroid();
- 			Vector_3 n = tiles[i].norm();			
- 			for (unsigned int j = 0; j < vg.size(); j++)
- 			{
- 				const std::vector<Segment_3>& med_segs = vg[j]->no_prj_med_segs;
- 				//gl_table_color(i);
- 				glEnable(GL_LIGHTING);
- 				glBegin(GL_TRIANGLES);
- 				for (unsigned int k = 0; k < med_segs.size(); k++)
- 				{
- 					glNormal3d(n.x(),n.y(), n.z());
- 					glPoint_3(c);
- 					glPoint_3(med_segs[k].source());
- 					glPoint_3(med_segs[k].target());
- 				}
- 				glEnd();
- 				glDisable(GL_LIGHTING);
- 				glColor3f(0.0f, 0.0f, 0.0f);
- 				glBegin(GL_LINES);
- 				for (unsigned int k = 0; k < med_segs.size(); k++)
- 				{
- 					glPoint_3(med_segs[k].source());
- 					glPoint_3(med_segs[k].target());
- 				}
- 				glEnd();
- 			}			
- 		}
-#endif
+		//GLfloat mat_diff[] = {tunable_red, tunable_green, tunable_blue, 1.0};
+ 	//	glCullFace(GL_FRONT) ;
+ 	//	glShadeModel(GL_SMOOTH);
+ 	//	glPushMatrix();
+ 	//	//glMaterialfv(GL_FRONT, GL_DIFFUSE, surf_diff);
+		//glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diff);
+ 	//	glMaterialfv(GL_FRONT, GL_SPECULAR, surf_spec);
+ 	//	GLfloat shn[] = { 1500.0f };
+ 	//	glMaterialfv(GL_FRONT, GL_SHININESS, shn);
+ 	//	/////////////////////////////////////////////////////////////////////////		
+ 	//	for (unsigned int i = 0; i < rpvd.number_of_groups(); i++)
+ 	//	{
+ 	//		const RestrictedPolygonVoronoiDiagram::VertGroup& vg = rpvd.sample_points_group(i);
+ 	//		Point_3 c = tiles[i].centroid();
+ 	//		Vector_3 n = tiles[i].norm();			
+ 	//		for (unsigned int j = 0; j < vg.size(); j++)
+ 	//		{
+ 	//			const std::vector<Segment_3>& med_segs = vg[j]->no_prj_med_segs;
+ 	//			//gl_table_color(i);
+ 	//			glEnable(GL_LIGHTING);
+ 	//			glBegin(GL_TRIANGLES);
+ 	//			for (unsigned int k = 0; k < med_segs.size(); k++)
+ 	//			{
+ 	//				glNormal3d(n.x(),n.y(), n.z());
+ 	//				glPoint_3(c);
+ 	//				glPoint_3(med_segs[k].source());
+ 	//				glPoint_3(med_segs[k].target());
+ 	//			}
+ 	//			glEnd();
+ 	//			glDisable(GL_LIGHTING);
+ 	//			glColor3f(0.0f, 0.0f, 0.0f);
+ 	//			glBegin(GL_LINES);
+ 	//			for (unsigned int k = 0; k < med_segs.size(); k++)
+ 	//			{
+ 	//				glPoint_3(med_segs[k].source());
+ 	//				glPoint_3(med_segs[k].target());
+ 	//			}
+ 	//			glEnd();
+ 	//		}			
+ 	//	}
+//#endif
  		glLineWidth(1.0f);
 	}
 
